@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "trackmania-rl"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "trackmania_rl"}]
+
+[tool.poetry.dependencies]
+python = "~3.10"
+torch = "^1.13.1"
+gym = "^0.26.2"
+scipy = "^1.10.0"
+numpy = "^1.24.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
