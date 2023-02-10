@@ -8,15 +8,15 @@ packages = [{include = "trackmania_rl"}]
 
 [tool.poetry.dependencies]
 python = "~3.10"
-torch = "^1.13.1"
-gym = "^0.26.2"
 scipy = "^1.10.0"
 numpy = "^1.24.2"
-
+tminterface = "^1.0.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
 isort = "^5.12.0"
+spyder = "^5.4.2"
+spyder-kernels = "^2.4.2"
 
 [build-system]
 requires = ["poetry-core"]
