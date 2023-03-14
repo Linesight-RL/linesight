@@ -6,6 +6,7 @@ import win32com.client
 from . import misc
 import random
 
+
 class RolloutWorker:
     def __init__(self, running_speed=1, run_steps_per_action=10):
         # Worker configuration
@@ -67,7 +68,8 @@ class RolloutWorker:
         return (left, top, right, bottom)
 
     def play_one_race(self, actor):
-
+        self._compute_action_during_next_downtime = False
+        self._time_sent_speed_zero = time.time()
         self._set_window_position()
         self._set_window_focus()
 
@@ -100,7 +102,6 @@ class RolloutWorker:
         # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
         _time = 0
         while _time < 2000:
-
             if not self.iface._ensure_connected():
                 time.sleep(0)
                 continue
@@ -111,14 +112,26 @@ class RolloutWorker:
                 self.iface._wait_for_server_response()
                 self.iface.registered = True
 
-
             if self.iface.mfile is None:
+                print("None")
                 continue
 
             self.iface.mfile.seek(0)
             msgtype = self.iface._read_int32()
 
             if msgtype & 0xFF00 == 0:
+                # No message received
+
+                if self._compute_action_during_next_downtime and (time.time() - self._time_sent_speed_zero) > 1e-3:
+                    # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
+                    self.screenshots.append(self.camera.grab())
+                    time.sleep(1)
+                    self.iface.set_input_state(
+                        **random.choices(misc.inputs, weights=[10 if i["accelerate"] else 1 for i in misc.inputs])[0]
+                    )
+                    self.iface.set_speed(1)
+                    self._compute_action_during_next_downtime = False
+
                 continue
 
             msgtype &= 0xFF
@@ -171,24 +184,25 @@ class RolloutWorker:
                 self.iface._respond_to_call(msgtype)
             else:
                 print("Unknown msgtype")
+
             time.sleep(0)
 
-    def _on_run_step(self, iface: TMInterface, time: int):
+    def _on_run_step(self, iface: TMInterface, _time: int):
         # time is the race time in milliseconds.
         # It is negative during coutdown at the beginning of a race.
         # It is always guaranteed to be a multiple of 10 as the game engine works in 10ms increments
 
-        if time == -100:
+        if _time == -100:
             self.iface.set_input_state(**(misc.inputs[7]))  # forward
 
-        if time < 0:
+        if _time < 0:
             # Coutdown: do nothing
             return
-        if time % (10 * self.run_steps_per_action) != 0:
+        if _time % (10 * self.run_steps_per_action) != 0:
             # This is not a frame we're interested in, do nothing
             return
-        
-        c = random.choices(misc.inputs, weights=[10 if i["accelerate"] else 1 for i in misc.inputs])[0]
-        iface.set_input_state(**c)
-        self.screenshots.append(self.camera.grab())
-        pass
+
+        self.iface.set_speed(0)
+        self._compute_action_during_next_downtime = True
+        self._time_sent_speed_zero = time.time()
+        return
