@@ -5,25 +5,21 @@ Created on Tue Mar 14 16:13:50 2023
 @author: chopi
 """
 
-from trackmania_rl.rollout import RolloutWorker
+from trackmania_rl.rollout import rollout
 import time
 
-
-rlw = RolloutWorker(running_speed=1)
-print('RLW Created')
-rlw.play_one_race(actor=None)
-# time.sleep(0.01)
-# rlw.play_one_race(actor=None)
-# time.sleep(0.01)
-# rlw.play_one_race(actor=None)
+while True:
+    frames = rollout(running_speed=1,
+                     run_steps_per_action=10,
+                     max_time=20000)
 
 
-# from PIL import Image
-# Image.fromarray(rlw.screenshots[0]).show()
+    from matplotlib import pyplot as plt
+    
+    print(len(frames))
+    
+    for frame in frames:
+        plt.imshow(frame, interpolation="nearest")
+        plt.show()
+        
 
-
-from matplotlib import pyplot as plt
-
-for frame in rlw.screenshots:
-    plt.imshow(frame, interpolation="nearest")
-    plt.show()

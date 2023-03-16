@@ -7,202 +7,190 @@ from . import misc
 import random
 
 
-class RolloutWorker:
-    def __init__(self, running_speed=1, run_steps_per_action=10):
-        # Worker configuration
-        self.running_speed = running_speed
-        self.run_steps_per_action = run_steps_per_action
-        self.trackmania_window = win32gui.FindWindow("TmForever", None)
-        self.camera = None
+def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
+    trackmania_window = win32gui.FindWindow("TmForever", None)
+    camera = None
 
-        self._set_window_position()
+    # Create TMInterface we will be using to interact with the game client
+    iface = TMInterface()
+    iface.registered = False
 
-        # Create TMInterface we will be using to interact with the game client
-        self.iface = TMInterface()
-        self.iface.registered = False
+    # Connect
+    while not iface._ensure_connected():
+        time.sleep(0)
+        continue
 
-        # Connect
-        while not self.iface._ensure_connected():
+    _compute_action_asap = False
+    _pc_sent_speed_zero = time.perf_counter_ns()
+    _set_window_position(trackmania_window)
+    _set_window_focus(trackmania_window)
+
+    camera = dxcam.create(region=_get_window_position(trackmania_window), output_color="BGR")
+
+    frames = []
+    # =====================================
+    # Cleanup
+
+    # Empty all messages received previously
+    # TODO
+
+    restart_asap = True
+
+    print("_interface_loop")
+    # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
+    _time = 0
+    while _time <= max_time:
+        if not iface._ensure_connected():
             time.sleep(0)
             continue
 
-        # # Register
-        # msg = Message(MessageType.C_REGISTER)
-        # self.iface._send_message(msg)
-        # self.iface._wait_for_server_response()
-        # self.iface.registered = True
+        if not iface.registered:
+            msg = Message(MessageType.C_REGISTER)
+            iface._send_message(msg)
+            iface._wait_for_server_response()
+            iface.registered = True
 
-        # # Pause
-        # self.iface.set_speed(0)
+        if iface.mfile is None:
+            print("None")
+            continue
 
-        pass
+        iface.mfile.seek(0)
+        msgtype = iface._read_int32()
 
-    def _restart_race(self):
-        print("_restart_race")
-        self.iface.give_up()
-        self.iface.set_speed(self.running_speed)
-        self.iface.set_input_state(**(misc.inputs[7]))  # forward
+        if msgtype & 0xFF00 == 0:
+            # No message received
+            # Let's see if we want to send one
+            if _compute_action_asap and (time.perf_counter_ns() - _pc_sent_speed_zero) > 1_000_000:
+                # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
+                frame = camera.grab()
+                frames.append(frame if frame is not None else frames[-1])
+                time.sleep(0.01)  # Arbitrary time to calculate a move
+                iface.set_input_state(
+                    **random.choices(misc.inputs, weights=[10 if i["accelerate"] else 1 for i in misc.inputs])[0]
+                )
+                iface.set_speed(running_speed)
+                _compute_action_asap = False
 
-    def _set_window_position(self):
-        win32gui.SetWindowPos(
-            self.trackmania_window,
-            win32con.HWND_TOPMOST,
-            2560 - 654,
-            120,
-            misc.W + misc.margins["left"] + misc.margins["right"],
-            misc.H + misc.margins["top"] + misc.margins["bottom"],
-            0,
-        )
+            elif restart_asap:
+                _restart_race(iface)
+                restart_asap = False
 
-    def _set_window_focus(self):
-        shell = win32com.client.Dispatch("WScript.Shell")
-        shell.SendKeys("%")
-        win32gui.SetForegroundWindow(self.trackmania_window)
+            continue
 
-    def _get_window_position(self):
-        rect = win32gui.GetWindowRect(self.trackmania_window)
-        left = rect[0] + misc.margins["left"]
-        top = rect[1] + misc.margins["top"]
-        right = rect[2] - misc.margins["right"]
-        bottom = rect[3] - misc.margins["bottom"]
-        return (left, top, right, bottom)
+        msgtype &= 0xFF
 
-    def play_one_race(self, actor):
-        self._compute_action_during_next_downtime = False
-        self._time_sent_speed_zero = time.time()
-        self._set_window_position()
-        self._set_window_focus()
+        # error_code = self.__read_int32()
+        iface._skip(4)
 
-        if self.camera is not None:
-            del self.camera
-        self.camera = dxcam.create(region=self._get_window_position(), output_color="BGR")
+        if msgtype == MessageType.S_SHUTDOWN:
+            iface.close()
+        elif msgtype == MessageType.S_ON_RUN_STEP:
+            _time = iface._read_int32()
+            # ============================
+            # BEGIN ON RUN STEP
+            # ============================
+            print("-")
+            if _time == -100:
+                # Press forward 100ms before the race starts
+                iface.set_input_state(**(misc.inputs[7]))  # forward
+            elif _time < 0:
+                # Coutdown: do nothing
+                pass
+            elif _time % (10 * run_steps_per_action) == 0:
+                print(_time)
+                iface.set_speed(0)
+                _compute_action_asap = True
+                _pc_sent_speed_zero = time.perf_counter_ns()
+            # ============================
+            # END ON RUN STEP
+            # ============================
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_SIM_BEGIN:
+            print("msg_on_sim_begin")
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_SIM_STEP:
+            print("msg_on_sim_step")
+            _time = iface._read_int32()
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_SIM_END:
+            print("msg_on_sim_end")
+            result = iface._read_int32()
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_CHECKPOINT_COUNT_CHANGED:
+            print("msg_on_cp_count_changed")
+            current = iface._read_int32()
+            target = iface._read_int32()
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_LAPS_COUNT_CHANGED:
+            print("msg_on_laps_count_changed")
+            current = iface._read_int32()
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_BRUTEFORCE_EVALUATE:
+            print("msg_on_bruteforce_evaluate")
+            iface._on_bruteforce_validate_call(msgtype)
+        elif msgtype == MessageType.S_ON_REGISTERED:
+            print("msg_on_registered")
+            iface.registered = True
+            iface._respond_to_call(msgtype)
+        elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
+            print("msg_on_custom_command")
+            _from = iface._read_int32()
+            to = iface._read_int32()
+            n_args = iface._read_int32()
+            command = iface._read_string()
+            args = []
+            for _ in range(n_args):
+                args.append(iface._read_string())
+            iface._respond_to_call(msgtype)
+        else:
+            print("Unknown msgtype")
 
-        self.screenshots = []
-        # =====================================
-        # Cleanup
+        time.sleep(0)
 
-        # Empty all messages received previously
-        # TODO
+    # ======================================
+    # Pause the game until next time
+    iface.set_speed(0)
+    # Close the interface
+    msg = Message(MessageType.C_DEREGISTER)
+    msg.write_int32(0)
+    iface._send_message(msg)
+    # Relase the DXCam resources
+    camera.release()
+    camera.stop()
+    del camera
 
-        # Restart the race
-        self._restart_race()
+    return frames
 
-        self._interface_loop()
 
-        # ======================================
-        # Pause the game until next time
-        self.iface.set_speed(0)
-        self.camera.release()
-        self.camera.stop()
-        memories = None
-        return memories
+def _restart_race(iface):
+    print("_restart_race")
+    iface.set_speed(1)
+    iface.give_up()
+    iface.set_input_state(**(misc.inputs[7]))  # forward
 
-    def _interface_loop(self):
-        print("_interface_loop")
-        # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
-        _time = 0
-        while _time < 2000:
-            if not self.iface._ensure_connected():
-                time.sleep(0)
-                continue
 
-            if not self.iface.registered:
-                msg = Message(MessageType.C_REGISTER)
-                self.iface._send_message(msg)
-                self.iface._wait_for_server_response()
-                self.iface.registered = True
+def _set_window_position(trackmania_window):
+    win32gui.SetWindowPos(
+        trackmania_window,
+        win32con.HWND_TOPMOST,
+        2560 - 654,
+        120,
+        misc.W + misc.margins["left"] + misc.margins["right"],
+        misc.H + misc.margins["top"] + misc.margins["bottom"],
+        0,
+    )
 
-            if self.iface.mfile is None:
-                print("None")
-                continue
 
-            self.iface.mfile.seek(0)
-            msgtype = self.iface._read_int32()
+def _set_window_focus(trackmania_window):
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shell.SendKeys("%")
+    win32gui.SetForegroundWindow(trackmania_window)
 
-            if msgtype & 0xFF00 == 0:
-                # No message received
 
-                if self._compute_action_during_next_downtime and (time.time() - self._time_sent_speed_zero) > 1e-3:
-                    # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
-                    self.screenshots.append(self.camera.grab())
-                    time.sleep(1)
-                    self.iface.set_input_state(
-                        **random.choices(misc.inputs, weights=[10 if i["accelerate"] else 1 for i in misc.inputs])[0]
-                    )
-                    self.iface.set_speed(1)
-                    self._compute_action_during_next_downtime = False
-
-                continue
-
-            msgtype &= 0xFF
-
-            # error_code = self.__read_int32()
-            self.iface._skip(4)
-
-            if msgtype == MessageType.S_SHUTDOWN:
-                self.iface.close()
-            elif msgtype == MessageType.S_ON_RUN_STEP:
-                _time = self.iface._read_int32()
-                self._on_run_step(self.iface, _time)
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_SIM_BEGIN:
-                print("msg_on_sim_begin")
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_SIM_STEP:
-                print("msg_on_sim_step")
-                _time = self.iface._read_int32()
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_SIM_END:
-                print("msg_on_sim_end")
-                result = self.iface._read_int32()
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_CHECKPOINT_COUNT_CHANGED:
-                print("msg_on_cp_count_changed")
-                current = self.iface._read_int32()
-                target = self.iface._read_int32()
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_LAPS_COUNT_CHANGED:
-                print("msg_on_laps_count_changed")
-                current = self.iface._read_int32()
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_BRUTEFORCE_EVALUATE:
-                print("msg_on_bruteforce_evaluate")
-                self.iface._on_bruteforce_validate_call(msgtype)
-            elif msgtype == MessageType.S_ON_REGISTERED:
-                print("msg_on_registered")
-                self.iface.registered = True
-                self.iface._respond_to_call(msgtype)
-            elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
-                print("msg_on_custom_command")
-                _from = self.iface._read_int32()
-                to = self.iface._read_int32()
-                n_args = self.iface._read_int32()
-                command = self.iface._read_string()
-                args = []
-                for _ in range(n_args):
-                    args.append(self.iface._read_string())
-                self.iface._respond_to_call(msgtype)
-            else:
-                print("Unknown msgtype")
-
-            time.sleep(0)
-
-    def _on_run_step(self, iface: TMInterface, _time: int):
-        # time is the race time in milliseconds.
-        # It is negative during coutdown at the beginning of a race.
-        # It is always guaranteed to be a multiple of 10 as the game engine works in 10ms increments
-
-        if _time == -100:
-            self.iface.set_input_state(**(misc.inputs[7]))  # forward
-
-        if _time < 0:
-            # Coutdown: do nothing
-            return
-        if _time % (10 * self.run_steps_per_action) != 0:
-            # This is not a frame we're interested in, do nothing
-            return
-
-        self.iface.set_speed(0)
-        self._compute_action_during_next_downtime = True
-        self._time_sent_speed_zero = time.time()
-        return
+def _get_window_position(trackmania_window):
+    rect = win32gui.GetWindowRect(trackmania_window)
+    left = rect[0] + misc.margins["left"]
+    top = rect[1] + misc.margins["top"]
+    right = rect[2] - misc.margins["right"]
+    bottom = rect[3] - misc.margins["bottom"]
+    return (left, top, right, bottom)
