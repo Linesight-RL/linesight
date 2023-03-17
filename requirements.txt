@@ -1,0 +1,8 @@
+spyder
+spyder-kernels
+isort
+black
+numpy
+tminterface
+dxcam
+matplotlib

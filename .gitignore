@@ -1,2 +1,3 @@
 /figures
 /.idea
+*__pycache__*

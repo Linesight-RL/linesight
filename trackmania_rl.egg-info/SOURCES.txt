@@ -1,0 +1,6 @@
+README.md
+setup.py
+trackmania_rl.egg-info/PKG-INFO
+trackmania_rl.egg-info/SOURCES.txt
+trackmania_rl.egg-info/dependency_links.txt
+trackmania_rl.egg-info/top_level.txt
