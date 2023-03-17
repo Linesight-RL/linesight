@@ -102,4 +102,4 @@ def learn_on_batch(
     scaler.scale(total_loss).backward()
     scaler.step(optimizer)
     scaler.update()
-    return
+    return total_loss.detach().cpu(), loss.detach().cpu()

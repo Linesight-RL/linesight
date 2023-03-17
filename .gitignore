@@ -1,3 +1,4 @@
 /figures
 /.idea
 *__pycache__*
+*egg-info*
