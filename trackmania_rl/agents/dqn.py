@@ -1,10 +1,12 @@
 import torch
+from . import nn_management, misc
+import numpy as np
 
 
 class Agent(torch.nn.Module):
     def __init__(self, float_inputs_dim, float_hidden_dim):
         super().__init__()
-        linear = torch.nn.Linear
+
         self.img_head = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(16, 16), stride=8),
             torch.nn.LeakyReLU(inplace=True),
@@ -22,90 +24,82 @@ class Agent(torch.nn.Module):
             torch.nn.Linear(float_hidden_dim, float_hidden_dim),
             torch.nn.LeakyReLU(inplace=True),
         )
-        CNN_Out_Dimension = 1152
-        Dense_Input_Dimension = CNN_Out_Dimension + Float_Feature_Extractor_Width
-        self.lrelu = torch.nn.LeakyReLU()
-        if Architecture == "DQN":
-            self.dense_head = torch.nn.Sequential(
-                linear(Dense_Input_Dimension, Linear_Width),
-                torch.nn.LeakyReLU(inplace=True),
-                linear(Linear_Width, len(Actions)),
-            )
-        else:  # Duelnet
-            Linear_Half_Width = Linear_Width // 2
-            self.A_head = torch.nn.Sequential(
-                linear(Dense_Input_Dimension, Linear_Half_Width),
-                torch.nn.LeakyReLU(inplace=True),
-                linear(Linear_Half_Width, len(Actions)),
-            )
-            self.V_head = torch.nn.Sequential(
-                linear(Dense_Input_Dimension, Linear_Half_Width),
-                torch.nn.LeakyReLU(inplace=True),
-                linear(Linear_Half_Width, 1),
-            )
-        if (
-            Learning_Mode == "IQN"
-        ):  # Inspiration from https://github.com/valeoai/rainbow-iqn-apex/blob/master/rainbowiqn/model.py
-            self.iqn_fc = torch.nn.Linear(
-                IQN_Embedding_Dimension, Dense_Input_Dimension
-            )  # There is no word in the paper on how to init this layer?
-        self.Initialise_Weights()
 
-    def Initialise_Weights(self):
+        dense_input_dimension = misc.conv_head_output_dim + float_hidden_dim
+        self.dense_head = torch.nn.Sequential(
+            torch.nn.Linear(dense_input_dimension, misc.dense_hidden_dimension),
+            torch.nn.LeakyReLU(inplace=True),
+            torch.nn.Linear(misc.dense_hidden_dimension, len(misc.inputs)),
+        )
+        self.initialize_weights()
+
+    def initialize_weights(self):
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                Init_Kaiming(m)
+                nn_management.init_kaiming(m)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                Init_Kaiming(m)
-        if Exploration_Mode != "NoisyNet":
-            if Architecture == "DQN":
-                Init_Kaiming(self.dense_head[0])
-                Init_Xavier(self.dense_head[2])
-            else:  # Duelnet
-                Init_Kaiming(self.A_head[0])
-                Init_Kaiming(self.V_head[0])
-                Init_Xavier(self.A_head[2])
-                Init_Xavier(self.V_head[2])
+                nn_management.init_kaiming(m)
+        nn_management.init_kaiming(self.dense_head[0])
+        nn_management.init_xavier(self.dense_head[2])
 
-    def forward(self, img, float_inputs, num_quantiles, return_Q, tau=None):
-        img = (img.float() - 128) / 128
-        img_outputs = self.img_head(img)
+    def forward(self, img_input, float_inputs):
+        img_input = (img_input.float() - 128) / 128
+        img_outputs = self.img_head(img_input)
         float_outputs = self.float_feature_extractor(float_inputs)
         concat = torch.cat((img_outputs, float_outputs), 1)
-        if Learning_Mode == "IQN":
-            if tau is None:
-                tau = torch.cuda.FloatTensor(img.shape[0] * num_quantiles, 1).uniform_(0, 1)
-            quantile_net = tau.expand([-1, IQN_Embedding_Dimension])
-            quantile_net = torch.cos(
-                torch.arange(1, IQN_Embedding_Dimension + 1, 1, device="cuda", dtype=torch.float32)
-                * math.pi
-                * quantile_net
-            )
-            quantile_net = self.iqn_fc(quantile_net)
-            quantile_net = self.lrelu(quantile_net)
-            concat = concat.repeat(num_quantiles, 1)
-            concat = concat * quantile_net
-        if Architecture == "DQN":
-            Q = self.dense_head(concat)
-        else:  # Implementation inspired from https://pytorch.org/rl/_modules/torchrl/modules/models/models.html#DuelingCnnDQNet and https://github.com/ray-project/ray/blob/master/rllib/algorithms/dqn/dqn_torch_model.py
-            A = self.A_head(concat)
-            if return_Q:
-                V = self.V_head(concat)
-                Q = V + A - A.mean(dim=-1, keepdim=True)
-            else:
-                Q = A
-        if Learning_Mode == "DQN":
-            return Q
-        else:  # IQN
-            return Q, tau
+        Q = self.dense_head(concat)
+        return Q
 
-    def reset_noise(self):
-        if Architecture == "DQN":
-            self.dense_head[0].reset_noise()
-            self.dense_head[2].reset_noise()
-        else:
-            self.A_head[0].reset_noise()
-            self.A_head[2].reset_noise()
-            self.V_head[0].reset_noise()
-            self.V_head[2].reset_noise()
+
+def learn_on_batch(
+    model: Agent,
+    model2: Agent,
+    optimizer,
+    scaler: torch.cuda.amp.grad_scaler.GradScaler,
+    batch,
+):
+    with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+        state_img_tensor = torch.tensor((np.array([memory.state_img for memory in batch], dtype=float) - 128) / 128).to(
+            "cuda", memory_format=torch.channels_last, non_blocking=True
+        )
+        state_float_tensor = torch.tensor(np.array([memory.state_float for memory in batch])).to(
+            "cuda", non_blocking=True
+        )
+        actions = state_float_tensor = torch.tensor(np.array([memory.action for memory in batch])).to(
+            "cuda", non_blocking=True
+        )
+        rewards = state_float_tensor = torch.tensor(np.array([memory.reward for memory in batch])).to(
+            "cuda", non_blocking=True
+        )
+        done = state_float_tensor = torch.tensor(np.array([memory.done for memory in batch])).to(
+            "cuda", non_blocking=True
+        )
+        next_state_img_tensor = torch.tensor(
+            (np.array([memory.next_state_img for memory in batch], dtype=float) - 128) / 128
+        ).to("cuda", memory_format=torch.channels_last, non_blocking=True)
+        next_state_float_tensor = torch.tensor(np.array([memory.next_state_float for memory in batch], dtype=float)).to(
+            "cuda", non_blocking=True
+        )
+
+        with torch.no_grad():
+            outputs_next_action = torch.argmax(model(next_state_img_tensor, next_state_float_tensor), dim=1)
+            outputs_target = torch.gather(
+                model2(next_state_img_tensor, next_state_float_tensor),
+                dim=1,
+                index=torch.unsqueeze(outputs_next_action, 1),
+            ).squeeze(dim=1)
+            outputs_target = rewards + pow(misc.gamma, misc.n_steps) * outputs_target
+            outputs_target = torch.where(done, rewards, outputs_target)
+
+        outputs = model(state_img_tensor, state_float_tensor)
+        outputs = torch.gather(outputs, 1, torch.unsqueeze(actions.type(torch.int64), 1)).squeeze(1)
+        TD_Error = outputs_target - outputs
+        loss = torch.square(TD_Error)
+        total_loss = torch.sum(loss)
+
+    optimizer.zero_grad(set_to_none=True)
+    scaler.scale(total_loss).backward()
+    scaler.step(optimizer)
+    scaler.update()
+    return

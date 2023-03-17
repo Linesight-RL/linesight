@@ -76,7 +76,9 @@ n_steps = 3
 memory_size = 20_000
 
 float_input_dim = 14
-# float_hidden_dim =
+float_hidden_dim = 64
+conv_head_output_dim = 1152
+dense_hidden_dimension = 1024
 
 float_inputs_mean = np.array(
     [
@@ -115,3 +117,5 @@ float_inputs_std = np.array(
         1,
     ]
 )
+
+batch_size = 1024
