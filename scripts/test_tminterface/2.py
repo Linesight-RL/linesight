@@ -1,11 +1,12 @@
-from tminterface.interface import TMInterface
-from tminterface.client import Client, run_client
-from tminterface.constants import DEFAULT_SERVER_SIZE
+import random
+import signal
 import sys
 import time
-import signal
-import random
 from threading import Condition
+
+from tminterface.client import Client, run_client
+from tminterface.constants import DEFAULT_SERVER_SIZE
+from tminterface.interface import TMInterface
 
 condition = Condition()
 

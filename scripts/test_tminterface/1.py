@@ -1,66 +1,67 @@
-from tminterface.interface import TMInterface
-from tminterface.client import Client, run_client
-from tminterface.constants import DEFAULT_SERVER_SIZE
+import random
+import signal
 import sys
 import time
-import signal
-import random
+
+from tminterface.client import Client, run_client
+from tminterface.constants import DEFAULT_SERVER_SIZE
+from tminterface.interface import TMInterface
 
 inputs = [
     {
-        'left': True,
-        'right': False,
-        'accelerate': False,
-        'brake': False,
+        "left": True,
+        "right": False,
+        "accelerate": False,
+        "brake": False,
     },
     {
-        'left': True,
-        'right': False,
-        'accelerate': True,
-        'brake': False,
+        "left": True,
+        "right": False,
+        "accelerate": True,
+        "brake": False,
     },
     {
-        'left': True,
-        'right': False,
-        'accelerate': False,
-        'brake': True,
+        "left": True,
+        "right": False,
+        "accelerate": False,
+        "brake": True,
     },
     {
-        'left': False,
-        'right': True,
-        'accelerate': False,
-        'brake': False,
+        "left": False,
+        "right": True,
+        "accelerate": False,
+        "brake": False,
     },
     {
-        'left': False,
-        'right': True,
-        'accelerate': True,
-        'brake': False,
+        "left": False,
+        "right": True,
+        "accelerate": True,
+        "brake": False,
     },
     {
-        'left': False,
-        'right': True,
-        'accelerate': False,
-        'brake': True,
+        "left": False,
+        "right": True,
+        "accelerate": False,
+        "brake": True,
     },
     {
-        'left': False,
-        'right': False,
-        'accelerate': False,
-        'brake': False,
+        "left": False,
+        "right": False,
+        "accelerate": False,
+        "brake": False,
     },
     {
-        'left': False,
-        'right': False,
-        'accelerate': True,
-        'brake': False,
+        "left": False,
+        "right": False,
+        "accelerate": True,
+        "brake": False,
     },
     {
-        'left': False,
-        'right': False,
-        'accelerate': False,
-        'brake': True,
-    }
+        "left": False,
+        "right": False,
+        "accelerate": False,
+        "brake": True,
+    },
 ]
 
 
@@ -70,7 +71,7 @@ class MainClient(Client):
         self.clock = 0
 
     def on_registered(self, iface: TMInterface) -> None:
-        print(f'Registered to {iface.server_name}')
+        print(f"Registered to {iface.server_name}")
 
     def on_run_step(self, iface: TMInterface, _time: int):
         print("on_run_step")
@@ -81,20 +82,20 @@ class MainClient(Client):
 
 
 def main():
-    server_name = f'TMInterface{sys.argv[1]}' if len(sys.argv) > 1 else 'TMInterface0'
-    print(f'Connecting to {server_name}...')
+    server_name = f"TMInterface{sys.argv[1]}" if len(sys.argv) > 1 else "TMInterface0"
+    print(f"Connecting to {server_name}...")
 
     iface = TMInterface(server_name, DEFAULT_SERVER_SIZE)
 
     def handler(signum, frame):
         iface.close()
 
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         signal.signal(signal.SIGBREAK, handler)
     signal.signal(signal.SIGINT, handler)
 
     iface.register(MainClient())
-    
+
     while not iface.registered:
         time.sleep(0)
 
@@ -104,5 +105,6 @@ def main():
         print("Set Speed 1")
         time.sleep(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

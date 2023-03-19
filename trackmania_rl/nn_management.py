@@ -1,12 +1,15 @@
 import torch
 
+
 def init_kaiming(layer):
-	torch.nn.init.kaiming_normal_(layer.weight,mode='fan_in')
-	torch.nn.init.zeros_(layer.bias)
+    torch.nn.init.kaiming_normal_(layer.weight, mode="fan_in")
+    torch.nn.init.zeros_(layer.bias)
+
 
 def init_xavier(layer):
-	torch.nn.init.xavier_normal_(layer.weight)
-	torch.nn.init.zeros_(layer.bias)
+    torch.nn.init.xavier_normal_(layer.weight)
+    torch.nn.init.zeros_(layer.bias)
+
 
 # From https://github.com/pfnet/pfrl/blob/2ad3d51a7a971f3fe7f2711f024be11642990d61/pfrl/utils/copy_param.py#L37
 def soft_copy_param(target_link, source_link, tau):
@@ -20,6 +23,7 @@ def soft_copy_param(target_link, source_link, tau):
             target_value.mul_(1 - tau)
             target_value.add_(tau * source_value)
         else:
+            print("SCALAR SOFT UPDATE SHOULD NOT HAPPEN")
             # Scalar type
             # Some modules such as BN has scalar value `num_batches_tracked`
             target_dict[k] = source_value

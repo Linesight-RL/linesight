@@ -1,52 +1,72 @@
-from tminterface.interface import TMInterface, Message, MessageType
-import time
-import dxcam
-import win32gui, win32con
-import win32com.client
-from . import misc
 import random
+import time
 from collections import defaultdict
+
+import dxcam
 import numpy as np
+import win32com.client
+import win32con
+import win32gui
+from tminterface.interface import Message, MessageType, TMInterface
+
+from . import misc
+import pydirectinput
+
+keypress = lambda x, times: pydirectinput.press(x, presses=times, _pause=False, interval=0.002)
 
 
-def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
+def rgb2gray(rgb):
+    # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
+    return np.dot(rgb, [0.2989, 0.5870, 0.1140]).astype(np.uint8)
+
+
+def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000, exploration_policy):
+    print("Start rollout")
     rv = defaultdict(list)
 
     trackmania_window = win32gui.FindWindow("TmForever", None)
     _set_window_position(trackmania_window)
     _set_window_focus(trackmania_window)
 
+    time.sleep(0.1)
+
     # Create TMInterface we will be using to interact with the game client
     iface = TMInterface()
     iface.registered = False
 
-    # Connect
     while not iface._ensure_connected():
         time.sleep(0)
         continue
 
+    if not iface.registered:
+        msg = Message(MessageType.C_REGISTER)
+        iface._send_message(msg)
+        iface._wait_for_server_response()
+        iface.registered = True
+
+    game_has_properly_restarted = False
     compute_action_asap = False
-    restart_asap = True
+    restart_asap = 5  # Try to restart 5 times before aborting
+    set_speed_asap = True
+    deregister_asap = False
+    deregistered_done = False
+    time_requested_restart = time.perf_counter_ns()
     timestamp_paused_game = 0
 
-    camera = dxcam.create(region=_get_window_position(trackmania_window), output_color="GRAY")
+    camera = dxcam.create(region=_get_window_position(trackmania_window), output_color="RGB")
 
     # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
-    _time = 0
+    _time = -3000
     cpcount = 0
     prev_cpcount = 0
     prev_display_speed = 0
+    prev_input_gas = 0
 
-    while True:
+    print("Start loop")
+    while not deregistered_done:
         if not iface._ensure_connected():
             time.sleep(0)
             continue
-
-        if not iface.registered:
-            msg = Message(MessageType.C_REGISTER)
-            iface._send_message(msg)
-            iface._wait_for_server_response()
-            iface.registered = True
 
         if iface.mfile is None:
             print("None")
@@ -58,11 +78,27 @@ def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
         if msgtype & 0xFF00 == 0:
             # No message received
             # Let's see if we want to send one
-            if compute_action_asap and (time.perf_counter_ns() - timestamp_paused_game) > 1_000_000:
+            if set_speed_asap:
+                print("Initial set speed")
+                iface.set_speed(running_speed)
+                set_speed_asap = False
+            elif compute_action_asap and (time.perf_counter_ns() - timestamp_paused_game) > 1_000_000:
                 # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                 simulation_state = iface.get_simulation_state()
                 frame = camera.grab()
-                rv["frames"].append(frame if frame is not None else rv["frames"][-1])
+                while frame is None:
+                    frame = camera.grab()
+
+                # if frame is not None:
+                frame = np.expand_dims(rgb2gray(frame), axis=0)
+                rv["frames"].append(frame)
+                # else:
+                #     rv["frames"].append(rv["frames"][-1])
+
+                # print("speed    ", simulation_state.display_speed)
+                # print("gear     ", simulation_state.scene_mobil.engine.gear)
+                # print("reargear ", simulation_state.scene_mobil.engine.rear_gear)
+
                 rv["floats"].append(
                     np.array(
                         [
@@ -87,26 +123,55 @@ def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
                     misc.reward_per_tm_engine_step * run_steps_per_action
                     + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
                     + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                    + misc.reward_per_input_gas * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
+                    + misc.bogus_reward_per_speed * simulation_state.display_speed
+                    + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
                 )
                 rv["simstates"].append(simulation_state)
                 rv["done"].append(False)
                 prev_cpcount = cpcount
                 prev_display_speed = simulation_state.display_speed
                 prev_time = _time
+                prev_input_gas = simulation_state.scene_mobil.input_gas
                 time.sleep(0.01)  # Arbitrary time to calculate a move
-                action = random.choices(
-                    misc.inputs,
-                    weights=[10 if i["accelerate"] and not i["left"] and not i["right"] else 1 for i in misc.inputs],
-                )[0]
-                iface.set_input_state(**action)
-                rv["actions"].append(action)
-                rv["action_was_greedy"].append(True)
+                action_idx, action_was_greedy = exploration_policy(rv["frames"][-1], rv["floats"][-1])
+
+                # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
+                # action_was_greedy = True
+
+                iface.set_input_state(**misc.inputs[action_idx])
+                rv["actions"].append(action_idx)
+                rv["action_was_greedy"].append(action_was_greedy)
                 iface.set_speed(running_speed)
                 compute_action_asap = False
 
-            elif restart_asap:
-                _restart_race(iface)
-                restart_asap = False
+            elif deregister_asap:
+                # Close the interface
+                msg = Message(MessageType.C_DEREGISTER)
+                msg.write_int32(0)
+                iface._send_message(msg)
+
+                deregistered_done = True
+
+            elif (
+                restart_asap > 0
+                and (not game_has_properly_restarted)
+                and time.perf_counter_ns() - time_requested_restart > 1_000_000_000
+            ):
+                time_requested_restart = time.perf_counter_ns()
+                print("_restart_race ", restart_asap)
+                _set_window_focus(trackmania_window)
+                keypress("enter", 3)
+                keypress("del", 1)
+                restart_asap -= 1
+
+            elif (
+                restart_asap == 0
+                and (not game_has_properly_restarted)
+                and time.perf_counter_ns() - time_requested_restart > 1_000_000_000
+            ):
+                deregister_asap = True
+                print("LOST CONNECTION LOST CONNECTION LOST CONNECTION LOST CONNECTION LOST CONNECTION LOST CONNECTION")
 
             continue
 
@@ -122,19 +187,22 @@ def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
             # ============================
             # BEGIN ON RUN STEP
             # ============================
-            # print("-")
-            print("---", _time, iface.get_simulation_state().race_time)
-            if _time == -100:
-                # Press forward 100ms before the race starts
-                iface.set_input_state(**(misc.inputs[7]))  # forward
-            elif _time < 0:
-                # Coutdown: do nothing
-                pass
-            elif _time % (10 * run_steps_per_action) == 0:
-                print(_time)
-                iface.set_speed(0)
-                compute_action_asap = True
-                timestamp_paused_game = time.perf_counter_ns()
+
+            game_has_properly_restarted |= _time < 0
+
+            if game_has_properly_restarted:
+                # print("---", _time, iface.get_simulation_state().race_time)
+                if _time == -100:
+                    # Press forward 100ms before the race starts
+                    iface.set_input_state(**(misc.inputs[7]))  # forward
+                elif _time < 0:
+                    # Coutdown: do nothing
+                    pass
+                elif _time % (10 * run_steps_per_action) == 0:
+                    # print(_time)
+                    iface.set_speed(0)
+                    compute_action_asap = True
+                    timestamp_paused_game = time.perf_counter_ns()
             # ============================
             # END ON RUN STEP
             # ============================
@@ -201,32 +269,29 @@ def rollout(*, running_speed=1, run_steps_per_action=10, max_time=2000):
 
         time.sleep(0)
 
-        if _time > max_time:
+        if _time > max_time and game_has_properly_restarted and not deregister_asap:
             # This is taking too long: abort the race and give a large penalty
             rv["rewards"].append(misc.reward_failed_to_finish)
             rv["done"].append(True)
-            break
+            deregister_asap = True
 
     # ======================================
     # Pause the game until next time
-    iface.set_speed(0)
-    # Close the interface
-    msg = Message(MessageType.C_DEREGISTER)
-    msg.write_int32(0)
-    iface._send_message(msg)
+    # iface.set_speed(0)
+
     # Relase the DXCam resources
     camera.release()
     camera.stop()
     del camera
 
+    print("end rollout")
     return rv
 
 
 def _restart_race(iface):
     print("_restart_race")
-    iface.set_speed(1)
+    # iface.set_speed(1)
     iface.give_up()
-    iface.set_input_state(**(misc.inputs[7]))  # forward
 
 
 def _set_window_position(trackmania_window):

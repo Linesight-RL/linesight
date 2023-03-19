@@ -1,6 +1,7 @@
-from tminterface.interface import TMInterface
-from tminterface.client import Client, run_client
 import sys
+
+from tminterface.client import Client, run_client
+from tminterface.interface import TMInterface
 
 
 class MainClient(Client):

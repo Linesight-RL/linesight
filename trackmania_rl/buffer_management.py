@@ -1,13 +1,15 @@
-from collections import deque
-from typing import Tuple
-from . import misc
-import numpy as np
 import collections
 import random
+from collections import deque
+from typing import Tuple
+
+import numpy as np
+
+from . import misc
 
 
 def scale_float_inputs(array):
-    return (array - misc.float_inputs_meanm) / misc.float_inputs_std
+    return (array - misc.float_inputs_mean) / misc.float_inputs_std
 
 
 def get_buffer():
@@ -15,9 +17,26 @@ def get_buffer():
 
 
 class Memory:
-    __slots__ = ("state_img", "state_float", "action", "reward", "done", "next_state_img", "next_state_float")
+    __slots__ = (
+        "state_img",
+        "state_float",
+        "action",
+        "reward",
+        "done",
+        "next_state_img",
+        "next_state_float",
+    )
 
-    def __init__(self, state_img, state_float, action, reward, done, next_state_img, next_state_float):
+    def __init__(
+        self,
+        state_img,
+        state_float,
+        action,
+        reward,
+        done,
+        next_state_img,
+        next_state_float,
+    ):
         self.state_img = state_img
         self.state_float = state_float
         self.action = action
@@ -27,10 +46,12 @@ class Memory:
         self.next_state_float = next_state_float
 
 
-def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_results: dict, n_steps):
+def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_results: dict, n_steps: int):
+    number_memories_added = 0
     for i in range(len(rollout_results["done"]) - n_steps):
-        if not all([rollout_results["action_was_greedy"][i + 1 : i + n_steps]]):
+        if not all(rollout_results["action_was_greedy"][i + 1 : i + n_steps]):
             # There was an exploration action during the n_steps, can't use this to learn
+            print("not all")
             continue
 
         state_img = rollout_results["frames"][i]
@@ -61,7 +82,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_res
             )
         )
 
-    return buffer
+        number_memories_added += 1
+
+    return buffer, number_memories_added
 
 
 def sample(buffer, n):

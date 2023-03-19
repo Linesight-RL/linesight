@@ -1,12 +1,13 @@
-from tminterface.interface import TMInterface, Message, MessageType
-from tminterface.client import Client, run_client
-from tminterface.constants import DEFAULT_SERVER_SIZE
 import mmap
+import random
+import signal
 import sys
 import time
-import signal
-import random
 from threading import Condition
+
+from tminterface.client import Client, run_client
+from tminterface.constants import DEFAULT_SERVER_SIZE
+from tminterface.interface import Message, MessageType, TMInterface
 
 from trackmania_rl.misc import inputs
 

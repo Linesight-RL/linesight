@@ -6,8 +6,8 @@ Created on Fri Mar 10 17:01:35 2023
 """
 
 import dxcam
-import win32gui
 import win32con
+import win32gui
 
 # sct.stop()
 
