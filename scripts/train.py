@@ -4,8 +4,9 @@ import torch
 
 from trackmania_rl import buffer_management, misc, nn_management
 from trackmania_rl.agents import ddqn
-from trackmania_rl.rollout import rollout
+from trackmania_rl import rollout
 from functools import partial
+import datetime
 
 base_dir = Path(__file__).resolve().parents[1]
 save_dir = base_dir / "save"
@@ -45,8 +46,12 @@ number_memories_generated = 0
 number_batches_done = 0
 number_target_network_updates = 0
 
+tmi = rollout.TMInterfaceManager()
+
 while True:
-    rollout_results = rollout(
+    print(datetime.datetime.now())
+
+    rollout_results = tmi.rollout(
         running_speed=misc.running_speed,
         run_steps_per_action=misc.run_steps_per_action,
         max_time=misc.max_rollout_time_ms,
@@ -68,10 +73,10 @@ while True:
         print("------- LEARN ON BATCH")
         learn_on_batch(model, model2, optimizer, scaler, buffer_management.sample(buffer, misc.batch_size))
 
-    while (
-        misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
-        <= number_batches_done * misc.batch_size
-    ):
-        number_target_network_updates += 1
-        print("-------SOFT UPDATE TARGET NETWORK")
-        nn_management.soft_copy_param(model2, model, misc.soft_update_tau)
+        if (
+            misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
+            <= number_batches_done * misc.batch_size
+        ):
+            number_target_network_updates += 1
+            print("------- ------- SOFT UPDATE TARGET NETWORK")
+            nn_management.soft_copy_param(model2, model, misc.soft_update_tau)
