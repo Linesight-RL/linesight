@@ -46,15 +46,14 @@ number_memories_generated = 0
 number_batches_done = 0
 number_target_network_updates = 0
 
-tmi = rollout.TMInterfaceManager()
+tmi = rollout.TMInterfaceManager(
+    running_speed=misc.running_speed, run_steps_per_action=misc.run_steps_per_action, max_time=misc.max_rollout_time_ms
+)
 
 while True:
     print(datetime.datetime.now())
 
     rollout_results = tmi.rollout(
-        running_speed=misc.running_speed,
-        run_steps_per_action=misc.run_steps_per_action,
-        max_time=misc.max_rollout_time_ms,
         exploration_policy=partial(ddqn.get_exploration_action, model, misc.epsilon),
     )
 

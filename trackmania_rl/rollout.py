@@ -21,13 +21,17 @@ def rgb2gray(rgb):
 
 
 class TMInterfaceManager:
-    def __init__(self):
+    def __init__(self, running_speed=1, run_steps_per_action=10, max_time=2000):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
         self.set_timeout_is_done = False
         self.snapshot_before_start_is_made = False
+        self.latest_tm_engine_speed_requested = 1
+        self.running_speed = running_speed
+        self.run_steps_per_action = run_steps_per_action
+        self.max_time = max_time
 
-    def rollout(self, *, running_speed=1, run_steps_per_action=10, max_time=2000, exploration_policy):
+    def rollout(self, exploration_policy):
         print("Start rollout")
         rv = defaultdict(list)
 
@@ -50,24 +54,15 @@ class TMInterfaceManager:
                 self.iface._wait_for_server_response()
                 self.iface.registered = True
 
-        time_to_do_next_thing = time.perf_counter_ns() + 15_000_000
-        time_asked_compute_action_asap = time.perf_counter_ns()
-        time_for_next_rollout_restart = time.perf_counter_ns()
-        pause_end_of_rollout_asap = False
-        time_asked_pause_end_of_rollout_asap = time.perf_counter_ns()
+        assert self.iface._ensure_connected()
 
-        pause_end_of_rollout_sent = False
-        time_pause_end_of_rollout_sent = time.perf_counter_ns()
-
-        try_n_rollout_restarts = 5
-        this_rollout_initial_set_speed_is_done = False
-
-        this_rollout_has_seen_t_negative = False
+        if self.latest_tm_engine_speed_requested == 0:
+            self.iface.set_speed(self.running_speed)
+            self.latest_tm_engine_speed_requested = self.running_speed
 
         compute_action_asap = False
         camera = dxcam.create(region=_get_window_position(trackmania_window), output_color="RGB")
 
-        print("-")
         # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
         _time = -3000
         cpcount = 0
@@ -75,10 +70,12 @@ class TMInterfaceManager:
         prev_display_speed = 0
         prev_input_gas = 0
 
+        give_up_signal_has_been_sent = False
+        this_rollout_has_seen_t_negative = False
+        this_rollout_is_finished = False
+
         print("Start loop")
-        while not (
-            pause_end_of_rollout_sent and (time.perf_counter_ns() - time_pause_end_of_rollout_sent > 200_000_000)
-        ):
+        while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
             if not self.iface._ensure_connected():
                 time.sleep(0)
                 continue
@@ -93,40 +90,23 @@ class TMInterfaceManager:
             if msgtype & 0xFF00 == 0:
                 # No message received
                 # Let's see if we want to send one
-                if not self.set_timeout_is_done and time.perf_counter_ns() > time_to_do_next_thing:
-                    # print("Set timeout : 6 seconds")
-                    self.iface.set_timeout(6_000)
-                    self.set_timeout_is_done = True
-                    time_to_do_next_thing = (
-                        time.perf_counter_ns() + 15_000_000
-                    )  # should be rollout_initial_set_speed_is_done
+                # if not self.set_timeout_is_done and time.perf_counter_ns() > time_to_do_next_thing:
+                #     # print("Set timeout : 6 seconds")
+                #     self.iface.set_timeout(6_000)
+                #     self.set_timeout_is_done = True
+                #     time_to_do_next_thing = (
+                #         time.perf_counter_ns() + 15_000_000
+                #     )  # should be rollout_initial_set_speed_is_done
 
-                elif (not this_rollout_initial_set_speed_is_done) and (time.perf_counter_ns() > time_to_do_next_thing):
-                    print("Wake up TMI with set_speed")
-                    self.iface.set_speed(running_speed)
-                    this_rollout_initial_set_speed_is_done = True
-                    time_for_next_rollout_restart = time.perf_counter_ns() + 15_000_000  # should be try a restart
-
-                elif (
-                    not this_rollout_has_seen_t_negative
-                    and try_n_rollout_restarts > 0
-                    and this_rollout_initial_set_speed_is_done
-                    and (time.perf_counter_ns() > time_for_next_rollout_restart)
-                ):
-                    print("Keypress to restart", try_n_rollout_restarts)
-                    _set_window_position(trackmania_window)
-                    keypress("enter", 3)
-                    keypress("del", 1)
-                    try_n_rollout_restarts -= 1
-                    time_for_next_rollout_restart = time.perf_counter_ns() + 2_000_000_000
-
-                elif (
+                if (
                     compute_action_asap
-                    and not pause_end_of_rollout_asap
-                    and not pause_end_of_rollout_sent
+                    and give_up_signal_has_been_sent
                     and this_rollout_has_seen_t_negative
-                    and (time.perf_counter_ns() - time_asked_compute_action_asap) > 1_000_000
+                    and not this_rollout_is_finished
+                    and time.perf_counter_ns() > do_not_compute_action_before_time
                 ):
+                    assert self.latest_tm_engine_speed_requested == 0
+
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     print("Compute action")
                     simulation_state = self.iface.get_simulation_state()
@@ -159,7 +139,7 @@ class TMInterfaceManager:
                         )
                     )
                     rv["rewards"].append(
-                        misc.reward_per_tm_engine_step * run_steps_per_action
+                        misc.reward_per_tm_engine_step * self.run_steps_per_action
                         + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
                         + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
                         + misc.reward_per_input_gas
@@ -174,23 +154,18 @@ class TMInterfaceManager:
                     prev_time = _time
                     prev_input_gas = simulation_state.scene_mobil.input_gas
                     # time.sleep(0.01)  # Arbitrary time to calculate a move
-                    action_idx, action_was_greedy = exploration_policy(rv["frames"][-1], rv["floats"][-1])
 
-                    # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
-                    # action_was_greedy = True
+                    # action_idx, action_was_greedy = exploration_policy(rv["frames"][-1], rv["floats"][-1])
+
+                    action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
+                    action_was_greedy = True
 
                     self.iface.set_input_state(**misc.inputs[action_idx])
                     rv["actions"].append(action_idx)
                     rv["action_was_greedy"].append(action_was_greedy)
-                    self.iface.set_speed(running_speed)
+                    self.iface.set_speed(self.running_speed)
+                    self.latest_tm_engine_speed_requested = self.running_speed
                     compute_action_asap = False
-
-                elif pause_end_of_rollout_asap and (time.perf_counter_ns() - time_asked_pause_end_of_rollout_asap > 0):
-                    print("Set speed zero because pause_end_of_rollout_asap")
-                    self.iface.set_speed(0)
-                    pause_end_of_rollout_asap = False
-                    pause_end_of_rollout_sent = True
-                    time_pause_end_of_rollout_sent = time.perf_counter_ns()
 
                 continue
 
@@ -207,27 +182,44 @@ class TMInterfaceManager:
                 # ============================
                 # BEGIN ON RUN STEP
                 # ============================
-                this_rollout_has_seen_t_negative |= _time < 0
-                if not pause_end_of_rollout_asap and not pause_end_of_rollout_sent:
+                if not give_up_signal_has_been_sent:
+                    self.iface.give_up()
+                    give_up_signal_has_been_sent = True
+
+                if _time > self.max_time and this_rollout_has_seen_t_negative and not this_rollout_is_finished:
+                    print("Car was not able to finish the race within the allotted time.")
+                    this_rollout_is_finished = True
+                    self.iface.set_speed(0)
+                    self.latest_tm_engine_speed_requested = 0
+                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+
+                if not this_rollout_is_finished:
+                    this_rollout_has_seen_t_negative |= _time < 0
+
                     if _time == -2000:
                         # Press forward 2000ms before the race starts
-                        print("Press forward at beginning of race")
+                        print("Press forward before beginning of race")
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
-                    elif _time == -100 and not self.snapshot_before_start_is_made:
-                        print("Save simulation state")
-                        self.simulation_state_to_rewind_to_for_restart = self.iface.get_simulation_state()
-                        print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas=}")
-                        print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer=}")
-                        print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake=}")
-                        # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas == 1.0 #TODO
-                        # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer == 0.0
-                        # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake == 0.0
-                        self.snapshot_before_start_is_made = True
-                    elif _time >= 0 and _time % (10 * run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
+                    # elif _time == -100 and not self.snapshot_before_start_is_made:
+                    #     print("Save simulation state")
+                    #     self.simulation_state_to_rewind_to_for_restart = self.iface.get_simulation_state()
+                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas=}")
+                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer=}")
+                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake=}")
+                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas == 1.0 #TODO
+                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer == 0.0
+                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake == 0.0
+                    #     self.snapshot_before_start_is_made = True
+                    elif (
+                        _time >= 0
+                        and _time % (10 * self.run_steps_per_action) == 0
+                        and this_rollout_has_seen_t_negative
+                    ):
                         print(f"{_time=}")
                         self.iface.set_speed(0)
+                        self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
-                        time_asked_compute_action_asap = time.perf_counter_ns()
+                        do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
                 # ============================
                 # END ON RUN STEP
                 # ============================
@@ -254,7 +246,7 @@ class TMInterfaceManager:
                 if current == target:  # Finished the race !!
                     self.iface.prevent_simulation_finish()
                     if (
-                        not pause_end_of_rollout_asap
+                        not this_rollout_is_finished
                     ):  # We shouldn't take into account a race finished after we ended the rollout
                         simulation_state = self.iface.get_simulation_state()
 
@@ -265,7 +257,10 @@ class TMInterfaceManager:
                             # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
                         )
                         rv["done"].append(True)
-                        pause_end_of_rollout_asap = True
+                        this_rollout_is_finished = True
+                        self.iface.set_speed(0)
+                        self.latest_tm_engine_speed_requested = 0
+                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
                         print(f"Set pause_end_rollout_asap to True because race finished")
                 # ============================
                 # END ON CP COUNT
@@ -297,22 +292,7 @@ class TMInterfaceManager:
 
             time.sleep(0)
 
-            if (
-                _time > max_time
-                and not pause_end_of_rollout_asap
-                and not pause_end_of_rollout_sent
-                and this_rollout_initial_set_speed_is_done
-                and this_rollout_has_seen_t_negative
-            ):
-                # This is taking too long: abort the race and give a large penalty
-                rv["rewards"].append(misc.reward_failed_to_finish)
-                rv["done"].append(True)
-                pause_end_of_rollout_asap = True
-                print(f"Set pause_end_rollout_asap to True because {_time=}")
-
-        # ======================================
-        # Pause the game until next time
-        # iface.set_speed(0)
+        assert self.latest_tm_engine_speed_requested == 0
 
         # Relase the DXCam resources
         camera.release()
