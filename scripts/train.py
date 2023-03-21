@@ -27,7 +27,7 @@ try:
     model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
 except:
     print("Could not find weights file, left default initialization")
-    model2.load_state_dict(model.state_dict())
+    # model2.load_state_dict(model.state_dict()) Why would we do that ???
 
 
 optimizer = torch.optim.RAdam(model.parameters(), lr=misc.learning_rate)

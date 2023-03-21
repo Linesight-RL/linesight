@@ -30,6 +30,7 @@ class TMInterfaceManager:
         self.running_speed = running_speed
         self.run_steps_per_action = run_steps_per_action
         self.max_time = max_time
+        self.timeout_has_been_set = False
 
     def rollout(self, exploration_policy):
         print("Start rollout")
@@ -182,6 +183,11 @@ class TMInterfaceManager:
                 # ============================
                 # BEGIN ON RUN STEP
                 # ============================
+
+                if not self.timeout_has_been_set:
+                    self.iface.set_timeout(6_000)
+                    self.timeout_has_been_set = True
+
                 if not give_up_signal_has_been_sent:
                     self.iface.give_up()
                     give_up_signal_has_been_sent = True
@@ -260,7 +266,7 @@ class TMInterfaceManager:
                         this_rollout_is_finished = True
                         self.iface.set_speed(0)
                         self.latest_tm_engine_speed_requested = 0
-                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 80_000_000
                         print(f"Set pause_end_rollout_asap to True because race finished")
                 # ============================
                 # END ON CP COUNT

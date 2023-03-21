@@ -65,17 +65,17 @@ H = 480
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
-gamma = 0.99
+gamma = 0.95
 reward_scaling = 0 * 1e-3
 reward_per_tm_engine_step = -0.0001 * reward_scaling
 reward_failed_to_finish = reward_per_tm_engine_step * 100 * 2 * reward_scaling  # As if we finished 2 seconds later
 reward_per_cp_passed = 0.1 * reward_scaling
 reward_per_velocity = 0.1 * reward_scaling
 reward_per_input_gas = 0.2 * reward_scaling
-bogus_reward_per_speed = 1e-3
+bogus_reward_per_speed = 1e-4
 bogus_reward_per_input_gas = 1e-2
 
-running_speed = 1
+running_speed = 2
 run_steps_per_action = 10
 max_rollout_time_ms = 5_000
 n_steps = 1
