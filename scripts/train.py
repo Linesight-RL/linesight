@@ -72,6 +72,9 @@ while True:
         print("------- LEARN ON BATCH")
         learn_on_batch(model, model2, optimizer, scaler, buffer_management.sample(buffer, misc.batch_size))
 
+        print(f"{model.state_dict()['dense_head.2.weight'][0, 0].detach().cpu()=}")
+        print(f"{model2.state_dict()['dense_head.2.weight'][0, 0].detach().cpu()=}")
+
         if (
             misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
             <= number_batches_done * misc.batch_size

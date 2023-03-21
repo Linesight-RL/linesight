@@ -63,6 +63,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_res
         )
         done = rollout_results["done"][i + n_steps]
         if done:
+            continue  # Temporary way to **not** add any final transitions in the memory #TODO #FIXME
             # Should be none, but we need to have a placeholder with correct data type and shape
             next_state_img = state_img
             next_state_float = state_float

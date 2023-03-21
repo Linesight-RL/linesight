@@ -109,7 +109,7 @@ class TMInterfaceManager:
                     assert self.latest_tm_engine_speed_requested == 0
 
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
-                    print("Compute action")
+                    # print("Compute action")
                     simulation_state = self.iface.get_simulation_state()
                     frame = camera.grab()
                     while frame is None:
@@ -178,7 +178,7 @@ class TMInterfaceManager:
                 print("msg_shutdown")
                 self.iface.close()
             elif msgtype == MessageType.S_ON_RUN_STEP:
-                print("msg_on_run_step")
+                # print("msg_on_run_step")
                 _time = self.iface._read_int32()
                 # ============================
                 # BEGIN ON RUN STEP
@@ -221,7 +221,7 @@ class TMInterfaceManager:
                         and _time % (10 * self.run_steps_per_action) == 0
                         and this_rollout_has_seen_t_negative
                     ):
-                        print(f"{_time=}")
+                        # print(f"{_time=}")
                         self.iface.set_speed(0)
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True

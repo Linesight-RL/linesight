@@ -65,7 +65,7 @@ H = 480
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
-gamma = 0.95
+gamma = 0.8
 reward_scaling = 0 * 1e-3
 reward_per_tm_engine_step = -0.0001 * reward_scaling
 reward_failed_to_finish = reward_per_tm_engine_step * 100 * 2 * reward_scaling  # As if we finished 2 seconds later
