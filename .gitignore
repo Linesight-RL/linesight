@@ -1,4 +1,6 @@
 /figures
+/save
 /.idea
 *__pycache__*
 *egg-info*
+*.joblib

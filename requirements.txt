@@ -7,3 +7,4 @@ tminterface
 dxcam
 matplotlib
 pydirectinput
+joblib

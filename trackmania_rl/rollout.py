@@ -21,7 +21,7 @@ def rgb2gray(rgb):
 
 
 class TMInterfaceManager:
-    def __init__(self, running_speed=1, run_steps_per_action=10, max_time=2000):
+    def __init__(self, running_speed=1, run_steps_per_action=10, max_time=2000, interface_name="TMInterface0"):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
         self.set_timeout_is_done = False
@@ -31,8 +31,9 @@ class TMInterfaceManager:
         self.run_steps_per_action = run_steps_per_action
         self.max_time = max_time
         self.timeout_has_been_set = False
+        self.interface_name = interface_name
 
-    def rollout(self, exploration_policy):
+    def rollout(self, exploration_policy, stats_tracker):
         print("Start rollout")
         rv = defaultdict(list)
 
@@ -42,7 +43,7 @@ class TMInterfaceManager:
 
         if self.iface is None:
             print("Initialize connection to TMInterface")
-            self.iface = TMInterface()
+            self.iface = TMInterface(self.interface_name)
             self.iface.registered = False
 
             while not self.iface._ensure_connected():
@@ -74,6 +75,12 @@ class TMInterfaceManager:
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
         this_rollout_is_finished = False
+        n_th_action_we_compute = 0
+
+        n_grab_new_frames_failed = 0
+        n_frames = 0
+        n_ors_light_desynchro = 0
+        n_frames_tmi_protection_triggered = 0
 
         print("Start loop")
         while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
@@ -88,86 +95,104 @@ class TMInterfaceManager:
             self.iface.mfile.seek(0)
             msgtype = self.iface._read_int32()
 
-            if msgtype & 0xFF00 == 0:
-                # No message received
-                # Let's see if we want to send one
-                # if not self.set_timeout_is_done and time.perf_counter_ns() > time_to_do_next_thing:
-                #     # print("Set timeout : 6 seconds")
-                #     self.iface.set_timeout(6_000)
-                #     self.set_timeout_is_done = True
-                #     time_to_do_next_thing = (
-                #         time.perf_counter_ns() + 15_000_000
-                #     )  # should be rollout_initial_set_speed_is_done
+            if (
+                compute_action_asap
+                and give_up_signal_has_been_sent
+                and this_rollout_has_seen_t_negative
+                and not this_rollout_is_finished
+                and (
+                    (msgtype & 0xFF00 == 0 and time.perf_counter_ns() > do_not_compute_action_before_time)
+                    or time.perf_counter_ns() > protection_against_messages_loop_time
+                )
+            ):
+                
+                msgtype & 0xFF00 == 0
 
-                if (
-                    compute_action_asap
-                    and give_up_signal_has_been_sent
-                    and this_rollout_has_seen_t_negative
-                    and not this_rollout_is_finished
-                    and time.perf_counter_ns() > do_not_compute_action_before_time
-                ):
-                    assert self.latest_tm_engine_speed_requested == 0
+                assert self.latest_tm_engine_speed_requested == 0
 
-                    # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
-                    # print("Compute action")
-                    simulation_state = self.iface.get_simulation_state()
+                # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
+                # print("Compute action")
+                simulation_state = self.iface.get_simulation_state()
+                frame = camera.grab()
+                while frame is None:
                     frame = camera.grab()
-                    while frame is None:
-                        frame = camera.grab()
 
-                    # if frame is not None:
-                    frame = np.expand_dims(rgb2gray(frame), axis=0)
-                    rv["frames"].append(frame)
+                # if frame is not None:
+                frame = np.expand_dims(rgb2gray(frame), axis=0)
+                rv["frames"].append(frame)
 
-                    rv["floats"].append(
-                        np.array(
-                            [
-                                simulation_state.display_speed,
-                                simulation_state.race_time,
-                                simulation_state.scene_mobil.engine.gear,
-                                simulation_state.scene_mobil.input_gas,
-                                simulation_state.scene_mobil.input_brake,
-                                simulation_state.scene_mobil.input_steer,
-                                simulation_state.simulation_wheels[0].real_time_state.is_sliding,
-                                simulation_state.simulation_wheels[1].real_time_state.is_sliding,
-                                simulation_state.simulation_wheels[2].real_time_state.is_sliding,
-                                simulation_state.simulation_wheels[3].real_time_state.is_sliding,
-                                simulation_state.simulation_wheels[0].real_time_state.has_ground_contact,
-                                simulation_state.simulation_wheels[1].real_time_state.has_ground_contact,
-                                simulation_state.simulation_wheels[2].real_time_state.has_ground_contact,
-                                simulation_state.simulation_wheels[3].real_time_state.has_ground_contact,
-                            ]
-                        )
+                has_lateral_contact = (
+                    simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                    <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                )
+
+                rv["floats"].append(
+                    np.array(
+                        [
+                            simulation_state.display_speed,
+                            simulation_state.race_time,
+                            simulation_state.scene_mobil.engine.gear,
+                            simulation_state.scene_mobil.input_gas,
+                            simulation_state.scene_mobil.input_brake,
+                            simulation_state.scene_mobil.input_steer,
+                            simulation_state.simulation_wheels[0].real_time_state.is_sliding,
+                            simulation_state.simulation_wheels[1].real_time_state.is_sliding,
+                            simulation_state.simulation_wheels[2].real_time_state.is_sliding,
+                            simulation_state.simulation_wheels[3].real_time_state.is_sliding,
+                            simulation_state.simulation_wheels[0].real_time_state.has_ground_contact,
+                            simulation_state.simulation_wheels[1].real_time_state.has_ground_contact,
+                            simulation_state.simulation_wheels[2].real_time_state.has_ground_contact,
+                            simulation_state.simulation_wheels[3].real_time_state.has_ground_contact,
+                            has_lateral_contact,
+                        ]
                     )
-                    rv["rewards"].append(
-                        misc.reward_per_tm_engine_step * self.run_steps_per_action
-                        + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                        + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                        + misc.reward_per_input_gas
-                        * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
-                        + misc.bogus_reward_per_speed * simulation_state.display_speed
-                        + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
-                    )
-                    rv["simstates"].append(simulation_state)
-                    rv["done"].append(False)
-                    prev_cpcount = cpcount
-                    prev_display_speed = simulation_state.display_speed
-                    prev_time = _time
-                    prev_input_gas = simulation_state.scene_mobil.input_gas
-                    # time.sleep(0.01)  # Arbitrary time to calculate a move
+                )
 
-                    # action_idx, action_was_greedy = exploration_policy(rv["frames"][-1], rv["floats"][-1])
+                agade_reward = (
+                    (misc.agade_speed_reward * simulation_state.display_speed)
+                    + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                    + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                    + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                    + misc.agade_race_finish_reward * 0
+                    + misc.paul_constant_reward
+                )
 
-                    action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
-                    action_was_greedy = True
+                rv["rewards"].append(
+                    agade_reward
+                    + misc.reward_per_input_gas * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
+                    + misc.reward_per_lateral_contact * has_lateral_contact
+                    # misc.reward_per_tm_engine_step * self.run_steps_per_action
+                    # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
+                    # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                    # + misc.bogus_reward_per_speed * simulation_state.display_speed
+                    # + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
+                )
+                rv["simstates"].append(simulation_state)
+                rv["done"].append(False)
 
-                    self.iface.set_input_state(**misc.inputs[action_idx])
-                    rv["actions"].append(action_idx)
-                    rv["action_was_greedy"].append(action_was_greedy)
-                    self.iface.set_speed(self.running_speed)
-                    self.latest_tm_engine_speed_requested = self.running_speed
-                    compute_action_asap = False
+                prev_cpcount = cpcount
+                prev_display_speed = simulation_state.display_speed
+                prev_time = _time
+                prev_input_gas = simulation_state.scene_mobil.input_gas
+                # time.sleep(0.01)  # Arbitrary time to calculate a move
 
+                action_idx, action_was_greedy, q_value = exploration_policy(rv["frames"][-1], rv["floats"][-1])
+
+                if n_th_action_we_compute == 0:
+                    stats_tracker["q_value_starting_frame"].append(q_value)
+
+                # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
+                # action_was_greedy = True
+
+                self.iface.set_input_state(**misc.inputs[action_idx])
+                rv["actions"].append(action_idx)
+                rv["action_was_greedy"].append(action_was_greedy)
+                self.iface.set_speed(self.running_speed)
+                self.latest_tm_engine_speed_requested = self.running_speed
+                compute_action_asap = False
+                n_th_action_we_compute += 1
+
+            if msgtype & 0xFF00 == 0:
                 continue
 
             msgtype &= 0xFF
@@ -185,7 +210,7 @@ class TMInterfaceManager:
                 # ============================
 
                 if not self.timeout_has_been_set:
-                    self.iface.set_timeout(6_000)
+                    self.iface.set_timeout(3_000)
                     self.timeout_has_been_set = True
 
                 if not give_up_signal_has_been_sent:
@@ -193,11 +218,43 @@ class TMInterfaceManager:
                     give_up_signal_has_been_sent = True
 
                 if _time > self.max_time and this_rollout_has_seen_t_negative and not this_rollout_is_finished:
-                    print("Car was not able to finish the race within the allotted time.")
+                    print("Car was not able to finish the race within the allotted time. -----------")
+                    simulation_state = self.iface.get_simulation_state()
+                    has_lateral_contact = (
+                        simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                        <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                    )
+
+                    agade_reward = (
+                        (misc.agade_speed_reward * simulation_state.display_speed)
+                        + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                        + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                        + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                        + misc.agade_race_finish_reward * 0
+                        + misc.paul_constant_reward
+                    )
+                    rv["rewards"].append(  # TODO
+                        agade_reward
+                        + misc.reward_per_input_gas
+                        * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
+                        + misc.reward_per_lateral_contact * has_lateral_contact
+                        # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
+                        # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
+                        # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                    )
+                    rv["done"].append(False)
+                    stats_tracker["race_finished"].append(False)
+                    stats_tracker["race_time"].append(self.max_time)
+                    stats_tracker["rollout_sum_rewards"].append(
+                        np.sum(
+                            np.array(rv["rewards"][1:])
+                            * (misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1))
+                        )
+                    )
                     this_rollout_is_finished = True
                     self.iface.set_speed(0)
                     self.latest_tm_engine_speed_requested = 0
-                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 100_000_000
 
                 if not this_rollout_is_finished:
                     this_rollout_has_seen_t_negative |= _time < 0
@@ -226,6 +283,10 @@ class TMInterfaceManager:
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
                         do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
+                        protection_against_messages_loop_time = time.perf_counter_ns() + 1000_000_000
+
+                    if _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0:
+                        n_ors_light_desynchro += 1
                 # ============================
                 # END ON RUN STEP
                 # ============================
@@ -255,19 +316,45 @@ class TMInterfaceManager:
                         not this_rollout_is_finished
                     ):  # We shouldn't take into account a race finished after we ended the rollout
                         simulation_state = self.iface.get_simulation_state()
+                        has_lateral_contact = (
+                            simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                            <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                        )
 
                         print("END", prev_time, simulation_state.race_time)
+                        agade_reward = (
+                            (misc.agade_speed_reward * simulation_state.display_speed)
+                            + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                            + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                            + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                            + misc.agade_race_finish_reward * 1
+                            + misc.paul_constant_reward
+                        )
                         rv["rewards"].append(  # TODO
-                            misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
-                            + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                            # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                            agade_reward
+                            + misc.reward_per_input_gas
+                            * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
+                            + misc.reward_per_lateral_contact * has_lateral_contact
+                            # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
+                            # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
+                            # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
                         )
                         rv["done"].append(True)
+                        stats_tracker["race_finished"].append(True)
+                        stats_tracker["race_time"].append(simulation_state.race_time)
+                        stats_tracker["rollout_sum_rewards"].append(
+                            np.sum(
+                                np.array(rv["rewards"][1:])
+                                * (misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1))
+                            )
+                        )
                         this_rollout_is_finished = True
                         self.iface.set_speed(0)
                         self.latest_tm_engine_speed_requested = 0
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 80_000_000
-                        print(f"Set pause_end_rollout_asap to True because race finished")
+                        print(
+                            f"Set pause_end_rollout_asap to True because race finished ++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                        )
                 # ============================
                 # END ON CP COUNT
                 # ============================
@@ -294,7 +381,8 @@ class TMInterfaceManager:
                     args.append(self.iface._read_string())
                 self.iface._respond_to_call(msgtype)
             else:
-                print("Unknown msgtype")
+                # print("Unknown msgtype")
+                pass
 
             time.sleep(0)
 
