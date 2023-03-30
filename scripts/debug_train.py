@@ -1,12 +1,11 @@
+import datetime
+from functools import partial
 from pathlib import Path
 
 import torch
 
-from trackmania_rl import buffer_management, misc, nn_management
+from trackmania_rl import buffer_management, misc, nn_management, rollout
 from trackmania_rl.agents import ddqn
-from trackmania_rl import rollout
-from functools import partial
-import datetime
 
 base_dir = Path(__file__).resolve().parents[1]
 save_dir = base_dir / "save"
@@ -47,7 +46,10 @@ number_batches_done = 0
 number_target_network_updates = 0
 
 tmi = rollout.TMInterfaceManager(
-    running_speed=misc.running_speed, run_steps_per_action=misc.run_steps_per_action, max_time=misc.max_rollout_time_ms,interface_name='TMInterface1'
+    running_speed=misc.running_speed,
+    run_steps_per_action=misc.run_steps_per_action,
+    max_time=misc.max_rollout_time_ms,
+    interface_name="TMInterface1",
 )
 
 

@@ -1,12 +1,14 @@
-#Taken from https://pytorch.org/rl/_modules/torchrl/modules/models/exploration.html#NoisyLinear
-#I was not able to install torchrl
-#Looks very similar to 
+# Taken from https://pytorch.org/rl/_modules/torchrl/modules/models/exploration.html#NoisyLinear
+# I was not able to install torchrl
+# Looks very similar to
+import math
+from typing import Optional, Sequence, Union
+
 import torch
 from torch import nn
-from typing import Optional, Sequence, Union
-import math
 
 DEVICE_TYPING = Union[torch.device, str, int]
+
 
 class NoisyLinear(nn.Linear):
     """Noisy Linear Layer.

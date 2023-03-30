@@ -1,4 +1,5 @@
 import random
+
 import numpy as np
 
 # Originally from https://github.com/rlcode/per
@@ -85,23 +86,25 @@ class PrioritizedExperienceReplay:
         self.sample_with_segments = sample_with_segments
         self.prio_alpha = prio_alpha
         self.prio_beta = prio_beta
-        self.prio_espilon = prio_epsilon
+        self.prio_epsilon = prio_epsilon
 
-    def add(self, error, data):
-        prio = self.calculate_priority(error)
-        self.tree.add(prio, data)
+    def add(self, data):
+        default_prio = (
+            self.tree.total() / self.tree.n_entries if self.tree.n_entries != 0 else 1
+        )  # Modified vs Agade's code
+        self.tree.add(default_prio, data)
 
     def calculate_priority(self, error):
-        return (np.absolute(error) + self.prio_espilon) ** self.prio_alpha
+        return (np.absolute(error) + self.prio_epsilon) ** self.prio_alpha
 
     def sample(self, n):
+        initial_total = self.tree.total()
         batch = []
         idxs = []
-        segment = self.tree.total() / n
         priorities = []
-
         for i in range(n):
             if self.sample_with_segments:
+                segment = self.tree.total() / n
                 a = segment * i
                 b = segment * (i + 1)
                 s = random.uniform(a, b)
@@ -111,8 +114,9 @@ class PrioritizedExperienceReplay:
             priorities.append(p)
             batch.append(data)
             idxs.append(idx)
+            self.tree.update(idx, self.calculate_priority(0))  # Modified vs Agade's code
 
-        sampling_probabilities = np.array(priorities) / self.tree.total()
+        sampling_probabilities = np.array(priorities) / initial_total
         is_weight = np.power(self.tree.n_entries * sampling_probabilities, -self.prio_beta)
         return batch, idxs, is_weight.astype(np.float32)
 

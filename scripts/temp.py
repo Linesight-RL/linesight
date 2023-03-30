@@ -6,10 +6,11 @@ Created on Tue Mar 21 16:04:27 2023
 """
 
 
-from trackmania_rl.agents import noisy_iqn
-from trackmania_rl import misc
-import torch
 import numpy as np
+import torch
+
+from trackmania_rl import misc
+from trackmania_rl.agents import noisy_iqn
 
 a = noisy_iqn.Agent(misc.float_input_dim, misc.float_hidden_dim).to("cuda")
 a2 = noisy_iqn.Agent(misc.float_input_dim, misc.float_hidden_dim).to("cuda")
@@ -17,6 +18,7 @@ optimizer = torch.optim.RAdam(a.parameters(), lr=misc.learning_rate)
 scaler = torch.cuda.amp.GradScaler()
 
 import joblib
+
 img = joblib.load("img.joblib")
 floats = joblib.load("float.joblib")
 

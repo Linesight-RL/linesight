@@ -1,7 +1,9 @@
+import random
+
 import numpy as np
 import torch
-import random
-from .. import misc, nn_management, buffer_management
+
+from .. import buffer_management, misc, nn_management
 
 
 class Agent(torch.nn.Module):

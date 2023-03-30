@@ -4,21 +4,25 @@ from collections import defaultdict
 
 import dxcam
 import numpy as np
+import pydirectinput
 import win32com.client
 import win32con
 import win32gui
 from tminterface.interface import Message, MessageType, TMInterface
 
 from . import misc
-import pydirectinput
 
 keypress = lambda x, times: pydirectinput.press(x, presses=times, _pause=False, interval=0.002)
 
 
+# def rgb2gray(rgb):
+#     # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
+#     return np.dot(rgb, [0.2989, 0.5870, 0.1140]).astype(np.uint8)
+
+
 def rgb2gray(rgb):
     # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
-    return np.dot(rgb, [0.2989, 0.5870, 0.1140]).astype(np.uint8)
-
+    return np.dot(rgb, [0.333, 0.333, 0.333]).astype(np.uint8)
 
 class TMInterfaceManager:
     def __init__(self, running_speed=1, run_steps_per_action=10, max_time=2000, interface_name="TMInterface0"):
@@ -77,8 +81,6 @@ class TMInterfaceManager:
         this_rollout_is_finished = False
         n_th_action_we_compute = 0
 
-        n_grab_new_frames_failed = 0
-        n_frames = 0
         n_ors_light_desynchro = 0
         n_frames_tmi_protection_triggered = 0
 
@@ -105,8 +107,10 @@ class TMInterfaceManager:
                     or time.perf_counter_ns() > protection_against_messages_loop_time
                 )
             ):
-                
-                msgtype & 0xFF00 == 0
+                if msgtype & 0xFF00 != 0:
+                    # tmi protection was triggered
+                    print("TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER")
+                    n_frames_tmi_protection_triggered += 1
 
                 assert self.latest_tm_engine_speed_requested == 0
 
@@ -118,7 +122,7 @@ class TMInterfaceManager:
                     frame = camera.grab()
 
                 # if frame is not None:
-                frame = np.expand_dims(rgb2gray(frame), axis=0)
+                frame = np.expand_dims(rgb2gray(frame), axis=0)  # shape = (1, 480, 640)
                 rv["frames"].append(frame)
 
                 has_lateral_contact = (
@@ -131,19 +135,19 @@ class TMInterfaceManager:
                         [
                             simulation_state.display_speed,
                             simulation_state.race_time,
-                            simulation_state.scene_mobil.engine.gear,
-                            simulation_state.scene_mobil.input_gas,
-                            simulation_state.scene_mobil.input_brake,
-                            simulation_state.scene_mobil.input_steer,
-                            simulation_state.simulation_wheels[0].real_time_state.is_sliding,
-                            simulation_state.simulation_wheels[1].real_time_state.is_sliding,
-                            simulation_state.simulation_wheels[2].real_time_state.is_sliding,
-                            simulation_state.simulation_wheels[3].real_time_state.is_sliding,
-                            simulation_state.simulation_wheels[0].real_time_state.has_ground_contact,
-                            simulation_state.simulation_wheels[1].real_time_state.has_ground_contact,
-                            simulation_state.simulation_wheels[2].real_time_state.has_ground_contact,
-                            simulation_state.simulation_wheels[3].real_time_state.has_ground_contact,
-                            has_lateral_contact,
+                            # simulation_state.scene_mobil.engine.gear,
+                            # simulation_state.scene_mobil.input_gas,
+                            # simulation_state.scene_mobil.input_brake,
+                            # simulation_state.scene_mobil.input_steer,
+                            # simulation_state.simulation_wheels[0].real_time_state.is_sliding,
+                            # simulation_state.simulation_wheels[1].real_time_state.is_sliding,
+                            # simulation_state.simulation_wheels[2].real_time_state.is_sliding,
+                            # simulation_state.simulation_wheels[3].real_time_state.is_sliding,
+                            # simulation_state.simulation_wheels[0].real_time_state.has_ground_contact,
+                            # simulation_state.simulation_wheels[1].real_time_state.has_ground_contact,
+                            # simulation_state.simulation_wheels[2].real_time_state.has_ground_contact,
+                            # simulation_state.simulation_wheels[3].real_time_state.has_ground_contact,
+                            # has_lateral_contact,
                         ]
                     )
                 )
@@ -251,10 +255,13 @@ class TMInterfaceManager:
                             * (misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1))
                         )
                     )
+                    stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                    stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
+                    stats_tracker["n_frames"].append(len(rv["frames"]))
                     this_rollout_is_finished = True
                     self.iface.set_speed(0)
                     self.latest_tm_engine_speed_requested = 0
-                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 100_000_000
+                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
 
                 if not this_rollout_is_finished:
                     this_rollout_has_seen_t_negative |= _time < 0
@@ -309,52 +316,58 @@ class TMInterfaceManager:
                 # ============================
                 # BEGIN ON CP COUNT
                 # ============================
-                cpcount += 1
-                if current == target:  # Finished the race !!
-                    self.iface.prevent_simulation_finish()
-                    if (
-                        not this_rollout_is_finished
-                    ):  # We shouldn't take into account a race finished after we ended the rollout
-                        simulation_state = self.iface.get_simulation_state()
-                        has_lateral_contact = (
-                            simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                            <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
-                        )
-
-                        print("END", prev_time, simulation_state.race_time)
-                        agade_reward = (
-                            (misc.agade_speed_reward * simulation_state.display_speed)
-                            + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                            + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                            + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                            + misc.agade_race_finish_reward * 1
-                            + misc.paul_constant_reward
-                        )
-                        rv["rewards"].append(  # TODO
-                            agade_reward
-                            + misc.reward_per_input_gas
-                            * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
-                            + misc.reward_per_lateral_contact * has_lateral_contact
-                            # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
-                            # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                            # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                        )
-                        rv["done"].append(True)
-                        stats_tracker["race_finished"].append(True)
-                        stats_tracker["race_time"].append(simulation_state.race_time)
-                        stats_tracker["rollout_sum_rewards"].append(
-                            np.sum(
-                                np.array(rv["rewards"][1:])
-                                * (misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1))
+                
+                if this_rollout_has_seen_t_negative:
+                    cpcount += 1
+                    if current == target:  # Finished the race !!
+                        self.iface.prevent_simulation_finish()
+                        if (
+                            not this_rollout_is_finished
+                        ):  # We shouldn't take into account a race finished after we ended the rollout
+                            simulation_state = self.iface.get_simulation_state()
+                            has_lateral_contact = (
+                                simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                                <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                             )
-                        )
-                        this_rollout_is_finished = True
-                        self.iface.set_speed(0)
-                        self.latest_tm_engine_speed_requested = 0
-                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 80_000_000
-                        print(
-                            f"Set pause_end_rollout_asap to True because race finished ++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                        )
+    
+                            print("END", prev_time, simulation_state.race_time)
+                            agade_reward = (
+                                (misc.agade_speed_reward * simulation_state.display_speed)
+                                + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                                + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                                + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                                + misc.agade_race_finish_reward * 1
+                                + misc.paul_constant_reward
+                            )
+                            rv["rewards"].append(  # TODO
+                                agade_reward
+                                + misc.reward_per_input_gas
+                                * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
+                                + misc.reward_per_lateral_contact * has_lateral_contact
+                                # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
+                                # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
+                                # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                            )
+                            rv["done"].append(True)
+                            stats_tracker["race_finished"].append(True)
+                            stats_tracker["race_time"].append(simulation_state.race_time)
+                            stats_tracker["rollout_sum_rewards"].append(
+                                np.sum(
+                                    np.array(rv["rewards"][1:])
+                                    * (misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1))
+                                )
+                            )
+                            stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                            stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
+                            stats_tracker["n_frames"].append(len(rv["frames"]))
+    
+                            this_rollout_is_finished = True
+                            self.iface.set_speed(0)
+                            self.latest_tm_engine_speed_requested = 0
+                            do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
+                            print(
+                                f"Set pause_end_rollout_asap to True because race finished ++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                            )
                 # ============================
                 # END ON CP COUNT
                 # ============================

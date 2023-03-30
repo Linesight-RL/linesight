@@ -9,10 +9,7 @@ import time
 
 from matplotlib import pyplot as plt
 
-from trackmania_rl.buffer_management import (
-    fill_buffer_from_rollout_with_n_steps_rule,
-    get_buffer,
-)
+from trackmania_rl.buffer_management import fill_buffer_from_rollout_with_n_steps_rule, get_buffer
 from trackmania_rl.rollout import rollout
 
 rv = rollout(running_speed=1, run_steps_per_action=10, max_time=10000)

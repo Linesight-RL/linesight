@@ -1,8 +1,10 @@
-import numpy as np
-import torch
 import math
 import random
-from .. import misc, nn_management, buffer_management, noisy_linear
+
+import numpy as np
+import torch
+
+from .. import buffer_management, misc, nn_management, noisy_linear
 
 
 class Agent(torch.nn.Module):
@@ -105,8 +107,8 @@ def learn_on_batch(
     scaler: torch.cuda.amp.grad_scaler.GradScaler,
     buffer,
 ):
-    # batch, idxs, is_weights = buffer.sample(misc.batch_size)
-    batch = buffer_management.sample(buffer, misc.batch_size)
+    batch, idxs, is_weights = buffer.sample(misc.batch_size)
+    # batch = buffer_management.sample(buffer, misc.batch_size)
 
     optimizer.zero_grad(set_to_none=True)
     # with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
@@ -129,6 +131,7 @@ def learn_on_batch(
     next_state_float_tensor = torch.tensor(
         np.array([memory.next_state_float for memory in batch]), dtype=torch.float32, requires_grad=True
     ).to("cuda", non_blocking=True)
+    is_weights = torch.as_tensor(is_weights).to("cuda", non_blocking=True)
 
     with torch.no_grad():
         rewards = rewards.reshape(-1, 1).repeat(
@@ -192,6 +195,9 @@ def learn_on_batch(
     total_loss = torch.sum(loss)  # total_loss.shape=torch.Size([])
     total_loss.backward()
     optimizer.step()
+
+    buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
+
     return mean_q_value, total_loss.detach().cpu()
 
 
@@ -209,7 +215,9 @@ def get_exploration_action(model, epsilon, img_inputs, float_inputs):
         ).to("cuda", non_blocking=True)
         q_values = model(state_img_tensor, state_float_tensor, misc.iqn_k, True)[0].cpu().numpy().mean(axis=0)
 
-    if random.random() < epsilon:
+    if False and random.random() < epsilon:
+        return random.choice([1,4,7]), False, np.max(q_values)
+    elif random.random() < epsilon:
         return random.randrange(0, len(misc.inputs)), False, np.max(q_values)
     else:
         return np.argmax(q_values), True, np.max(q_values)

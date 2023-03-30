@@ -72,20 +72,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_res
             next_state_img = rollout_results["frames"][i + n_steps]
             next_state_float = scale_float_inputs(rollout_results["floats"][i + n_steps])
 
-        buffer.append(
-            Memory(
-                state_img,
-                state_float,
-                action,
-                reward,
-                done,
-                next_state_img,
-                next_state_float,
-            )
-        )
-
-        # buffer.add(
-        #     misc.prio_initial_value,
+        # buffer.append(
         #     Memory(
         #         state_img,
         #         state_float,
@@ -94,32 +81,44 @@ def fill_buffer_from_rollout_with_n_steps_rule(buffer: deque[Tuple], rollout_res
         #         done,
         #         next_state_img,
         #         next_state_float,
-        #     ),
+        #     )
         # )
+
+        buffer.add(
+            Memory(
+                state_img,
+                state_float,
+                action,
+                reward,
+                done,
+                next_state_img,
+                next_state_float,
+            ),
+        )
 
         number_memories_added += 1
 
     return buffer, number_memories_added
 
 
-# def get_buffer() -> prioritized_experience_replay.PrioritizedExperienceReplay:
-#     return prioritized_experience_replay.PrioritizedExperienceReplay(
-#         capacity=misc.memory_size,
-#         sample_with_segments=misc.prio_sample_with_segments,
-#         prio_alpha=misc.prio_alpha,
-#         prio_beta=misc.prio_beta,
-#         prio_epsilon=misc.prio_epsilon,
-#     )
+def get_buffer() -> prioritized_experience_replay.PrioritizedExperienceReplay:
+    return prioritized_experience_replay.PrioritizedExperienceReplay(
+        capacity=misc.memory_size,
+        sample_with_segments=misc.prio_sample_with_segments,
+        prio_alpha=misc.prio_alpha,
+        prio_beta=misc.prio_beta,
+        prio_epsilon=misc.prio_epsilon,
+    )
 
 
-# def sample(buffer: prioritized_experience_replay.PrioritizedExperienceReplay, n: int):
-#     return buffer.sample(n)
+def sample(buffer: prioritized_experience_replay.PrioritizedExperienceReplay, n: int):
+    return buffer.sample(n)
 
 
-def get_buffer():
-    return collections.deque(maxlen=misc.memory_size)
+# def get_buffer():
+#     return collections.deque(maxlen=misc.memory_size)
 
 
-def sample(buffer, n):
-    # Simple sample with replacement, this way we don't have to worry about the case where n > len(buffer)
-    return random.choices(population=buffer, k=n)
+# def sample(buffer, n):
+#     # Simple sample with replacement, this way we don't have to worry about the case where n > len(buffer)
+#     return random.choices(population=buffer, k=n)
