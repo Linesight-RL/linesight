@@ -1,5 +1,5 @@
 from .experience_replay_interface import ExperienceReplayInterface, Experience
-from typing import List, Tuple, Any
+from typing import List, Tuple
 import random
 import numpy as np
 
@@ -62,7 +62,7 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
             self.tree.update(idx, prio)
 
     def __len__(self)->int:
-        return self.sum_tree.n_entries
+        return self.tree.n_entries
 
     def max_len(self)->int:
         return self.capacity
@@ -140,4 +140,4 @@ class SumTree:
         idx = self._retrieve(0, s)
         dataIdx = idx - self.capacity + 1
 
-        return (idx, self.tree[idx], self.data[dataIdx])
+        return idx, self.tree[idx], self.data[dataIdx]

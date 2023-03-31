@@ -3,9 +3,9 @@ from collections import defaultdict
 
 import dxcam
 import numpy as np
-import pydirectinput
 import win32com.client
 import win32con
+# noinspection PyPackageRequirements
 import win32gui
 from tminterface.interface import Message, MessageType, TMInterface
 
@@ -64,6 +64,7 @@ class TMInterfaceManager:
         _time = -3000
         cpcount = 0
         prev_cpcount = 0
+        # noinspection PyUnusedLocal
         prev_display_speed = 0
         prev_input_gas = 0
 
@@ -74,6 +75,11 @@ class TMInterfaceManager:
 
         n_ors_light_desynchro = 0
         n_frames_tmi_protection_triggered = 0
+
+        do_not_exit_main_loop_before_time = 0
+        do_not_compute_action_before_time = 0
+        protection_against_messages_loop_time = 0
+        prev_time = -1
 
         print("Start loop")
         while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
@@ -166,6 +172,7 @@ class TMInterfaceManager:
                 rv["done"].append(False)
 
                 prev_cpcount = cpcount
+                # noinspection PyUnusedLocal
                 prev_display_speed = simulation_state.display_speed
                 prev_time = _time
                 prev_input_gas = simulation_state.scene_mobil.input_gas
@@ -298,7 +305,7 @@ class TMInterfaceManager:
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_SIM_END:
                 print("msg_on_sim_end")
-                result = self.iface._read_int32()
+                self.iface._read_int32()
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CHECKPOINT_COUNT_CHANGED:
                 print("msg_on_cp_count_changed")
@@ -365,7 +372,7 @@ class TMInterfaceManager:
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_LAPS_COUNT_CHANGED:
                 print("msg_on_laps_count_changed")
-                current = self.iface._read_int32()
+                self.iface._read_int32()
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_BRUTEFORCE_EVALUATE:
                 print("msg_on_bruteforce_evaluate")
@@ -376,13 +383,10 @@ class TMInterfaceManager:
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
                 print("msg_on_custom_command")
-                _from = self.iface._read_int32()
-                to = self.iface._read_int32()
-                n_args = self.iface._read_int32()
-                command = self.iface._read_string()
-                args = []
-                for _ in range(n_args):
-                    args.append(self.iface._read_string())
+                self.iface._read_int32()
+                self.iface._read_int32()
+                self.iface._read_int32()
+                self.iface._read_string()
                 self.iface._respond_to_call(msgtype)
             else:
                 # print("Unknown msgtype")
@@ -427,4 +431,4 @@ def _get_window_position(trackmania_window):
     top = rect[1] + misc.wind32gui_margins["top"]
     right = rect[2] - misc.wind32gui_margins["right"]
     bottom = rect[3] - misc.wind32gui_margins["bottom"]
-    return (left, top, right, bottom)
+    return left, top, right, bottom

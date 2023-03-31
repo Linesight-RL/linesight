@@ -20,7 +20,7 @@ def soft_copy_param(target_link, source_link, tau):
             target_value.mul_(1 - tau)
             target_value.add_(tau * source_value)
         else:
-            assert False, "Soft scalar update should not happen"
             # Scalar type
             # Some modules such as BN has scalar value `num_batches_tracked`
             target_dict[k] = source_value
+            assert False, "Soft scalar update should not happen"

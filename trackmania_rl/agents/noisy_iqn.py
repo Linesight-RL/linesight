@@ -84,7 +84,8 @@ class Agent(torch.nn.Module):
             torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda", dtype=torch.float32)
             * math.pi
             * quantile_net
-        )  # (batch_size*num_quantiles, iqn_embedding_dimension) (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
+        )  # (batch_size*num_quantiles, iqn_embedding_dimension)
+        # (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
         # (batch_size*num_quantiles, dense_input_dimension)
         quantile_net = self.iqn_fc(quantile_net)
         # (batch_size*num_quantiles, dense_input_dimension)
@@ -135,18 +136,18 @@ class Trainer:
 
     def __init__(
         self,
-        model: Agent,
-        model2: Agent,
-        optimizer: torch.optim.Optimizer,
-        scaler: torch.cuda.amp.grad_scaler.GradScaler,
-        batch_size: int,
-        iqn_k: int,
-        iqn_n: int,
-        iqn_kappa: float,
-        epsilon: float,
-        gamma: float,
-        n_steps: int,
-        AL_alpha: float,
+            model: Agent,
+            model2: Agent,
+            optimizer: torch.optim.Optimizer,
+            scaler: torch.cuda.amp.grad_scaler.GradScaler,
+            batch_size: int,
+            iqn_k: int,
+            iqn_n: int,
+            iqn_kappa: float,
+            epsilon: float,
+            gamma: float,
+            n_steps: int,
+            AL_alpha: float,
     ):
         self.model = model
         self.model2 = model2
@@ -169,31 +170,31 @@ class Trainer:
 
         state_img_tensor = torch.tensor(np.array([memory.state_img for memory in batch]), dtype=torch.float32).to(
             "cuda", memory_format=torch.channels_last, non_blocking=True
-        )  # type: ignore
+        )
         state_float_tensor = torch.tensor(
             np.array([memory.state_float for memory in batch]),
             dtype=torch.float32,
         ).to(
             "cuda", non_blocking=True
-        )  # type: ignore
+        )
         actions = torch.tensor(np.array([memory.action for memory in batch])).to(
             "cuda", non_blocking=True
-        )  # type: ignore
+        )
         rewards = torch.tensor(np.array([memory.reward for memory in batch])).to(
             "cuda", non_blocking=True
-        )  # type: ignore
+        )
         done = torch.tensor(np.array([memory.done for memory in batch])).to("cuda", non_blocking=True)  # type: ignore
         next_state_img_tensor = torch.tensor(
             np.array([memory.next_state_img for memory in batch]), dtype=torch.float32
         ).to(
             "cuda", memory_format=torch.channels_last, non_blocking=True
-        )  # type: ignore
+        )
         next_state_float_tensor = torch.tensor(
             np.array([memory.next_state_float for memory in batch]), dtype=torch.float32
         ).to(
             "cuda", non_blocking=True
-        )  # type: ignore
-        is_weights = torch.as_tensor(is_weights).to("cuda", non_blocking=True)  # type: ignore
+        )
+        is_weights = torch.as_tensor(is_weights).to("cuda", non_blocking=True)
 
         with torch.no_grad():
             rewards = rewards.reshape(-1, 1).repeat(
@@ -249,11 +250,12 @@ class Trainer:
         TD_Error = outputs_target[:, :, None, :] - outputs[:, None, :, :]
 
         # Huber loss
+        # noinspection PyTypeChecker
         loss = torch.where(
             torch.abs(TD_Error) <= self.iqn_kappa,
             0.5 * TD_Error**2,
             self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
-        )  # type: ignore
+        )
 
         # huber_loss_case_one = (torch.abs(TD_Error) <=
         #                        self.iqn_kappa).float() * 0.5 * TD_Error**2
@@ -275,7 +277,7 @@ class Trainer:
         loss = torch.sum(loss, dim=2)  # (batch_size, iqn_n, 1)
         loss = torch.mean(loss, dim=1)  # (batch_size, 1)
         loss = loss[:, 0]  # (batch_size, )
-        total_loss = torch.sum(loss)  # total_loss.shape=torch.Size([])
+        total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
         total_loss.backward()
         self.optimizer.step()
 
@@ -297,9 +299,9 @@ class Trainer:
             ).to("cuda", non_blocking=True)
             q_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, True)[0].cpu().numpy().mean(axis=0)
 
-        if False and random.random() < epsilon:
+        if False and random.random() < self.epsilon:
             return random.choice([1, 4, 7]), False, np.max(q_values)
         elif random.random() < self.epsilon:
-            return random.randrange(0, len(self.inputs)), False, np.max(q_values)
+            return random.randrange(0, self.model.n_actions), False, np.max(q_values)
         else:
             return np.argmax(q_values), True, np.max(q_values)
