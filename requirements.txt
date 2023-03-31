@@ -9,4 +9,4 @@ matplotlib
 pydirectinput
 joblib
 numba
-
+mypy

@@ -13,7 +13,8 @@ import numpy as np
 import torch
 
 import trackmania_rl.agents.noisy_iqn as learning_algorithm
-from trackmania_rl import buffer_management, misc, nn_management, rollout
+from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
+from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 
 base_dir = Path(__file__).resolve().parents[1]
 save_dir = base_dir / "save"
@@ -35,7 +36,13 @@ model = Agent(misc.float_input_dim, misc.float_hidden_dim).to("cuda")
 model2 = Agent(misc.float_input_dim, misc.float_hidden_dim).to("cuda")
 print(model)
 optimizer = torch.optim.RAdam(model.parameters(), lr=misc.learning_rate)
-buffer = buffer_management.get_buffer()
+buffer = PrioritizedExperienceReplay(
+        capacity=misc.memory_size,
+        sample_with_segments=misc.prio_sample_with_segments,
+        prio_alpha=misc.prio_alpha,
+        prio_beta=misc.prio_beta,
+        prio_epsilon=misc.prio_epsilon,
+    )
 scaler = torch.cuda.amp.GradScaler()
 
 # ========================================================
@@ -163,7 +170,7 @@ while True:
             number_target_network_updates += 1
             # print("------- ------- SOFT UPDATE TARGET NETWORK")
             if buffer.tree.n_entries > misc.memory_size // 2:
-                nn_management.soft_copy_param(model2, model, misc.soft_update_tau)
+                nn_utilities.soft_copy_param(model2, model, misc.soft_update_tau)
                 # model2.load_state_dict(model.state_dict())
 
     if time.time() > time_last_save + 60 * 20:  # every 20 minutes

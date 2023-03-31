@@ -1,4 +1,3 @@
-import random
 import time
 from collections import defaultdict
 
@@ -11,14 +10,6 @@ import win32gui
 from tminterface.interface import Message, MessageType, TMInterface
 
 from . import misc
-
-keypress = lambda x, times: pydirectinput.press(x, presses=times, _pause=False, interval=0.002)
-
-
-# def rgb2gray(rgb):
-#     # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
-#     return np.dot(rgb, [0.2989, 0.5870, 0.1140]).astype(np.uint8)
-
 
 def rgb2gray(rgb):
     # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python

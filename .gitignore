@@ -4,3 +4,5 @@
 *__pycache__*
 *egg-info*
 *.joblib
+*mypy_cache*
+/.vscode

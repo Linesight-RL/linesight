@@ -3,11 +3,11 @@ import random
 import numpy as np
 import torch
 
-from .. import buffer_management, misc, nn_management
+from .. import buffer_management, misc, nn_utilities
 
 
 class Agent(torch.nn.Module):
-    def __init__(self, float_inputs_dim, float_hidden_dim):
+    def __init__(self, conv_head_output_dim, dense_hidden_dimension, float_inputs_dim, float_hidden_dim, n_actions):
         super().__init__()
 
         self.img_head = torch.nn.Sequential(
@@ -28,23 +28,23 @@ class Agent(torch.nn.Module):
             torch.nn.LeakyReLU(inplace=True),
         )
 
-        dense_input_dimension = misc.conv_head_output_dim + float_hidden_dim
+        dense_input_dimension = conv_head_output_dim + float_hidden_dim
         self.dense_head = torch.nn.Sequential(
-            torch.nn.Linear(dense_input_dimension, misc.dense_hidden_dimension),
+            torch.nn.Linear(dense_input_dimension, dense_hidden_dimension),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Linear(misc.dense_hidden_dimension, len(misc.inputs)),
+            torch.nn.Linear(dense_hidden_dimension, n_actions),
         )
         self.initialize_weights()
 
     def initialize_weights(self):
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_management.init_kaiming(m)
+                nn_utilities.init_kaiming(m)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_management.init_kaiming(m)
-        nn_management.init_kaiming(self.dense_head[0])
-        nn_management.init_xavier(self.dense_head[2])
+                nn_utilities.init_kaiming(m)
+        nn_utilities.init_kaiming(self.dense_head[0])
+        nn_utilities.init_xavier(self.dense_head[2])
 
     def forward(self, img_input, float_inputs):
         img_outputs = self.img_head((img_input - 128) / 128)
@@ -54,20 +54,20 @@ class Agent(torch.nn.Module):
         return Q
 
 
-class DummyAgent(torch.nn.Module):
-    def __init__(self, float_inputs_dim, float_hidden_dim):
-        super().__init__()
-        self.thingy = torch.nn.Sequential(
-            torch.nn.Linear(1, len(misc.inputs)),
-        )
-        self.initialize_weights()
+# class DummyAgent(torch.nn.Module):
+#     def __init__(self, float_inputs_dim, float_hidden_dim):
+#         super().__init__()
+#         self.thingy = torch.nn.Sequential(
+#             torch.nn.Linear(1, len(misc.inputs)),
+#         )
+#         self.initialize_weights()
 
-    def initialize_weights(self):
-        nn_management.init_xavier(self.thingy[0])
+#     def initialize_weights(self):
+#         nn_utilities.init_xavier(self.thingy[0])
 
-    def forward(self, img_input, float_inputs):
-        Q = self.thingy(torch.zeros((img_input.shape[0], 1)).to("cuda"))
-        return Q
+#     def forward(self, img_input, float_inputs):
+#         Q = self.thingy(torch.zeros((img_input.shape[0], 1)).to("cuda"))
+#         return Q
 
 
 def learn_on_batch(
