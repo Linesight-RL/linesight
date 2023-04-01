@@ -1,8 +1,9 @@
-from .experience_replay_interface import ExperienceReplayInterface, Experience
-from typing import List, Tuple
 import random
+from typing import List, Tuple
+
 import numpy as np
 
+from .experience_replay_interface import Experience, ExperienceReplayInterface
 
 """
 Prioritized Experience Replay behavior:
@@ -18,6 +19,7 @@ Prioritized Experience Replay behavior:
 - alpha = 0.2, beta = 1 recommended in IQN paper
 """
 
+
 class PrioritizedExperienceReplay(ExperienceReplayInterface):
     def __init__(self, capacity, sample_with_segments: bool, prio_alpha: float, prio_beta: float, prio_epsilon: float):
         self.tree = SumTree(capacity)
@@ -27,13 +29,13 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
         self.prio_beta = prio_beta
         self.prio_epsilon = prio_epsilon
 
-    def add(self, experience:Experience)->None: 
+    def add(self, experience: Experience) -> None:
         default_prio = (
             self.tree.total() / self.tree.n_entries if self.tree.n_entries != 0 else 1
         )  # Modified vs Agade's code
         self.tree.add(default_prio, experience)
 
-    def sample(self, n:int)->Tuple[List[Experience], List[int], np.array]: 
+    def sample(self, n: int) -> Tuple[List[Experience], List[int], np.array]:
         initial_total = self.tree.total()
         batch = []
         idxs = []
@@ -56,20 +58,19 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
         is_weight = np.power(self.tree.n_entries * sampling_probabilities, -self.prio_beta)
         return batch, idxs, is_weight.astype(np.float32)
 
-    def update(self, idxs:List[int], errors)->None:
+    def update(self, idxs: List[int], errors) -> None:
         prios = self._calculate_priority(errors)
         for idx, prio in zip(idxs, prios):
             self.tree.update(idx, prio)
 
-    def __len__(self)->int:
+    def __len__(self) -> int:
         return self.tree.n_entries
 
-    def max_len(self)->int:
+    def max_len(self) -> int:
         return self.capacity
 
     def _calculate_priority(self, error):
         return (np.absolute(error) + self.prio_epsilon) ** self.prio_alpha
-
 
 
 # Originally from https://github.com/rlcode/per, somewhat modified since then

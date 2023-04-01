@@ -3,11 +3,11 @@ import numpy as np
 from . import misc
 from .experience_replay.experience_replay_interface import Experience, ExperienceReplayInterface
 
-
 # def scale_float_inputs(array):
 #     return (array - misc.float_inputs_mean) / misc.float_inputs_std
 
-def fill_buffer_from_rollout_with_n_steps_rule(buffer:ExperienceReplayInterface, rollout_results: dict, n_steps: int):
+
+def fill_buffer_from_rollout_with_n_steps_rule(buffer: ExperienceReplayInterface, rollout_results: dict, n_steps: int):
     number_memories_added = 0
     for i in range(len(rollout_results["done"]) - n_steps):
         if not all(rollout_results["action_was_greedy"][i + 1 : i + n_steps]):

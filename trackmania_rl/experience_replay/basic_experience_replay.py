@@ -1,24 +1,27 @@
-from .experience_replay_interface import ExperienceReplayInterface, Experience
-from typing import List, Tuple
-from collections import deque
 import random
+from collections import deque
+from typing import List, Tuple
+import numpy as np
+
+from .experience_replay_interface import Experience, ExperienceReplayInterface
+
 
 class BasicExperienceReplay(ExperienceReplayInterface):
-    def __init__(self, buffer_max_size):
-        self.buffer = deque(maxlen=buffer_max_size)
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen=capacity)
 
-    def add(self, experience:Experience)->None:
+    def add(self, experience: Experience) -> None:
         self.buffer.append(experience)
 
-    def sample(self, n:int)->Tuple[List[Experience], None, None]: 
+    def sample(self, n: int) -> Tuple[List[Experience], None, None]:
         # Simple sample with replacement, this way we don't have to worry about the case where n > len(buffer)
-        return random.choices(population=self.buffer, k=n)
+        return random.choices(population=self.buffer, k=n), None, np.ones(n)
 
-    def update(self, idxs:List[int], errors)->None:
+    def update(self, idxs: List[int], errors) -> None:
         pass
 
-    def __len__(self)->int:
+    def __len__(self) -> int:
         return len(self.buffer)
 
-    def max_len(self)->int:
+    def max_len(self) -> int:
         return self.buffer.maxlen
