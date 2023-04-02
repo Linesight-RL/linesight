@@ -32,7 +32,7 @@ class TMInterfaceManager:
         self.interface_name = interface_name
 
     def rollout(self, exploration_policy, stats_tracker):
-        print("S", end="")
+        print("S ", end="")
         rv = defaultdict(list)
 
         trackmania_window = win32gui.FindWindow("TmForever", None)
@@ -40,7 +40,7 @@ class TMInterfaceManager:
         _set_window_focus(trackmania_window)
 
         if self.iface is None:
-            print("Initialize connection to TMInterface")
+            print("Initialize connection to TMInterface ", end = "")
             self.iface = TMInterface(self.interface_name)
             self.iface.registered = False
 
@@ -85,7 +85,7 @@ class TMInterfaceManager:
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
 
-        print("L", end="")
+        print("L ", end="")
         while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
             if not self.iface._ensure_connected():
                 time.sleep(0)
@@ -106,7 +106,7 @@ class TMInterfaceManager:
                 if ((msgtype & 0xFF00) != 0) and ignore_message0:
                     # We are spammed with message 0
                     time_first_message0 = time.perf_counter_ns()
-                    print("TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER")
+                    print("TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER ")
                     n_frames_tmi_protection_triggered += 1
 
                 if (
@@ -175,7 +175,7 @@ class TMInterfaceManager:
                         # + misc.bogus_reward_per_speed * simulation_state.display_speed
                         # + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
                     )
-                    rv["simstates"].append(simulation_state)
+                    # rv["simstates"].append(simulation_state)
                     rv["done"].append(False)
 
                     prev_cpcount = cpcount
@@ -226,7 +226,7 @@ class TMInterfaceManager:
 
                 if _time > self.max_time and this_rollout_has_seen_t_negative and not this_rollout_is_finished:
                     simulation_state = self.iface.get_simulation_state()
-                    print(f"--- {simulation_state.race_time:>8} ", end="")
+                    print(f"      --- {simulation_state.race_time:>6} ", end="")
                     has_lateral_contact = (
                         simulation_state.time - (1 + misc.run_steps_per_action * 10)
                         <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
@@ -283,8 +283,7 @@ class TMInterfaceManager:
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
                         do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
-
-                    if _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0:
+                    if _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0: #TODO for next run : switch to elif instead of if
                         n_ors_light_desynchro += 1
                 # ============================
                 # END ON RUN STEP
@@ -302,7 +301,7 @@ class TMInterfaceManager:
                 self.iface._read_int32()
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CHECKPOINT_COUNT_CHANGED:
-                print("msg_on_cp_count_changed")
+                print("CP ", end="")
                 current = self.iface._read_int32()
                 target = self.iface._read_int32()
                 # ============================
@@ -351,20 +350,20 @@ class TMInterfaceManager:
                             self.iface.set_speed(0)
                             self.latest_tm_engine_speed_requested = 0
                             do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
-                            print(f"+++ {simulation_state.race_time:>8} ", end="")
+                            print(f"+++    {simulation_state.race_time:>6} ", end="")
                 # ============================
                 # END ON CP COUNT
                 # ============================
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_LAPS_COUNT_CHANGED:
-                print("msg_on_laps_count_changed")
+                print("LAP ", end="")
                 self.iface._read_int32()
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_BRUTEFORCE_EVALUATE:
                 print("msg_on_bruteforce_evaluate")
                 self.iface._on_bruteforce_validate_call(msgtype)
             elif msgtype == MessageType.S_ON_REGISTERED:
-                print("msg_on_registered")
+                print("REGISTERED ", end="")
                 self.iface.registered = True
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
@@ -390,22 +389,21 @@ class TMInterfaceManager:
         camera.stop()
         del camera
 
-        print("E")
+        print("E", end="")
         return rv
 
 
 def _set_window_position(trackmania_window):
-    print(
-        win32gui.SetWindowPos(
-            trackmania_window,
-            win32con.HWND_TOPMOST,
-            2560 - 654,
-            120,
-            misc.W + misc.wind32gui_margins["left"] + misc.wind32gui_margins["right"],
-            misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
-            0,
-        )
+    win32gui.SetWindowPos(
+        trackmania_window,
+        win32con.HWND_TOPMOST,
+        2560 - 654,
+        120,
+        misc.W + misc.wind32gui_margins["left"] + misc.wind32gui_margins["right"],
+        misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
+        0,
     )
+
 
 
 def _set_window_focus(trackmania_window):

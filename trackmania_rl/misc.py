@@ -14,9 +14,9 @@ gamma = 0.99
 reward_per_input_gas = 0 / 100
 # bogus_reward_per_speed = 0.1 / 200
 # bogus_reward_per_input_gas = 0.1
-agade_speed_reward = 1 / 10000
-agade_static_penalty = -1 / 200
-agade_w_reward = 1 / 200
+agade_speed_reward = 1 / 50000
+agade_static_penalty = 0 * -1 / 200
+agade_w_reward = 0 / 200
 paul_constant_reward = 0 * (-agade_w_reward - 200 * agade_speed_reward)
 agade_cp_reward = 1
 agade_race_finish_reward = 0
@@ -40,7 +40,7 @@ iqn_kappa = 1
 AL_alpha = 0.95
 
 memory_size = 140_000
-memory_size_start_learn = 2_000
+memory_size_start_learn = 10_000
 batch_size = 1024
 learning_rate = 1e-4
 # clip_grad_value = 100
@@ -48,7 +48,7 @@ learning_rate = 1e-4
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
 
-soft_update_tau = 0.5
+soft_update_tau = 0.1
 epsilon = 0.01
 
 prio_sample_with_segments = False

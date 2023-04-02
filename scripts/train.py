@@ -30,7 +30,7 @@ plt.style.use("seaborn")
 # ========================================================
 # Create new stuff
 # ========================================================
-model = trackmania_rl.agents.noisy_iqn.Agent(
+model1 = trackmania_rl.agents.noisy_iqn.Agent(
     float_inputs_dim=misc.float_input_dim,
     float_hidden_dim=misc.float_hidden_dim,
     conv_head_output_dim=misc.conv_head_output_dim,
@@ -51,8 +51,9 @@ model2 = trackmania_rl.agents.noisy_iqn.Agent(
     float_inputs_std=misc.float_inputs_std,
 ).to("cuda")
 
-print(model)
-optimizer = torch.optim.RAdam(model.parameters(), lr=misc.learning_rate)
+print(model1)
+optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
+# optimizer2 = torch.optim.RAdam(model2.parameters(), lr=misc.learning_rate)
 # buffer = PrioritizedExperienceReplay(
 #     capacity=misc.memory_size,
 #     sample_with_segments=misc.prio_sample_with_segments,
@@ -69,9 +70,10 @@ buffer = BasicExperienceReplay(capacity=misc.memory_size)
 # ========================================================
 # noinspection PyBroadException
 # try:
-model.load_state_dict(torch.load(save_dir / "weights.torch"))
+model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
 model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
-optimizer.load_state_dict(torch.load(save_dir / "optimizer.torch"))
+optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+# optimizer2.load_state_dict(torch.load(save_dir / "optimizer2.torch"))
 print(" =========================     Weights loaded !     ================================")
 slow_stats_tracker = joblib.load(save_dir / "slow_stats_tracker.joblib")
 fast_stats_tracker = joblib.load(save_dir / "fast_stats_tracker.joblib")
@@ -82,20 +84,19 @@ print(" =========================      Stats loaded !      =====================
 # ========================================================
 
 trainer = trackmania_rl.agents.noisy_iqn.Trainer(
-    model=model,
+    model=model1,
     model2=model2,
-    optimizer=optimizer,
+    optimizer=optimizer1,
     scaler=scaler,
     batch_size=misc.batch_size,
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
     iqn_kappa=misc.iqn_kappa,
-    epsilon=misc.epsilon,
+    epsilon=5 * misc.epsilon,
     gamma=misc.gamma,
     n_steps=misc.n_steps,
     AL_alpha=misc.AL_alpha,
 )
-
 
 
 # ========================================================
@@ -105,7 +106,7 @@ number_memories_generated = 0
 number_batches_done = 0
 number_target_network_updates = 0
 
-model.train()
+model1.train()
 
 time_last_save = time.time()
 time_last_buffer_save = time.time()
@@ -123,6 +124,7 @@ while True:
     #   PLAY ONE ROUND
     # ===============================================
     rollout_start_time = time.time()
+    trainer.epsilon = 5 * misc.epsilon if len(buffer) < misc.memory_size_start_learn else misc.epsilon
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
@@ -131,7 +133,7 @@ while True:
 
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
     number_memories_generated += number_memories_added
-    print(f"{number_memories_generated=}")
+    print(f" NMG={number_memories_generated:<8}")
 
     # ===============================================
     #   LEARN ON BATCH
@@ -144,19 +146,34 @@ while True:
         fast_stats_tracker["train_on_batch_duration"].append(time.time() - train_start_time)
         fast_stats_tracker["loss"].append(loss)
         number_batches_done += 1
+        print("B ", end="")
 
-    # ===============================================
-    #   UPDATE TARGET NETWORK
-    # ===============================================
-    if (
-        misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
-        <= number_batches_done * misc.batch_size
-    ):
-        number_target_network_updates += 1
-        # print("------- ------- SOFT UPDATE TARGET NETWORK")
+        # ===============================================
+        #   UPDATE TARGET NETWORK
+        # ===============================================
+        if (
+            misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
+            <= number_batches_done * misc.batch_size
+        ):
+            number_target_network_updates += 1
+            print("UPDATE ", end="")
 
-        nn_utilities.soft_copy_param(model2, model, misc.soft_update_tau)
-        # model2.load_state_dict(model.state_dict())
+            # model1, model2 = model2, model1
+            # optimizer1, optimizer2 = optimizer2, optimizer1
+            # trainer.optimizer = optimizer1
+
+            # B UPDATE Traceback (most recent call last):
+            #   File "C:\Users\chopi\projects\trackmania_rl\scripts\train.py", line 145, in <module>
+            #     mean_q_values, loss = trainer.train_on_batch(buffer)
+            #   File "c:\users\chopi\projects\trackmania_rl\trackmania_rl\agents\noisy_iqn.py", line 246, in train_on_batch
+            #     self.scaler.step(self.optimizer)
+            #   File "C:\Users\chopi\tools\mambaforge\envs\tm309\lib\site-packages\torch\cuda\amp\grad_scaler.py", line 368, in step
+            #     assert len(optimizer_state["found_inf_per_device"]) > 0, "No inf checks were recorded for this optimizer."
+            # AssertionError: No inf checks were recorded for this optimizer.
+
+            nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
+            # model2.load_state_dict(model.state_dict())
+    print("")
 
     # ===============================================
     #   STATISTICS EVERY NOW AND THEN
@@ -165,8 +182,8 @@ while True:
         # ===============================================
         #   EVAL RACE
         # ===============================================
-        model.reset_noise()
-        model.eval()
+        model1.reset_noise()
+        model1.eval()
         trainer.epsilon = 0
         eval_stats_tracker = defaultdict(list)
         rollout_results = tmi.rollout(
@@ -174,9 +191,10 @@ while True:
             stats_tracker=eval_stats_tracker,
         )
         trainer.epsilon = misc.epsilon
-        model.train()
+        model1.train()
         buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
         number_memories_generated += number_memories_added
+        print("EVAL EVAL EVAL EVAL EVAL")
 
         # ===============================================
         #   FILL SLOW_STATS_TRACKER
@@ -216,8 +234,8 @@ while True:
         )
         slow_stats_tracker[r"n_tmi_protection"].append(np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
 
-        slow_stats_tracker[r"race_time_ratio"].append(np.array(fast_stats_tracker["race_time_ratio"]).mean())
-        slow_stats_tracker[r"train_on_batch_duration"].append(np.array(fast_stats_tracker["train_on_batch_duration"]).mean())
+        slow_stats_tracker[r"race_time_ratio"].append(np.median(np.array(fast_stats_tracker["race_time_ratio"])))
+        slow_stats_tracker[r"train_on_batch_duration"].append(np.median(np.array(fast_stats_tracker["train_on_batch_duration"])))
 
         slow_stats_tracker["number_memories_generated"].append(number_memories_generated)
 
@@ -255,6 +273,7 @@ while True:
         ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"], "r", label="q3_rollout_sum_rewards")
         ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"], "r", label="d9_rollout_sum_rewards")
         ax.legend()
+        ax.set_ylim([0.26, 0.33])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
@@ -266,6 +285,8 @@ while True:
         ax.plot(slow_stats_tracker["q3_loss"], label="q3_loss")
         ax.plot(slow_stats_tracker["d9_loss"], label="d9_loss")
         ax.legend()
+        ax.set_yscale("log")
+        ax.set_ylim([0, 1])
         fig.savefig(base_dir / "figures" / "loss.png")
         plt.close()
 
@@ -278,6 +299,10 @@ while True:
         ax.plot(slow_stats_tracker["d9_race_time"], label="d9_race_time")
         ax.plot(slow_stats_tracker["min_race_time"], label="min_race_time")
         ax.legend()
+        ax.set_ylim([11600, 14000])
+        fig.suptitle(
+            f"min: {slow_stats_tracker['min_race_time'][-1]/1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1]/1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1]/1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1]/1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1]/1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1]/1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1]/1000:.2f}"
+        )
         fig.savefig(base_dir / "figures" / "race_time.png")
         plt.close()
 
@@ -300,6 +325,13 @@ while True:
         plt.close()
 
         # ===============================================
+        #   Buffer stats
+        # ===============================================
+
+        print("Mean in buffer", np.array([experience.float_inputs for experience in buffer.buffer]).mean(axis=0))
+        print("Std in buffer ", np.array([experience.float_inputs for experience in buffer.buffer]).std(axis=0))
+
+        # ===============================================
         #   CLEANUP
         # ===============================================
 
@@ -314,11 +346,14 @@ while True:
         fast_stats_tracker["race_time_ratio"].clear()
 
         time_last_save = time.time()
-        torch.save(model.state_dict(), save_dir / "weights.torch")
+        torch.save(model1.state_dict(), save_dir / "weights1.torch")
         torch.save(model2.state_dict(), save_dir / "weights2.torch")
-        torch.save(optimizer.state_dict(), save_dir / "optimizer.torch")
+        torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
+        # torch.save(optimizer2.state_dict(), save_dir / "optimizer2.torch")
         joblib.dump(slow_stats_tracker, save_dir / "slow_stats_tracker.joblib")
         joblib.dump(fast_stats_tracker, save_dir / "fast_stats_tracker.joblib")
+
+        
 
     # if time.time() > time_last_buffer_save + 60 * 60 * 6:  # every 2 hours
     #     print("SAVING MODEL AND OPTIMIZER")
