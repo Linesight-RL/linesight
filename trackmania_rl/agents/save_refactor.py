@@ -38,7 +38,6 @@ class Agent(torch.nn.Module):
             torch.nn.Linear(float_hidden_dim, float_hidden_dim),
             torch.nn.LeakyReLU(inplace=True),
         )
-
         dense_input_dimension = conv_head_output_dim + float_hidden_dim
 
         self.A_head = torch.nn.Sequential(
@@ -170,7 +169,6 @@ class Trainer:
 
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-        # if True:
             state_img_tensor = torch.tensor(np.array([memory.state_img for memory in batch])).to(
                 "cuda", memory_format=torch.channels_last, non_blocking=True
             )
@@ -229,7 +227,6 @@ class Trainer:
                 outputs_target -= self.AL_alpha * torch.minimum(AL_term, AL_term2)  # (batch_size, iqn_n, 1)
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-        # if True:
             self.model.reset_noise()
 
             outputs, _ = self.model(state_img_tensor, state_float_tensor, self.iqn_n, True)
@@ -246,7 +243,7 @@ class Trainer:
             # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
             TD_Error = outputs_target[:, :, None, :] - outputs[:, None, :, :]
 
-            # # Huber loss, my alternative
+            # Huber loss
             loss = torch.where(
                 torch.abs(TD_Error) <= self.iqn_kappa,
                 0.5 * TD_Error**2,
@@ -257,8 +254,7 @@ class Trainer:
             tau = tau.permute([1, 0, 2])  # (batch_size, iqn_n, 1)
             # (batch_size, iqn_n, iqn_n, 1)
             tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])
-            # My alternative
-            loss = torch.where(TD_Error < 0, 1 - tau, tau) * loss / self.iqn_kappa  # pinball loss
+            loss = torch.where(TD_Error < 0, (tau - 1), tau) * loss / self.iqn_kappa  # pinball loss
             loss = torch.sum(loss, dim=2)  # (batch_size, iqn_n, 1)
             loss = torch.mean(loss, dim=1)  # (batch_size, 1)
             loss = loss[:, 0]  # (batch_size, )
@@ -267,9 +263,6 @@ class Trainer:
             self.scaler.scale(total_loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-
-            # total_loss.backward()
-            # self.optimizer.step()
 
         buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
 

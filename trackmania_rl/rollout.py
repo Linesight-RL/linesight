@@ -99,9 +99,9 @@ class TMInterfaceManager:
 
             msgtype = self.iface._read_int32()
             ignore_message0 = (
-                    ((msgtype & 0xFF) == 0)
-                    and prev_msgtype == 0
-                    and (time.perf_counter_ns() > time_first_message0 + 1000_000_000)
+                ((msgtype & 0xFF) == 0)
+                and prev_msgtype == 0
+                and (time.perf_counter_ns() > time_first_message0 + 1000_000_000)
             )
 
             if ((msgtype & 0xFF00) == 0) or ignore_message0:
@@ -113,11 +113,11 @@ class TMInterfaceManager:
                     n_frames_tmi_protection_triggered += 1
 
                 if (
-                        compute_action_asap
-                        and give_up_signal_has_been_sent
-                        and this_rollout_has_seen_t_negative
-                        and not this_rollout_is_finished
-                        and time.perf_counter_ns() > do_not_compute_action_before_time
+                    compute_action_asap
+                    and give_up_signal_has_been_sent
+                    and this_rollout_has_seen_t_negative
+                    and not this_rollout_is_finished
+                    and time.perf_counter_ns() > do_not_compute_action_before_time
                 ):
                     assert self.latest_tm_engine_speed_requested == 0
 
@@ -133,8 +133,8 @@ class TMInterfaceManager:
                     rv["frames"].append(frame)
 
                     has_lateral_contact = (
-                            simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                            <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                        simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                        <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                     )
 
                     rv["floats"].append(
@@ -160,12 +160,12 @@ class TMInterfaceManager:
                     )
 
                     agade_reward = (
-                            (misc.agade_speed_reward * simulation_state.display_speed)
-                            + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                            + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                            + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                            + misc.agade_race_finish_reward * 0
-                            + misc.paul_constant_reward
+                        (misc.agade_speed_reward * simulation_state.display_speed)
+                        + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                        + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                        + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                        + misc.agade_race_finish_reward * 0
+                        + misc.paul_constant_reward
                     )
 
                     rv["rewards"].append(
@@ -233,17 +233,17 @@ class TMInterfaceManager:
                     print("Car was not able to finish the race within the allotted time. -----------")
                     simulation_state = self.iface.get_simulation_state()
                     has_lateral_contact = (
-                            simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                            <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                        simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                        <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                     )
 
                     agade_reward = (
-                            (misc.agade_speed_reward * simulation_state.display_speed)
-                            + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                            + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                            + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                            + misc.agade_race_finish_reward * 0
-                            + misc.paul_constant_reward
+                        (misc.agade_speed_reward * simulation_state.display_speed)
+                        + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                        + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                        + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                        + misc.agade_race_finish_reward * 0
+                        + misc.paul_constant_reward
                     )
                     rv["rewards"].append(  # TODO
                         agade_reward
@@ -288,9 +288,9 @@ class TMInterfaceManager:
                     #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake == 0.0
                     #     self.snapshot_before_start_is_made = True
                     elif (
-                            _time >= 0
-                            and _time % (10 * self.run_steps_per_action) == 0
-                            and this_rollout_has_seen_t_negative
+                        _time >= 0
+                        and _time % (10 * self.run_steps_per_action) == 0
+                        and this_rollout_has_seen_t_negative
                     ):
                         # print(f"{_time=}")
                         self.iface.set_speed(0)
@@ -328,22 +328,22 @@ class TMInterfaceManager:
                     if current == target:  # Finished the race !!
                         self.iface.prevent_simulation_finish()
                         if (
-                                not this_rollout_is_finished
+                            not this_rollout_is_finished
                         ):  # We shouldn't take into account a race finished after we ended the rollout
                             simulation_state = self.iface.get_simulation_state()
                             has_lateral_contact = (
-                                    simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                                    <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                                simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                                <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                             )
 
                             print("END", prev_time, simulation_state.race_time)
                             agade_reward = (
-                                    (misc.agade_speed_reward * simulation_state.display_speed)
-                                    + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                                    + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                                    + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                                    + misc.agade_race_finish_reward * 1
-                                    + misc.paul_constant_reward
+                                (misc.agade_speed_reward * simulation_state.display_speed)
+                                + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
+                                + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
+                                + misc.agade_cp_reward * (cpcount - prev_cpcount)
+                                + misc.agade_race_finish_reward * 1
+                                + misc.paul_constant_reward
                             )
                             rv["rewards"].append(  # TODO
                                 agade_reward

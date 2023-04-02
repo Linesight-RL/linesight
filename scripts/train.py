@@ -145,8 +145,11 @@ while True:
     #   LEARN ON BATCH
     # ===============================================
     while number_batches_done * misc.batch_size <= misc.number_times_single_memory_is_used_before_discard * (
-            number_memories_generated - misc.memory_size_start_learn
+        number_memories_generated - misc.memory_size_start_learn
     ):
+        joblib.dump(buffer, save_dir / "buffer.joblib")
+        aaaaaaaaaaaaaaaaaaaaa
+
         train_start_time = time.time()
         mean_q_values, loss = trainer.train_on_batch(buffer)
         fast_stats_tracker["train_on_batch_duration"].append(time.time() - train_start_time)
@@ -157,8 +160,8 @@ while True:
     #   UPDATE TARGET NETWORK
     # ===============================================
     if (
-            misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
-            <= number_batches_done * misc.batch_size
+        misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
+        <= number_batches_done * misc.batch_size
     ):
         number_target_network_updates += 1
         # print("------- ------- SOFT UPDATE TARGET NETWORK")
@@ -169,7 +172,7 @@ while True:
     # ===============================================
     #   STATISTICS EVERY NOW AND THEN
     # ===============================================
-    if time.time() > time_last_save + 60*15:  # every 15 minutes
+    if time.time() > time_last_save + 60 * 15:  # every 15 minutes
         # ===============================================
         #   EVAL RACE
         # ===============================================
