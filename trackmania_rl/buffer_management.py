@@ -18,8 +18,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(buffer: ExperienceReplayInterface
         state_float = rollout_results["floats"][i]
         action = rollout_results["actions"][i]
         reward = np.sum(
-            np.array(rollout_results["rewards"][i + 1 : i + 1 + n_steps])
-            * (misc.gamma ** np.linspace(0, n_steps - 1, n_steps))
+            np.array(rollout_results["rewards"][i + 1 : i + 1 + n_steps]) * (misc.gamma ** np.linspace(0, n_steps - 1, n_steps))
         )
         done = rollout_results["done"][i + n_steps]
         if (not done) and (i == len(rollout_results["done"]) - n_steps - 1):

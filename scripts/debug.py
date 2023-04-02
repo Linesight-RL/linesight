@@ -2,6 +2,7 @@ import datetime
 import random
 import time
 import weakref
+from collections import defaultdict
 from pathlib import Path
 
 import dxcam
@@ -9,7 +10,6 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from collections import defaultdict
 
 import trackmania_rl
 import trackmania_rl.agents.noisy_iqn as learning_algorithm

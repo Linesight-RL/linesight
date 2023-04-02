@@ -1,6 +1,7 @@
 import random
 from collections import deque
 from typing import List, Tuple
+
 import numpy as np
 
 from .experience_replay_interface import Experience, ExperienceReplayInterface

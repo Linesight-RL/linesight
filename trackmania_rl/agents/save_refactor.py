@@ -79,9 +79,7 @@ class Agent(torch.nn.Module):
         # (batch_size, dense_input_dimension) OK
         concat = torch.cat((img_outputs, float_outputs), 1)
         if tau is None:
-            tau = torch.cuda.FloatTensor(img.shape[0] * num_quantiles, 1).uniform_(
-                0, 1
-            )  # (batch_size * num_quantiles, 1) (random numbers)
+            tau = torch.cuda.FloatTensor(img.shape[0] * num_quantiles, 1).uniform_(0, 1)  # (batch_size * num_quantiles, 1) (random numbers)
         quantile_net = tau.expand(
             [-1, self.iqn_embedding_dimension]
         )  # (batch_size*num_quantiles, iqn_embedding_dimension) (still random numbers)
@@ -172,20 +170,14 @@ class Trainer:
             state_img_tensor = torch.tensor(np.array([memory.state_img for memory in batch])).to(
                 "cuda", memory_format=torch.channels_last, non_blocking=True
             )
-            state_float_tensor = torch.tensor(np.array([memory.state_float for memory in batch])).to(
-                "cuda", non_blocking=True
-            )
+            state_float_tensor = torch.tensor(np.array([memory.state_float for memory in batch])).to("cuda", non_blocking=True)
             actions = torch.tensor(np.array([memory.action for memory in batch])).to("cuda", non_blocking=True)
             rewards = torch.tensor(np.array([memory.reward for memory in batch])).to("cuda", non_blocking=True)
-            done = torch.tensor(np.array([memory.done for memory in batch])).to(
-                "cuda", non_blocking=True
-            )  # type: ignore
+            done = torch.tensor(np.array([memory.done for memory in batch])).to("cuda", non_blocking=True)  # type: ignore
             next_state_img_tensor = torch.tensor(np.array([memory.next_state_img for memory in batch])).to(
                 "cuda", memory_format=torch.channels_last, non_blocking=True
             )
-            next_state_float_tensor = torch.tensor(np.array([memory.next_state_float for memory in batch])).to(
-                "cuda", non_blocking=True
-            )
+            next_state_float_tensor = torch.tensor(np.array([memory.next_state_float for memory in batch])).to("cuda", non_blocking=True)
             is_weights = torch.as_tensor(is_weights).to("cuda", non_blocking=True)
 
             with torch.no_grad():
@@ -196,15 +188,11 @@ class Trainer:
                 done = done.reshape(-1, 1).repeat([self.iqn_n, 1])
                 actions = actions[:, None].repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 self.model2.reset_noise()
-                outputs_target, tau_target = self.model2(
-                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, True
-                )
+                outputs_target, tau_target = self.model2(next_state_img_tensor, next_state_float_tensor, self.iqn_n, True)
                 # outputs_target  : (batch_size*iqn_n,n_actions)
                 # tau_target : (batch_size*iqn_n, 1)
                 V_next = torch.max(outputs_target, dim=1)[0]  # (batch_size*iqn_n,)
-                AL_term2 = V_next - torch.gather(outputs_target, 1, actions.type(torch.int64)).squeeze(
-                    -1
-                )  # (batch_size*iqn_n,)
+                AL_term2 = V_next - torch.gather(outputs_target, 1, actions.type(torch.int64)).squeeze(-1)  # (batch_size*iqn_n,)
                 outputs_target = torch.max(outputs_target, dim=1, keepdim=True)[0]  # (batch_size*iqn_n, 1)
                 AL_term2 = AL_term2.reshape([self.iqn_n, self.batch_size, 1])  # (iqn_n, batch_size, 1)
                 AL_term2 = AL_term2.permute([1, 0, 2])  # (batch_size, iqn_n, 1)
@@ -278,9 +266,7 @@ class Trainer:
                     "cuda", memory_format=torch.channels_last, non_blocking=True
                 )
                 state_float_tensor = torch.tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
-                q_values = (
-                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, True)[0].cpu().numpy().mean(axis=0)
-                )
+                q_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, True)[0].cpu().numpy().mean(axis=0)
 
         if False and random.random() < self.epsilon:
             return random.choice([1, 4, 7]), False, np.max(q_values)

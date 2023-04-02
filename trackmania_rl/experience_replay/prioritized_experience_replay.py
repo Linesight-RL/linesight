@@ -30,9 +30,7 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
         self.prio_epsilon = prio_epsilon
 
     def add(self, experience: Experience) -> None:
-        default_prio = (
-            self.tree.total() / self.tree.n_entries if self.tree.n_entries != 0 else 1
-        )  # Modified vs Agade's code
+        default_prio = self.tree.total() / self.tree.n_entries if self.tree.n_entries != 0 else 1  # Modified vs Agade's code
         self.tree.add(default_prio, experience)
 
     def sample(self, n: int) -> Tuple[List[Experience], List[int], np.array]:
