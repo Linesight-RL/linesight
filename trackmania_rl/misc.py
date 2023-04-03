@@ -39,7 +39,7 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0.95
 
-memory_size = 140_000
+memory_size = 30_000
 memory_size_start_learn = 10_000
 batch_size = 1024
 learning_rate = 1e-4
@@ -48,14 +48,13 @@ learning_rate = 1e-4
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
 
-soft_update_tau = 0.1
+soft_update_tau = 1.0
 epsilon = 0.01
 
 prio_sample_with_segments = False
 prio_alpha = 0.2
 prio_beta = 0.8
 prio_epsilon = 1e-6
-prio_initial_value = 0.1
 
 float_inputs_mean = np.array(
     [

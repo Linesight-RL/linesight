@@ -2,6 +2,7 @@ import random
 from typing import List, Tuple
 
 import numpy as np
+import numpy.typing as npt
 
 from .experience_replay_interface import Experience, ExperienceReplayInterface
 
@@ -32,22 +33,22 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
     def add(self, experience: Experience) -> None:
         default_prio_float = 1.0 #Only used when adding the very first element
         if self.tree.n_entries != 0:
-            default_prio_float = float(self.tree.total() / self.tree.n_entries)
+            default_prio_float = float(self.tree.total() / (1e9*self.tree.n_entries))
         self.tree.add(default_prio_float, experience)
 
-    def sample(self, n: int) -> Tuple[List[Experience], List[int], np.typing.NDArray[np.float32]]:
+    def sample(self, n: int) -> Tuple[List[Experience], List[int], npt.NDArray[np.float32]]:
         batch = []
         idxs = []
-        probabilities_float = []
+        prios_int64 = []
+        total_int64 = self.tree.total()
         for _ in range(n):
-            current_total_int64 = self.tree.total()
-            s_int64 = np.random.randint(0, current_total_int64, dtype=np.int64)
+            s_int64 = np.random.randint(0, total_int64, dtype=np.int64)
             (idx, p_int64, experience) = self.tree.get(s_int64) # type: ignore
-            probabilities_float.append(p_int64 / current_total_int64)
+            prios_int64.append(p_int64)
             batch.append(experience)
             idxs.append(idx)
-            self.tree.update(idx, self._calculate_priority(0))  # Modified vs Agade's code
-        is_weight = np.power(self.tree.n_entries * np.array(probabilities_float), -self.prio_beta).astype(np.float32)
+            # self.tree.update(idx, p_int64 / 2e9)  # Modified vs Agade's code
+        is_weight = np.power(self.tree.n_entries * np.array(prios_int64) / total_int64, -self.prio_beta).astype(np.float32)
         return batch, idxs, is_weight
 
     def update(self, idxs: List[int], errors) -> None:

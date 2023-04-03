@@ -257,6 +257,7 @@ class TMInterfaceManager:
                     stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
                     stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
                     this_rollout_is_finished = True
+
                     self.iface.set_speed(0)
                     self.latest_tm_engine_speed_requested = 0
                     do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
@@ -279,6 +280,14 @@ class TMInterfaceManager:
                     #     self.snapshot_before_start_is_made = True
                     elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                         # print(f"{_time=}")
+
+                        # # BEGIN AGADE TRICK - UNTESTED YET
+                        # msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
+                        # msg.write_buffer(self.iface.get_simulation_state().data)
+                        # self.iface._send_message(msg)
+                        # self.iface._wait_for_server_response()
+                        # # END AGADE TRICK
+
                         self.iface.set_speed(0)
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True

@@ -1,4 +1,3 @@
-import datetime
 import random
 import time
 import weakref
@@ -15,6 +14,7 @@ import trackmania_rl
 import trackmania_rl.agents.noisy_iqn as learning_algorithm
 from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
+from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
 save_dir = base_dir / "save"
@@ -54,15 +54,15 @@ model2 = trackmania_rl.agents.noisy_iqn.Agent(
 print(model1)
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
 # optimizer2 = torch.optim.RAdam(model2.parameters(), lr=misc.learning_rate)
-# buffer = PrioritizedExperienceReplay(
-#     capacity=misc.memory_size,
-#     sample_with_segments=misc.prio_sample_with_segments,
-#     prio_alpha=misc.prio_alpha,
-#     prio_beta=misc.prio_beta,
-#     prio_epsilon=misc.prio_epsilon,
-# )
 scaler = torch.cuda.amp.GradScaler()
-buffer = BasicExperienceReplay(capacity=misc.memory_size)
+buffer = PrioritizedExperienceReplay(
+    capacity=misc.memory_size,
+    sample_with_segments=misc.prio_sample_with_segments,
+    prio_alpha=misc.prio_alpha,
+    prio_beta=misc.prio_beta,
+    prio_epsilon=misc.prio_epsilon,
+)
+# buffer = BasicExperienceReplay(capacity=misc.memory_size)
 # fast_stats_tracker = defaultdict(list)
 # slow_stats_tracker = defaultdict(list)
 # ========================================================
@@ -273,7 +273,7 @@ while True:
         ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"], "r", label="q3_rollout_sum_rewards")
         ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"], "r", label="d9_rollout_sum_rewards")
         ax.legend()
-        ax.set_ylim([0.26, 0.33])
+        ax.set_ylim([0.28, 0.37])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
@@ -286,7 +286,6 @@ while True:
         ax.plot(slow_stats_tracker["d9_loss"], label="d9_loss")
         ax.legend()
         ax.set_yscale("log")
-        ax.set_ylim([0, 1])
         fig.savefig(base_dir / "figures" / "loss.png")
         plt.close()
 
@@ -299,7 +298,7 @@ while True:
         ax.plot(slow_stats_tracker["d9_race_time"], label="d9_race_time")
         ax.plot(slow_stats_tracker["min_race_time"], label="min_race_time")
         ax.legend()
-        ax.set_ylim([11600, 14000])
+        ax.set_ylim([11800, 14400])
         fig.suptitle(
             f"min: {slow_stats_tracker['min_race_time'][-1]/1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1]/1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1]/1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1]/1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1]/1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1]/1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1]/1000:.2f}"
         )
@@ -328,8 +327,8 @@ while True:
         #   Buffer stats
         # ===============================================
 
-        print("Mean in buffer", np.array([experience.float_inputs for experience in buffer.buffer]).mean(axis=0))
-        print("Std in buffer ", np.array([experience.float_inputs for experience in buffer.buffer]).std(axis=0))
+        print("Mean in buffer", np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0))
+        print("Std in buffer ", np.array([experience.state_float for experience in buffer.buffer]).std(axis=0))
 
         # ===============================================
         #   CLEANUP
