@@ -21,43 +21,37 @@ Prioritized Experience Replay behavior:
 
 
 class PrioritizedExperienceReplay(ExperienceReplayInterface):
-    def __init__(self, capacity, sample_with_segments: bool, prio_alpha: float, prio_beta: float, prio_epsilon: float):
+    def __init__(self, capacity:int, sample_with_segments: bool, prio_alpha: float, prio_beta: float, prio_epsilon: float):
         self.tree = SumTree(capacity)
         self.capacity = capacity
-        self.sample_with_segments = sample_with_segments
+        self.sample_with_segments = sample_with_segments # Currently unused
         self.prio_alpha = prio_alpha
         self.prio_beta = prio_beta
         self.prio_epsilon = prio_epsilon
 
     def add(self, experience: Experience) -> None:
-        default_prio = self.tree.total() / self.tree.n_entries if self.tree.n_entries != 0 else 1  # Modified vs Agade's code
-        self.tree.add(default_prio, experience)
+        default_prio_float = 1.0 #Only used when adding the very first element
+        if self.tree.n_entries != 0:
+            default_prio_float = float(self.tree.total() / self.tree.n_entries)
+        self.tree.add(default_prio_float, experience)
 
-    def sample(self, n: int) -> Tuple[List[Experience], List[int], np.array]:
-        initial_total = self.tree.total()
+    def sample(self, n: int) -> Tuple[List[Experience], List[int], np.typing.NDArray[np.float32]]:
         batch = []
         idxs = []
-        priorities = []
-        for i in range(n):
-            if self.sample_with_segments:
-                segment = self.tree.total() / n
-                a = segment * i
-                b = segment * (i + 1)
-                s = random.uniform(a, b)
-            else:
-                s = random.uniform(0, self.tree.total())
-            (idx, p, data) = self.tree.get(s)
-            priorities.append(p)
-            batch.append(data)
+        probabilities_float = []
+        for _ in range(n):
+            current_total_int64 = self.tree.total()
+            s_int64 = np.random.randint(0, current_total_int64, dtype=np.int64)
+            (idx, p_int64, experience) = self.tree.get(s_int64) # type: ignore
+            probabilities_float.append(p_int64 / current_total_int64)
+            batch.append(experience)
             idxs.append(idx)
             self.tree.update(idx, self._calculate_priority(0))  # Modified vs Agade's code
-
-        sampling_probabilities = np.array(priorities) / initial_total
-        is_weight = np.power(self.tree.n_entries * sampling_probabilities, -self.prio_beta)
-        return batch, idxs, is_weight.astype(np.float32)
+        is_weight = np.power(self.tree.n_entries * np.array(probabilities_float), -self.prio_beta).astype(np.float32)
+        return batch, idxs, is_weight
 
     def update(self, idxs: List[int], errors) -> None:
-        prios = self._calculate_priority(errors)
+        prios = self._calculate_priority(errors).astype(np.int64)
         for idx, prio in zip(idxs, prios):
             self.tree.update(idx, prio)
 
@@ -75,68 +69,62 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
 class SumTree:
     __slots__ = (
         "capacity",
-        "tree",
+        "tree_int64",
         "data",
         "n_entries",
         "write",
     )
 
-    def __init__(self, capacity):
+    def __init__(self, capacity:int):
         self.capacity = capacity
-        self.tree = np.zeros(2 * capacity - 1, dtype=np.float64)
+        self.tree_int64 = np.zeros(2 * capacity - 1, dtype=np.int64)
         self.data = np.zeros(capacity, dtype=object)
         self.n_entries = 0
         self.write = 0
 
     # update to the root node
-    def _propagate(self, idx, change):
+    def _propagate(self, idx:int, change_int64:np.int64)->None:
         parent = (idx - 1) // 2
-
-        self.tree[parent] += change
-
+        self.tree_int64[parent] += change_int64
         if parent != 0:
-            self._propagate(parent, change)
+            self._propagate(parent, change_int64)
 
     # find sample on leaf node
-    def _retrieve(self, idx, s):
+    def _retrieve(self, idx:int, s_int64:np.int64)->int:
         left = 2 * idx + 1
         right = left + 1
 
-        if left >= len(self.tree):
+        if left >= len(self.tree_int64):
             return idx
 
-        if s <= self.tree[left]:
-            return self._retrieve(left, s)
+        if s_int64 <= self.tree_int64[left]:
+            return self._retrieve(left, s_int64)
         else:
-            return self._retrieve(right, s - self.tree[left])
+            return self._retrieve(right, s_int64 - self.tree_int64[left])
 
-    def total(self):
-        return self.tree[0]
+    def total(self) -> np.int64:
+        return self.tree_int64[0]
 
     # store priority and sample
-    def add(self, prio, data):
+    def add(self, prio_float:float, data:Experience)->None:
         idx = self.write + self.capacity - 1
-
         self.data[self.write] = data
-        self.update(idx, prio)
-
+        self.update(idx, prio_float)
         self.write += 1
         if self.write >= self.capacity:
             self.write = 0
-
         if self.n_entries < self.capacity:
             self.n_entries += 1
 
     # update priority
-    def update(self, idx, prio):
-        change = prio - self.tree[idx]
+    def update(self, idx, prio_float)->None:
+        prio_int64 = np.int64(prio_float * 1e9)
+        change_int64 = prio_int64 - self.tree_int64[idx]
+        self.tree_int64[idx] = prio_int64
+        self._propagate(idx, change_int64)
 
-        self.tree[idx] = prio
-        self._propagate(idx, change)
-
-    # get priority and sample
-    def get(self, s):
-        idx = self._retrieve(0, s)
+    # get sample based on priority
+    def get(self, s_int64:np.int64)->Tuple[int, np.int64, Experience]:
+        idx = self._retrieve(0, s_int64)
         dataIdx = idx - self.capacity + 1
-
-        return idx, self.tree[idx], self.data[dataIdx]
+        return idx, self.tree_int64[idx], self.data[dataIdx]
