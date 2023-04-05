@@ -55,14 +55,14 @@ print(model1)
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
 # optimizer2 = torch.optim.RAdam(model2.parameters(), lr=misc.learning_rate)
 scaler = torch.cuda.amp.GradScaler()
-buffer = PrioritizedExperienceReplay(
-    capacity=misc.memory_size,
-    sample_with_segments=misc.prio_sample_with_segments,
-    prio_alpha=misc.prio_alpha,
-    prio_beta=misc.prio_beta,
-    prio_epsilon=misc.prio_epsilon,
-)
-# buffer = BasicExperienceReplay(capacity=misc.memory_size)
+# buffer = PrioritizedExperienceReplay(
+#     capacity=misc.memory_size,
+#     sample_with_segments=misc.prio_sample_with_segments,
+#     prio_alpha=misc.prio_alpha,
+#     prio_beta=misc.prio_beta,
+#     prio_epsilon=misc.prio_epsilon,
+# )
+buffer = BasicExperienceReplay(capacity=misc.memory_size)
 # fast_stats_tracker = defaultdict(list)
 # slow_stats_tracker = defaultdict(list)
 # ========================================================
@@ -146,7 +146,8 @@ while True:
         fast_stats_tracker["train_on_batch_duration"].append(time.time() - train_start_time)
         fast_stats_tracker["loss"].append(loss)
         number_batches_done += 1
-        print("B ", end="")
+        # print("B ", end="")
+        print(f"B {loss=:<12} {mean_q_values=}")
 
         # ===============================================
         #   UPDATE TARGET NETWORK
@@ -156,8 +157,8 @@ while True:
             <= number_batches_done * misc.batch_size
         ):
             number_target_network_updates += 1
-            print("UPDATE ", end="")
-
+            # print("UPDATE ", end="")
+            print("UPDATE")
             # model1, model2 = model2, model1
             # optimizer1, optimizer2 = optimizer2, optimizer1
             # trainer.optimizer = optimizer1
@@ -327,8 +328,9 @@ while True:
         #   Buffer stats
         # ===============================================
 
-        print("Mean in buffer", np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0))
-        print("Std in buffer ", np.array([experience.state_float for experience in buffer.buffer]).std(axis=0))
+        # TODO : fix it for PER
+        # print("Mean in buffer", np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0))
+        # print("Std in buffer ", np.array([experience.state_float for experience in buffer.buffer]).std(axis=0))
 
         # ===============================================
         #   CLEANUP

@@ -40,7 +40,7 @@ iqn_kappa = 1
 AL_alpha = 0.95
 
 memory_size = 30_000
-memory_size_start_learn = 10_000
+memory_size_start_learn = 1200
 batch_size = 1024
 learning_rate = 1e-4
 # clip_grad_value = 100
@@ -48,7 +48,7 @@ learning_rate = 1e-4
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
 
-soft_update_tau = 1.0
+soft_update_tau = 0.1
 epsilon = 0.01
 
 prio_sample_with_segments = False

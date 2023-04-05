@@ -52,9 +52,9 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
         return batch, idxs, is_weight
 
     def update(self, idxs: List[int], errors) -> None:
-        prios = self._calculate_priority(errors).astype(np.int64)
-        for idx, prio in zip(idxs, prios):
-            self.tree.update(idx, prio)
+        prios_float = self._calculate_priority(errors)
+        for idx, prio_float in zip(idxs, prios_float):
+            self.tree.update(idx, prio_float)
 
     def __len__(self) -> int:
         return self.tree.n_entries
