@@ -14,7 +14,7 @@ import trackmania_rl
 import trackmania_rl.agents.noisy_iqn as learning_algorithm
 from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
-from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
+# from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
 save_dir = base_dir / "save"
@@ -24,6 +24,7 @@ torch.backends.cudnn.benchmark = True
 torch.cuda.manual_seed_all(43)
 torch.manual_seed(43)
 random.seed(43)
+np.random.seed(43)
 
 plt.style.use("seaborn")
 
