@@ -14,6 +14,7 @@ import trackmania_rl
 import trackmania_rl.agents.noisy_iqn as learning_algorithm
 from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
+
 # from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
@@ -99,7 +100,6 @@ trainer = trackmania_rl.agents.noisy_iqn.Trainer(
     AL_alpha=misc.AL_alpha,
 )
 
-
 # ========================================================
 # Training loop
 # ========================================================
@@ -130,17 +130,20 @@ while True:
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
     )
-    fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
+    fast_stats_tracker["race_time_ratio"].append(
+        fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
 
-    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
+    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer,
+                                                                                                 rollout_results,
+                                                                                                 misc.n_steps)
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
 
     # ===============================================
     #   LEARN ON BATCH
     # ===============================================
-    while number_batches_done * misc.batch_size <= misc.number_times_single_memory_is_used_before_discard * (
-        number_memories_generated - misc.memory_size_start_learn
+    while number_memories_generated >= misc.memory_size_start_learn and number_batches_done * misc.batch_size <= misc.number_times_single_memory_is_used_before_discard * (
+            number_memories_generated - misc.virtual_memory_size_start_learn
     ):
         train_start_time = time.time()
         mean_q_values, loss = trainer.train_on_batch(buffer)
@@ -154,8 +157,8 @@ while True:
         #   UPDATE TARGET NETWORK
         # ===============================================
         if (
-            misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
-            <= number_batches_done * misc.batch_size
+                misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
+                <= number_batches_done * misc.batch_size
         ):
             number_target_network_updates += 1
             # print("UPDATE ", end="")
@@ -194,7 +197,9 @@ while True:
         )
         trainer.epsilon = misc.epsilon
         model1.train()
-        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
+        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer,
+                                                                                                     rollout_results,
+                                                                                                     misc.n_steps)
         number_memories_generated += number_memories_added
         print("EVAL EVAL EVAL EVAL EVAL")
 
@@ -210,18 +215,29 @@ while True:
         slow_stats_tracker["d9_race_time"].append(np.quantile(np.array(fast_stats_tracker["race_time"]), 0.9))
         slow_stats_tracker["eval_race_time"].append(eval_stats_tracker["race_time"][-1])
 
-        slow_stats_tracker["mean_q_value_starting_frame"].append(np.array(fast_stats_tracker["q_value_starting_frame"]).mean())
-        slow_stats_tracker["d1_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.1))
-        slow_stats_tracker["q1_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.25))
-        slow_stats_tracker["median_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.5))
-        slow_stats_tracker["q3_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.75))
-        slow_stats_tracker["d9_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.9))
+        slow_stats_tracker["mean_q_value_starting_frame"].append(
+            np.array(fast_stats_tracker["q_value_starting_frame"]).mean())
+        slow_stats_tracker["d1_q_value_starting_frame"].append(
+            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.1))
+        slow_stats_tracker["q1_q_value_starting_frame"].append(
+            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.25))
+        slow_stats_tracker["median_q_value_starting_frame"].append(
+            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.5))
+        slow_stats_tracker["q3_q_value_starting_frame"].append(
+            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.75))
+        slow_stats_tracker["d9_q_value_starting_frame"].append(
+            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.9))
 
-        slow_stats_tracker["d1_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
-        slow_stats_tracker["q1_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.25))
-        slow_stats_tracker["median_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.5))
-        slow_stats_tracker["q3_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.75))
-        slow_stats_tracker["d9_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.9))
+        slow_stats_tracker["d1_rollout_sum_rewards"].append(
+            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
+        slow_stats_tracker["q1_rollout_sum_rewards"].append(
+            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.25))
+        slow_stats_tracker["median_rollout_sum_rewards"].append(
+            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.5))
+        slow_stats_tracker["q3_rollout_sum_rewards"].append(
+            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.75))
+        slow_stats_tracker["d9_rollout_sum_rewards"].append(
+            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.9))
 
         slow_stats_tracker["mean_loss"].append(np.array(fast_stats_tracker["loss"]).mean())
         slow_stats_tracker["d1_loss"].append(np.quantile(np.array(fast_stats_tracker["loss"]), 0.1))
@@ -234,10 +250,12 @@ while True:
             np.array(fast_stats_tracker["n_ors_light_desynchro"]).sum()
             / (np.array(fast_stats_tracker["race_time"]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action))
         )
-        slow_stats_tracker[r"n_tmi_protection"].append(np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
+        slow_stats_tracker[r"n_tmi_protection"].append(
+            np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
 
         slow_stats_tracker[r"race_time_ratio"].append(np.median(np.array(fast_stats_tracker["race_time_ratio"])))
-        slow_stats_tracker[r"train_on_batch_duration"].append(np.median(np.array(fast_stats_tracker["train_on_batch_duration"])))
+        slow_stats_tracker[r"train_on_batch_duration"].append(
+            np.median(np.array(fast_stats_tracker["train_on_batch_duration"])))
 
         slow_stats_tracker["number_memories_generated"].append(number_memories_generated)
 
@@ -275,7 +293,7 @@ while True:
         ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"], "r", label="q3_rollout_sum_rewards")
         ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"], "r", label="d9_rollout_sum_rewards")
         ax.legend()
-        ax.set_ylim([0.28, 0.37])
+        ax.set_ylim([0.05, 0.36])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
@@ -302,7 +320,7 @@ while True:
         ax.legend()
         ax.set_ylim([11800, 14400])
         fig.suptitle(
-            f"min: {slow_stats_tracker['min_race_time'][-1]/1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1]/1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1]/1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1]/1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1]/1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1]/1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1]/1000:.2f}"
+            f"min: {slow_stats_tracker['min_race_time'][-1] / 1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1] / 1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1] / 1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1] / 1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1] / 1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1] / 1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1] / 1000:.2f}"
         )
         fig.savefig(base_dir / "figures" / "race_time.png")
         plt.close()
@@ -354,8 +372,6 @@ while True:
         # torch.save(optimizer2.state_dict(), save_dir / "optimizer2.torch")
         joblib.dump(slow_stats_tracker, save_dir / "slow_stats_tracker.joblib")
         joblib.dump(fast_stats_tracker, save_dir / "fast_stats_tracker.joblib")
-
-        
 
     # if time.time() > time_last_buffer_save + 60 * 60 * 6:  # every 2 hours
     #     print("SAVING MODEL AND OPTIMIZER")
