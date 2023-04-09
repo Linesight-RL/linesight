@@ -4,13 +4,14 @@ W = 640
 H = 480
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
+figures_max_steps_displayed = 200
 
 gamma = 1
 reward_per_tm_engine_step = -0.0025
 reward_on_finish = 2
 reward_on_failed_to_finish = 0
 
-running_speed = 2
+running_speed = 10
 run_steps_per_action = 5
 ms_per_run_step = 10
 max_rollout_time_ms = 45_000
@@ -24,13 +25,14 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = 0.8
+AL_alpha = 0
 
 memory_size = 30_000
-memory_size_start_learn = 29_000
-virtual_memory_size_start_learn = -10_000
+memory_size_start_learn = 20_000
+virtual_memory_size_start_learn = 20_000
+number_memories_generated_high_exploration = -1
 batch_size = 1024
-learning_rate = 1e-4
+learning_rate = 2e-5
 # clip_grad_value = 100
 
 number_times_single_memory_is_used_before_discard = 32

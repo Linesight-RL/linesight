@@ -77,6 +77,7 @@ class TMInterfaceManager:
         n_th_action_we_compute = 0
 
         n_ors_light_desynchro = 0
+        n_two_consecutive_frames_equal = 0
         n_frames_tmi_protection_triggered = 0
 
         do_not_exit_main_loop_before_time = 0
@@ -122,13 +123,19 @@ class TMInterfaceManager:
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
                     simulation_state = self.iface.get_simulation_state()
-                    frame = camera.grab()
+                    camera.grab() # Discard one frame to make sure we are on time
+                    frame = None
                     while frame is None:
                         frame = camera.grab()
 
                         # if frame is not None:
                     frame = np.expand_dims(rgb2gray(frame), axis=0)  # shape = (1, 480, 640)
                     rv["frames"].append(frame)
+
+                    if len(rv["frames"]) > 2:
+                        if np.all(rv["frames"][-2] == rv["frames"][-1]):
+                            # Frames have not changged
+                            n_two_consecutive_frames_equal += 1
 
                     has_lateral_contact = (
                             simulation_state.time - (1 + misc.run_steps_per_action * 10)
@@ -187,7 +194,7 @@ class TMInterfaceManager:
                     prev_display_speed = simulation_state.display_speed
                     prev_time = _time
                     prev_input_gas = simulation_state.scene_mobil.input_gas
-                    action_idx, action_was_greedy, q_value = exploration_policy(rv["frames"][-1], rv["floats"][-1])
+                    action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1], rv["floats"][-1])
 
                     # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
                     # action_was_greedy = True
@@ -197,6 +204,10 @@ class TMInterfaceManager:
 
                     if n_th_action_we_compute == 0:
                         stats_tracker["q_value_starting_frame"].append(q_value)
+                        for i, val in enumerate(np.nditer(q_values)):
+                            stats_tracker[f"q_values_starting_frame_{i}"].append(val - q_value)
+                        for i, val in enumerate(np.nditer(np.sort(q_values))):
+                            stats_tracker[f"gap_q_values_starting_frame_{i}"].append(val - q_value)
 
                     rv["actions"].append(action_idx)
                     rv["action_was_greedy"].append(action_was_greedy)
@@ -263,6 +274,7 @@ class TMInterfaceManager:
                                 misc.gamma ** np.linspace(0, len(rv["rewards"]) - 2, len(rv["rewards"]) - 1)))
                     )
                     stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                    stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
                     stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
                     this_rollout_is_finished = True
 
@@ -290,12 +302,12 @@ class TMInterfaceManager:
                             10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                         # print(f"{_time=}")
 
-                        # # BEGIN AGADE TRICK - UNTESTED YET
-                        # msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
-                        # msg.write_buffer(self.iface.get_simulation_state().data)
-                        # self.iface._send_message(msg)
-                        # self.iface._wait_for_server_response()
-                        # # END AGADE TRICK
+                        # BEGIN AGADE TRICK - UNTESTED YET
+                        msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
+                        msg.write_buffer(self.iface.get_simulation_state().data)
+                        self.iface._send_message(msg)
+                        self.iface._wait_for_server_response()
+                        # END AGADE TRICK
 
                         self.iface.set_speed(0)
                         self.latest_tm_engine_speed_requested = 0
@@ -366,6 +378,7 @@ class TMInterfaceManager:
                                 )
                             )
                             stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                            stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
                             stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
 
                             this_rollout_is_finished = True

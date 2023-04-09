@@ -165,7 +165,7 @@ class Trainer:
                 memory_format=torch.channels_last, non_blocking=True, device="cuda"
             )
             state_float_tensor = torch.as_tensor(np.array([memory.state_float for memory in batch])).to(non_blocking=True, device="cuda")
-            actions = torch.as_tensor(np.array([memory.action for memory in batch]), dtype=torch.int).to(non_blocking=True, device="cuda")
+            actions = torch.as_tensor(np.array([memory.action for memory in batch]), dtype=torch.int64).to(non_blocking=True, device="cuda")
             rewards = torch.as_tensor(np.array([memory.reward for memory in batch])).to(non_blocking=True, device="cuda")
             done = torch.as_tensor(np.array([memory.done for memory in batch])).to(non_blocking=True, device="cuda")
             next_state_img_tensor = torch.as_tensor(np.array([memory.next_state_img for memory in batch])).to(
@@ -182,7 +182,8 @@ class Trainer:
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 # (batch_size*iqn_n, 1)
                 done = done.reshape(-1, 1).repeat([self.iqn_n, 1]) # (batch_size*iqn_n, 1)
-                actions_n = actions[:, None].repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                actions = actions[:, None] # (batch_size, 1)
+                actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 self.model.reset_noise()
                 q_stpo_alla, _ = self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)
                 # q_stpo_alla  : (batch_size*iqn_n,n_actions)
@@ -193,8 +194,6 @@ class Trainer:
                 
                 a_tpo = torch.argmax(q_stpo_alla, dim=1)
                 # a_tpo (batch_size, )
-
-
 
                 a_tpo = a_tpo[:, None].repeat([self.iqn_n, 1]) # (iqn_n * batch_size, 1)
                 
@@ -285,6 +284,6 @@ class Trainer:
                 q_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().mean(axis=0)
 
         if random.random() < self.epsilon:
-            return random.randrange(0, self.model.n_actions), False, np.max(q_values)
+            return random.randrange(0, self.model.n_actions), False, np.max(q_values), q_values
         else:
-            return np.argmax(q_values), True, np.max(q_values)
+            return np.argmax(q_values), True, np.max(q_values), q_values

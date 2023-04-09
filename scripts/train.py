@@ -11,8 +11,8 @@ import numpy as np
 import torch
 
 import trackmania_rl
-import trackmania_rl.agents.noisy_iqn as learning_algorithm
 from trackmania_rl import buffer_management, misc, nn_utilities, rollout
+import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 # from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
@@ -32,7 +32,7 @@ plt.style.use("seaborn")
 # ========================================================
 # Create new stuff
 # ========================================================
-model1 = trackmania_rl.agents.noisy_iqn.Agent(
+model1 = noisy_iqn_pal2.Agent(
     float_inputs_dim=misc.float_input_dim,
     float_hidden_dim=misc.float_hidden_dim,
     conv_head_output_dim=misc.conv_head_output_dim,
@@ -42,7 +42,7 @@ model1 = trackmania_rl.agents.noisy_iqn.Agent(
     float_inputs_mean=misc.float_inputs_mean,
     float_inputs_std=misc.float_inputs_std,
 ).to("cuda")
-model2 = trackmania_rl.agents.noisy_iqn.Agent(
+model2 = noisy_iqn_pal2.Agent(
     float_inputs_dim=misc.float_input_dim,
     float_hidden_dim=misc.float_hidden_dim,
     conv_head_output_dim=misc.conv_head_output_dim,
@@ -85,7 +85,7 @@ print(" =========================      Stats loaded !      =====================
 # Make the trainer
 # ========================================================
 
-trainer = trackmania_rl.agents.noisy_iqn.Trainer(
+trainer = noisy_iqn_pal2.Trainer(
     model=model1,
     model2=model2,
     optimizer=optimizer1,
@@ -94,7 +94,7 @@ trainer = trackmania_rl.agents.noisy_iqn.Trainer(
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
     iqn_kappa=misc.iqn_kappa,
-    epsilon=5 * misc.epsilon,
+    epsilon=misc.epsilon,
     gamma=misc.gamma,
     n_steps=misc.n_steps,
     AL_alpha=misc.AL_alpha,
@@ -125,11 +125,12 @@ while True:
     #   PLAY ONE ROUND
     # ===============================================
     rollout_start_time = time.time()
-    trainer.epsilon = 5 * misc.epsilon if len(buffer) < misc.memory_size_start_learn else misc.epsilon
+    trainer.epsilon = 5 * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
     )
+
     fast_stats_tracker["race_time_ratio"].append(
         fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
 
@@ -184,6 +185,9 @@ while True:
     #   STATISTICS EVERY NOW AND THEN
     # ===============================================
     if time.time() > time_last_save + 60 * 15:  # every 15 minutes
+
+        time_last_save = time.time()
+
         # ===============================================
         #   EVAL RACE
         # ===============================================
@@ -201,11 +205,54 @@ while True:
                                                                                                      rollout_results,
                                                                                                      misc.n_steps)
         number_memories_generated += number_memories_added
+
         print("EVAL EVAL EVAL EVAL EVAL")
+
+        # ===============================================
+        #   SPREAD 
+        # ===============================================
+
+        # Faire 100 tirages avec noisy, et les tau de IQN fixés
+        tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+        state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
+            "cuda", memory_format=torch.channels_last, non_blocking=True
+        )
+        state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda",
+                                                                                                  non_blocking=True)
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.no_grad():
+                list_of_q_values = []
+                for i in range(400):
+                    model1.reset_noise()
+                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[
+                        0].cpu().numpy().mean(axis=0))
+
+        for i, std in enumerate(list(np.array(list_of_q_values).std(axis=0))):
+            slow_stats_tracker[f"std_due_to_noisy_for_action{i}"].append(std)
+
+        # Désactiver noisy, tirer des tau équitablement répartis 
+        model1.eval()
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.no_grad():
+                per_quantile_output, _ = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)
+
+        for i, std in enumerate(list(per_quantile_output.cpu().numpy().std(axis=0))):
+            slow_stats_tracker[f"std_within_iqn_quantiles_for_action{i}"].append(std)
+        model1.train()
 
         # ===============================================
         #   FILL SLOW_STATS_TRACKER
         # ===============================================
+        for i in range(len(misc.inputs)):
+            # slow_stats_tracker[f"d1_q_values_starting_frame_{i}"] = [0] * (
+            #         len(slow_stats_tracker["min_race_time"]) - len(slow_stats_tracker[f"d1_q_values_starting_frame_{i}"])) + \
+            #                                                   slow_stats_tracker[
+            #                                                       f"d1_q_values_starting_frame_{i}"]  # Temporary fix to stats tracker
+
+            slow_stats_tracker[f"median_q_values_starting_frame_{i}"] = list(-np.abs(slow_stats_tracker[f"median_q_values_starting_frame_{i}"]))
+
+            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"] = list(-np.abs(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"]))
+
         slow_stats_tracker[r"%race finished"].append(np.array(fast_stats_tracker["race_finished"]).mean())
         slow_stats_tracker["min_race_time"].append(np.array(fast_stats_tracker["race_time"]).min(initial=None))
         slow_stats_tracker["d1_race_time"].append(np.quantile(np.array(fast_stats_tracker["race_time"]), 0.1))
@@ -227,6 +274,29 @@ while True:
             np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.75))
         slow_stats_tracker["d9_q_value_starting_frame"].append(
             np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.9))
+
+        for i in range(len(misc.inputs)):
+            slow_stats_tracker[f"d1_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.1))
+            slow_stats_tracker[f"q1_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.25))
+            slow_stats_tracker[f"median_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.5))
+            slow_stats_tracker[f"q3_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.75))
+            slow_stats_tracker[f"d9_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.9))
+
+            slow_stats_tracker[f"gap_d1_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.1))
+            slow_stats_tracker[f"gap_q1_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.25))
+            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.5))
+            slow_stats_tracker[f"gap_q3_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.75))
+            slow_stats_tracker[f"gap_d9_q_values_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.9))
 
         slow_stats_tracker["d1_rollout_sum_rewards"].append(
             np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
@@ -250,6 +320,10 @@ while True:
             np.array(fast_stats_tracker["n_ors_light_desynchro"]).sum()
             / (np.array(fast_stats_tracker["race_time"]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action))
         )
+        slow_stats_tracker[r"%consecutive_frames_equal"].append(
+            np.array(fast_stats_tracker["n_two_consecutive_frames_equal"]).sum()
+            / (np.array(fast_stats_tracker["race_time"]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action))
+        )
         slow_stats_tracker[r"n_tmi_protection"].append(
             np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
 
@@ -270,6 +344,12 @@ while True:
         plt.close()
 
         fig, ax = plt.subplots()
+        ax.plot(slow_stats_tracker[r"%consecutive_frames_equal"], label=r"%consecutive_frames_equal")
+        ax.legend()
+        fig.savefig(base_dir / "figures" / "consecutive_frames_equal.png")
+        plt.close()
+
+        fig, ax = plt.subplots()
         ax.plot(slow_stats_tracker[r"n_tmi_protection"], label=r"n_tmi_protection")
         ax.legend()
         fig.savefig(base_dir / "figures" / "tmi_protection.png")
@@ -282,48 +362,101 @@ while True:
         plt.close()
 
         fig, ax = plt.subplots()
-        ax.plot(slow_stats_tracker["d1_q_value_starting_frame"], "b", label="d1_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["q1_q_value_starting_frame"], "b", label="q1_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["median_q_value_starting_frame"], "b", label="median_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["q3_q_value_starting_frame"], "b", label="q3_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["d9_q_value_starting_frame"], "b", label="d9_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["d1_rollout_sum_rewards"], "r", label="d1_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["q1_rollout_sum_rewards"], "r", label="q1_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["median_rollout_sum_rewards"], "r", label="median_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"], "r", label="q3_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"], "r", label="d9_rollout_sum_rewards")
+        ax.vlines(np.where(np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
+                  1000000, color="r", linewidth=1.5, linestyles='dashed')
+        ax.plot(slow_stats_tracker["d1_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
+                label="d1_q_value_starting_frame")
+        ax.plot(slow_stats_tracker["q1_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
+                label="q1_q_value_starting_frame")
+        ax.plot(slow_stats_tracker["median_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
+                label="median_q_value_starting_frame")
+        ax.plot(slow_stats_tracker["q3_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
+                label="q3_q_value_starting_frame")
+        ax.plot(slow_stats_tracker["d9_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
+                label="d9_q_value_starting_frame")
+        ax.plot(slow_stats_tracker["d1_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
+                label="d1_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["q1_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
+                label="q1_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["median_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
+                label="median_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
+                label="q3_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
+                label="d9_rollout_sum_rewards")
         ax.legend()
-        ax.set_ylim([0.05, 0.36])
+        ax.set_ylim([-1.4, -0.9])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
         fig, ax = plt.subplots()
-        ax.plot(slow_stats_tracker["mean_loss"], label="mean_loss")
-        ax.plot(slow_stats_tracker["d1_loss"], label="d1_loss")
-        ax.plot(slow_stats_tracker["q1_loss"], label="q1_loss")
-        ax.plot(slow_stats_tracker["median_loss"], label="median_loss")
-        ax.plot(slow_stats_tracker["q3_loss"], label="q3_loss")
-        ax.plot(slow_stats_tracker["d9_loss"], label="d9_loss")
+        ax.plot(slow_stats_tracker["mean_loss"][-misc.figures_max_steps_displayed:], label="mean_loss")
+        ax.plot(slow_stats_tracker["d1_loss"][-misc.figures_max_steps_displayed:], label="d1_loss")
+        ax.plot(slow_stats_tracker["q1_loss"][-misc.figures_max_steps_displayed:], label="q1_loss")
+        ax.plot(slow_stats_tracker["median_loss"][-misc.figures_max_steps_displayed:], label="median_loss")
+        ax.plot(slow_stats_tracker["q3_loss"][-misc.figures_max_steps_displayed:], label="q3_loss")
+        ax.plot(slow_stats_tracker["d9_loss"][-misc.figures_max_steps_displayed:], label="d9_loss")
         ax.legend()
         ax.set_yscale("log")
         fig.savefig(base_dir / "figures" / "loss.png")
         plt.close()
 
-        fig, ax = plt.subplots()
-        ax.plot(slow_stats_tracker["eval_race_time"], label="eval_race_time")
-        ax.plot(slow_stats_tracker["d1_race_time"], label="d1_race_time")
-        ax.plot(slow_stats_tracker["q1_race_time"], label="q1_race_time")
-        ax.plot(slow_stats_tracker["median_race_time"], label="median_race_time")
-        ax.plot(slow_stats_tracker["q3_race_time"], label="q3_race_time")
-        ax.plot(slow_stats_tracker["d9_race_time"], label="d9_race_time")
-        ax.plot(slow_stats_tracker["min_race_time"], label="min_race_time")
+        fig, ax = plt.subplots(figsize=(14, 9))
+        ax.vlines(np.where(np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
+                  1000000, color="r", linewidth=1.5, linestyles='dashed')
+        ax.plot(slow_stats_tracker["eval_race_time"][-misc.figures_max_steps_displayed:], label="eval_race_time",
+                linewidth=0.75)
+        ax.plot(slow_stats_tracker["d9_race_time"][-misc.figures_max_steps_displayed:], label="d9_race_time")
+        ax.plot(slow_stats_tracker["q3_race_time"][-misc.figures_max_steps_displayed:], label="q3_race_time")
+        ax.plot(slow_stats_tracker["median_race_time"][-misc.figures_max_steps_displayed:], label="median_race_time")
+        ax.plot(slow_stats_tracker["q1_race_time"][-misc.figures_max_steps_displayed:], label="q1_race_time")
+        ax.plot(slow_stats_tracker["d1_race_time"][-misc.figures_max_steps_displayed:], label="d1_race_time")
+        ax.plot(slow_stats_tracker["min_race_time"][-misc.figures_max_steps_displayed:], label="min_race_time")
         ax.legend()
-        ax.set_ylim([11800, 14400])
+        ax.set_ylim([11700, 14200])
         fig.suptitle(
             f"min: {slow_stats_tracker['min_race_time'][-1] / 1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1] / 1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1] / 1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1] / 1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1] / 1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1] / 1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1] / 1000:.2f}"
         )
         fig.savefig(base_dir / "figures" / "race_time.png")
         plt.close()
+
+        fig, ax = plt.subplots(figsize=(14, 9))
+        ax.vlines(np.where(np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
+            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
+                  1000000, color="r", linewidth=1.5, linestyles='dashed')
+        for i in range(len(misc.inputs)):
+            ax.plot(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed:], label=f"gap_median_q_values_starting_frame_{i}")
+        ax.legend()
+        ax.set_ylim([-0.30, 0.005])
+        fig.savefig(base_dir / "figures" / "actions_gap_starting_frame.png")
+        plt.close()
+
+        fig, ax = plt.subplots(figsize=(14, 9))
+        for i in range(len(misc.inputs)):
+            ax.plot(slow_stats_tracker[f"median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed:], label=f"median_q_values_starting_frame_{i}")
+        ax.legend()
+        fig.savefig(base_dir / "figures" / "actions_values_starting_frame.png")
+        plt.close()
+        
+        fig, ax = plt.subplots(figsize=(14, 9))
+        for i in range(len(misc.inputs)):
+            ax.plot(slow_stats_tracker[f"std_within_iqn_quantiles_for_action{i}"][-misc.figures_max_steps_displayed:], label=f"std_within_iqn_quantiles_for_action{i}")
+        ax.legend()
+        fig.savefig(base_dir / "figures" / "std_within_iqn_quantiles.png")
+        plt.close()
+        
+        fig, ax = plt.subplots(figsize=(14, 9))
+        for i in range(len(misc.inputs)):
+            ax.plot(slow_stats_tracker[f"std_due_to_noisy_for_action{i}"][-misc.figures_max_steps_displayed:], label=f"std_due_to_noisy_for_action{i}")
+        ax.legend()
+        fig.savefig(base_dir / "figures" / "std_due_to_noisy.png")
+        plt.close()
+ 
 
         fig, ax = plt.subplots()
         ax.plot(slow_stats_tracker["train_on_batch_duration"], label="batch_duration")
@@ -361,11 +494,17 @@ while True:
         fast_stats_tracker["rollout_sum_rewards"] = fast_stats_tracker["rollout_sum_rewards"][-400:]
         fast_stats_tracker["loss"] = fast_stats_tracker["loss"][-400:]
         fast_stats_tracker["n_ors_light_desynchro"] = fast_stats_tracker["n_ors_light_desynchro"][-400:]
+        fast_stats_tracker["n_two_consecutive_frames_equal"] = fast_stats_tracker["n_two_consecutive_frames_equal"][-400:]
+        for i in range(len(misc.inputs)):
+            fast_stats_tracker[f"q_values_starting_frame_{i}"] = fast_stats_tracker[f"q_values_starting_frame_{i}"][-400:]
+            fast_stats_tracker[f"gap_q_values_starting_frame_{i}"] = fast_stats_tracker[f"gap_q_values_starting_frame_{i}"][-400:]
         fast_stats_tracker["n_frames_tmi_protection_triggered"].clear()
         fast_stats_tracker["train_on_batch_duration"].clear()
         fast_stats_tracker["race_time_ratio"].clear()
 
-        time_last_save = time.time()
+        # ===============================================
+        #   SAVE
+        # ===============================================
         torch.save(model1.state_dict(), save_dir / "weights1.torch")
         torch.save(model2.state_dict(), save_dir / "weights2.torch")
         torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
@@ -393,6 +532,7 @@ while True:
 # model.train()
 #
 # # %%
-# for i in range(20):
-#     plt.imshow(rollout_results["frames"][i][0, :, :], cmap='gray')
-#     plt.show()
+for i in range(40):
+    plt.imshow(rollout_results["frames"][i][0, :, :], cmap='gray')
+    plt.gcf().suptitle(f"{(i * 5) // 100} {(i * 5) % 100}")
+    plt.show()
