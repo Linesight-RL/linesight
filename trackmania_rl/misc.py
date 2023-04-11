@@ -25,7 +25,7 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = 0
+AL_alpha = 0.5
 
 memory_size = 30_000
 memory_size_start_learn = 20_000

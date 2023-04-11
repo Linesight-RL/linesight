@@ -131,20 +131,19 @@ while True:
         stats_tracker=fast_stats_tracker,
     )
 
-    fast_stats_tracker["race_time_ratio"].append(
-        fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
+    fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
 
-    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer,
-                                                                                                 rollout_results,
-                                                                                                 misc.n_steps)
+    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
 
     # ===============================================
     #   LEARN ON BATCH
     # ===============================================
-    while number_memories_generated >= misc.memory_size_start_learn and number_batches_done * misc.batch_size <= misc.number_times_single_memory_is_used_before_discard * (
-            number_memories_generated - misc.virtual_memory_size_start_learn
+    while (
+        number_memories_generated >= misc.memory_size_start_learn
+        and number_batches_done * misc.batch_size
+        <= misc.number_times_single_memory_is_used_before_discard * (number_memories_generated - misc.virtual_memory_size_start_learn)
     ):
         train_start_time = time.time()
         mean_q_values, loss = trainer.train_on_batch(buffer)
@@ -158,8 +157,8 @@ while True:
         #   UPDATE TARGET NETWORK
         # ===============================================
         if (
-                misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
-                <= number_batches_done * misc.batch_size
+            misc.number_memories_trained_on_between_target_network_updates * number_target_network_updates
+            <= number_batches_done * misc.batch_size
         ):
             number_target_network_updates += 1
             # print("UPDATE ", end="")
@@ -185,7 +184,6 @@ while True:
     #   STATISTICS EVERY NOW AND THEN
     # ===============================================
     if time.time() > time_last_save + 60 * 15:  # every 15 minutes
-
         time_last_save = time.time()
 
         # ===============================================
@@ -201,15 +199,13 @@ while True:
         )
         trainer.epsilon = misc.epsilon
         model1.train()
-        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer,
-                                                                                                     rollout_results,
-                                                                                                     misc.n_steps)
+        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
         number_memories_generated += number_memories_added
 
         print("EVAL EVAL EVAL EVAL EVAL")
 
         # ===============================================
-        #   SPREAD 
+        #   SPREAD
         # ===============================================
 
         # Faire 100 tirages avec noisy, et les tau de IQN fixés
@@ -217,20 +213,18 @@ while True:
         state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
             "cuda", memory_format=torch.channels_last, non_blocking=True
         )
-        state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda",
-                                                                                                  non_blocking=True)
+        state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda", non_blocking=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 list_of_q_values = []
                 for i in range(400):
                     model1.reset_noise()
-                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[
-                        0].cpu().numpy().mean(axis=0))
+                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
 
         for i, std in enumerate(list(np.array(list_of_q_values).std(axis=0))):
             slow_stats_tracker[f"std_due_to_noisy_for_action{i}"].append(std)
 
-        # Désactiver noisy, tirer des tau équitablement répartis 
+        # Désactiver noisy, tirer des tau équitablement répartis
         model1.eval()
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
@@ -249,9 +243,13 @@ while True:
             #                                                   slow_stats_tracker[
             #                                                       f"d1_q_values_starting_frame_{i}"]  # Temporary fix to stats tracker
 
-            slow_stats_tracker[f"median_q_values_starting_frame_{i}"] = list(-np.abs(slow_stats_tracker[f"median_q_values_starting_frame_{i}"]))
+            slow_stats_tracker[f"median_q_values_starting_frame_{i}"] = list(
+                -np.abs(slow_stats_tracker[f"median_q_values_starting_frame_{i}"])
+            )
 
-            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"] = list(-np.abs(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"]))
+            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"] = list(
+                -np.abs(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"])
+            )
 
         slow_stats_tracker[r"%race finished"].append(np.array(fast_stats_tracker["race_finished"]).mean())
         slow_stats_tracker["min_race_time"].append(np.array(fast_stats_tracker["race_time"]).min(initial=None))
@@ -262,52 +260,51 @@ while True:
         slow_stats_tracker["d9_race_time"].append(np.quantile(np.array(fast_stats_tracker["race_time"]), 0.9))
         slow_stats_tracker["eval_race_time"].append(eval_stats_tracker["race_time"][-1])
 
-        slow_stats_tracker["mean_q_value_starting_frame"].append(
-            np.array(fast_stats_tracker["q_value_starting_frame"]).mean())
-        slow_stats_tracker["d1_q_value_starting_frame"].append(
-            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.1))
-        slow_stats_tracker["q1_q_value_starting_frame"].append(
-            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.25))
-        slow_stats_tracker["median_q_value_starting_frame"].append(
-            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.5))
-        slow_stats_tracker["q3_q_value_starting_frame"].append(
-            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.75))
-        slow_stats_tracker["d9_q_value_starting_frame"].append(
-            np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.9))
+        slow_stats_tracker["mean_q_value_starting_frame"].append(np.array(fast_stats_tracker["q_value_starting_frame"]).mean())
+        slow_stats_tracker["d1_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.1))
+        slow_stats_tracker["q1_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.25))
+        slow_stats_tracker["median_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.5))
+        slow_stats_tracker["q3_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.75))
+        slow_stats_tracker["d9_q_value_starting_frame"].append(np.quantile(np.array(fast_stats_tracker["q_value_starting_frame"]), 0.9))
 
         for i in range(len(misc.inputs)):
             slow_stats_tracker[f"d1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.1))
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.1)
+            )
             slow_stats_tracker[f"q1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.25))
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.25)
+            )
             slow_stats_tracker[f"median_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.5))
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.5)
+            )
             slow_stats_tracker[f"q3_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.75))
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.75)
+            )
             slow_stats_tracker[f"d9_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.9))
+                np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.9)
+            )
 
             slow_stats_tracker[f"gap_d1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.1))
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.1)
+            )
             slow_stats_tracker[f"gap_q1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.25))
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.25)
+            )
             slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.5))
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.5)
+            )
             slow_stats_tracker[f"gap_q3_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.75))
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.75)
+            )
             slow_stats_tracker[f"gap_d9_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.9))
+                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.9)
+            )
 
-        slow_stats_tracker["d1_rollout_sum_rewards"].append(
-            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
-        slow_stats_tracker["q1_rollout_sum_rewards"].append(
-            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.25))
-        slow_stats_tracker["median_rollout_sum_rewards"].append(
-            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.5))
-        slow_stats_tracker["q3_rollout_sum_rewards"].append(
-            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.75))
-        slow_stats_tracker["d9_rollout_sum_rewards"].append(
-            np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.9))
+        slow_stats_tracker["d1_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
+        slow_stats_tracker["q1_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.25))
+        slow_stats_tracker["median_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.5))
+        slow_stats_tracker["q3_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.75))
+        slow_stats_tracker["d9_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.9))
 
         slow_stats_tracker["mean_loss"].append(np.array(fast_stats_tracker["loss"]).mean())
         slow_stats_tracker["d1_loss"].append(np.quantile(np.array(fast_stats_tracker["loss"]), 0.1))
@@ -324,12 +321,10 @@ while True:
             np.array(fast_stats_tracker["n_two_consecutive_frames_equal"]).sum()
             / (np.array(fast_stats_tracker["race_time"]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action))
         )
-        slow_stats_tracker[r"n_tmi_protection"].append(
-            np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
+        slow_stats_tracker[r"n_tmi_protection"].append(np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum())
 
         slow_stats_tracker[r"race_time_ratio"].append(np.median(np.array(fast_stats_tracker["race_time_ratio"])))
-        slow_stats_tracker[r"train_on_batch_duration"].append(
-            np.median(np.array(fast_stats_tracker["train_on_batch_duration"])))
+        slow_stats_tracker[r"train_on_batch_duration"].append(np.median(np.array(fast_stats_tracker["train_on_batch_duration"])))
 
         slow_stats_tracker["number_memories_generated"].append(number_memories_generated)
 
@@ -362,60 +357,77 @@ while True:
         plt.close()
 
         fig, ax = plt.subplots()
-        ax.vlines(np.where(np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
-                  1000000, color="r", linewidth=1.5, linestyles='dashed')
-        ax.plot(slow_stats_tracker["d1_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
-                label="d1_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["q1_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
-                label="q1_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["median_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
-                label="median_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["q3_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
-                label="q3_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["d9_q_value_starting_frame"][-misc.figures_max_steps_displayed:], "b",
-                label="d9_q_value_starting_frame")
-        ax.plot(slow_stats_tracker["d1_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
-                label="d1_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["q1_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
-                label="q1_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["median_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
-                label="median_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
-                label="q3_rollout_sum_rewards")
-        ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"][-misc.figures_max_steps_displayed:], "r",
-                label="d9_rollout_sum_rewards")
+        ax.vlines(
+            np.where(
+                np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][:-1])
+                > np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][1:])
+            )[0],
+            -1000000,
+            1000000,
+            color="r",
+            linewidth=1.5,
+            linestyles="dashed",
+        )
+        ax.plot(
+            slow_stats_tracker["d1_q_value_starting_frame"][-misc.figures_max_steps_displayed :], "b", label="d1_q_value_starting_frame"
+        )
+        ax.plot(
+            slow_stats_tracker["q1_q_value_starting_frame"][-misc.figures_max_steps_displayed :], "b", label="q1_q_value_starting_frame"
+        )
+        ax.plot(
+            slow_stats_tracker["median_q_value_starting_frame"][-misc.figures_max_steps_displayed :],
+            "b",
+            label="median_q_value_starting_frame",
+        )
+        ax.plot(
+            slow_stats_tracker["q3_q_value_starting_frame"][-misc.figures_max_steps_displayed :], "b", label="q3_q_value_starting_frame"
+        )
+        ax.plot(
+            slow_stats_tracker["d9_q_value_starting_frame"][-misc.figures_max_steps_displayed :], "b", label="d9_q_value_starting_frame"
+        )
+        ax.plot(slow_stats_tracker["d1_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="d1_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["q1_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="q1_rollout_sum_rewards")
+        ax.plot(
+            slow_stats_tracker["median_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="median_rollout_sum_rewards"
+        )
+        ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="q3_rollout_sum_rewards")
+        ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="d9_rollout_sum_rewards")
         ax.legend()
         ax.set_ylim([-1.4, -0.9])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
         fig, ax = plt.subplots()
-        ax.plot(slow_stats_tracker["mean_loss"][-misc.figures_max_steps_displayed:], label="mean_loss")
-        ax.plot(slow_stats_tracker["d1_loss"][-misc.figures_max_steps_displayed:], label="d1_loss")
-        ax.plot(slow_stats_tracker["q1_loss"][-misc.figures_max_steps_displayed:], label="q1_loss")
-        ax.plot(slow_stats_tracker["median_loss"][-misc.figures_max_steps_displayed:], label="median_loss")
-        ax.plot(slow_stats_tracker["q3_loss"][-misc.figures_max_steps_displayed:], label="q3_loss")
-        ax.plot(slow_stats_tracker["d9_loss"][-misc.figures_max_steps_displayed:], label="d9_loss")
+        ax.plot(slow_stats_tracker["mean_loss"][-misc.figures_max_steps_displayed :], label="mean_loss")
+        ax.plot(slow_stats_tracker["d1_loss"][-misc.figures_max_steps_displayed :], label="d1_loss")
+        ax.plot(slow_stats_tracker["q1_loss"][-misc.figures_max_steps_displayed :], label="q1_loss")
+        ax.plot(slow_stats_tracker["median_loss"][-misc.figures_max_steps_displayed :], label="median_loss")
+        ax.plot(slow_stats_tracker["q3_loss"][-misc.figures_max_steps_displayed :], label="q3_loss")
+        ax.plot(slow_stats_tracker["d9_loss"][-misc.figures_max_steps_displayed :], label="d9_loss")
         ax.legend()
         ax.set_yscale("log")
         fig.savefig(base_dir / "figures" / "loss.png")
         plt.close()
 
         fig, ax = plt.subplots(figsize=(14, 9))
-        ax.vlines(np.where(np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
-                  1000000, color="r", linewidth=1.5, linestyles='dashed')
-        ax.plot(slow_stats_tracker["eval_race_time"][-misc.figures_max_steps_displayed:], label="eval_race_time",
-                linewidth=0.75)
-        ax.plot(slow_stats_tracker["d9_race_time"][-misc.figures_max_steps_displayed:], label="d9_race_time")
-        ax.plot(slow_stats_tracker["q3_race_time"][-misc.figures_max_steps_displayed:], label="q3_race_time")
-        ax.plot(slow_stats_tracker["median_race_time"][-misc.figures_max_steps_displayed:], label="median_race_time")
-        ax.plot(slow_stats_tracker["q1_race_time"][-misc.figures_max_steps_displayed:], label="q1_race_time")
-        ax.plot(slow_stats_tracker["d1_race_time"][-misc.figures_max_steps_displayed:], label="d1_race_time")
-        ax.plot(slow_stats_tracker["min_race_time"][-misc.figures_max_steps_displayed:], label="min_race_time")
+        ax.vlines(
+            np.where(
+                np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][:-1])
+                > np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][1:])
+            )[0],
+            -1000000,
+            1000000,
+            color="r",
+            linewidth=1.5,
+            linestyles="dashed",
+        )
+        ax.plot(slow_stats_tracker["eval_race_time"][-misc.figures_max_steps_displayed :], label="eval_race_time", linewidth=0.75)
+        ax.plot(slow_stats_tracker["d9_race_time"][-misc.figures_max_steps_displayed :], label="d9_race_time")
+        ax.plot(slow_stats_tracker["q3_race_time"][-misc.figures_max_steps_displayed :], label="q3_race_time")
+        ax.plot(slow_stats_tracker["median_race_time"][-misc.figures_max_steps_displayed :], label="median_race_time")
+        ax.plot(slow_stats_tracker["q1_race_time"][-misc.figures_max_steps_displayed :], label="q1_race_time")
+        ax.plot(slow_stats_tracker["d1_race_time"][-misc.figures_max_steps_displayed :], label="d1_race_time")
+        ax.plot(slow_stats_tracker["min_race_time"][-misc.figures_max_steps_displayed :], label="min_race_time")
         ax.legend()
         ax.set_ylim([11700, 14200])
         fig.suptitle(
@@ -425,12 +437,22 @@ while True:
         plt.close()
 
         fig, ax = plt.subplots(figsize=(14, 9))
-        ax.vlines(np.where(np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][:-1]) > np.array(
-            slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed:][1:]))[0], -1000000,
-                  1000000, color="r", linewidth=1.5, linestyles='dashed')
+        ax.vlines(
+            np.where(
+                np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][:-1])
+                > np.array(slow_stats_tracker["number_memories_generated"][-misc.figures_max_steps_displayed :][1:])
+            )[0],
+            -1000000,
+            1000000,
+            color="r",
+            linewidth=1.5,
+            linestyles="dashed",
+        )
         for i in range(len(misc.inputs)):
-            ax.plot(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed:], label=f"gap_median_q_values_starting_frame_{i}")
+            ax.plot(
+                slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed :],
+                label=f"gap_median_q_values_starting_frame_{i}",
+            )
         ax.legend()
         ax.set_ylim([-0.30, 0.005])
         fig.savefig(base_dir / "figures" / "actions_gap_starting_frame.png")
@@ -438,25 +460,33 @@ while True:
 
         fig, ax = plt.subplots(figsize=(14, 9))
         for i in range(len(misc.inputs)):
-            ax.plot(slow_stats_tracker[f"median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed:], label=f"median_q_values_starting_frame_{i}")
+            ax.plot(
+                slow_stats_tracker[f"median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed :],
+                label=f"median_q_values_starting_frame_{i}",
+            )
         ax.legend()
         fig.savefig(base_dir / "figures" / "actions_values_starting_frame.png")
         plt.close()
-        
+
         fig, ax = plt.subplots(figsize=(14, 9))
         for i in range(len(misc.inputs)):
-            ax.plot(slow_stats_tracker[f"std_within_iqn_quantiles_for_action{i}"][-misc.figures_max_steps_displayed:], label=f"std_within_iqn_quantiles_for_action{i}")
+            ax.plot(
+                slow_stats_tracker[f"std_within_iqn_quantiles_for_action{i}"][-misc.figures_max_steps_displayed :],
+                label=f"std_within_iqn_quantiles_for_action{i}",
+            )
         ax.legend()
         fig.savefig(base_dir / "figures" / "std_within_iqn_quantiles.png")
         plt.close()
-        
+
         fig, ax = plt.subplots(figsize=(14, 9))
         for i in range(len(misc.inputs)):
-            ax.plot(slow_stats_tracker[f"std_due_to_noisy_for_action{i}"][-misc.figures_max_steps_displayed:], label=f"std_due_to_noisy_for_action{i}")
+            ax.plot(
+                slow_stats_tracker[f"std_due_to_noisy_for_action{i}"][-misc.figures_max_steps_displayed :],
+                label=f"std_due_to_noisy_for_action{i}",
+            )
         ax.legend()
         fig.savefig(base_dir / "figures" / "std_due_to_noisy.png")
         plt.close()
- 
 
         fig, ax = plt.subplots()
         ax.plot(slow_stats_tracker["train_on_batch_duration"], label="batch_duration")
@@ -533,6 +563,6 @@ while True:
 #
 # # %%
 for i in range(40):
-    plt.imshow(rollout_results["frames"][i][0, :, :], cmap='gray')
+    plt.imshow(rollout_results["frames"][i][0, :, :], cmap="gray")
     plt.gcf().suptitle(f"{(i * 5) // 100} {(i * 5) % 100}")
     plt.show()

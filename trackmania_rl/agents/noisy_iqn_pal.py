@@ -113,6 +113,7 @@ class Agent(torch.nn.Module):
 
 # ==========================================================================================================================
 
+
 class Trainer:
     __slots__ = (
         "model",
@@ -184,7 +185,9 @@ class Trainer:
                 done = done.reshape(-1, 1).repeat([self.iqn_n, 1])
                 actions = actions[:, None].repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 self.model2.reset_noise()
-                outputs_target, tau_target = self.model2(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None) #model2 in Agade's code
+                outputs_target, tau_target = self.model2(
+                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
+                )  # model2 in Agade's code
                 # outputs_target  : (batch_size*iqn_n,n_actions)
                 # tau_target : (batch_size*iqn_n, 1)
                 V_next = torch.max(outputs_target, dim=1)[0]  # (batch_size*iqn_n,)

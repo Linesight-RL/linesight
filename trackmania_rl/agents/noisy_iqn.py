@@ -113,6 +113,7 @@ class Agent(torch.nn.Module):
 
 # ==========================================================================================================================
 
+
 class Trainer:
     __slots__ = (
         "model",
@@ -192,7 +193,7 @@ class Trainer:
                 # outputs_model_next (batch_size, n_actions)
                 actions_model_next = torch.argmax(outputs_model_next, dim=1)
                 # model_next_action (batch_size, )
-                actions_model_next = actions_model_next[:, None].repeat([self.iqn_n, 1]) # (iqn_n * batch_size, 1)
+                actions_model_next = actions_model_next[:, None].repeat([self.iqn_n, 1])  # (iqn_n * batch_size, 1)
                 self.model2.reset_noise()
                 outputs_model2_next, tau = self.model2(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)
                 # outputs_model2_next  : (batch_size*iqn_n,n_actions)
@@ -226,7 +227,7 @@ class Trainer:
             )
             tau = torch.reshape(tau, [self.iqn_n, self.batch_size, 1])
             tau = tau.transpose(0, 1)  # (batch_size, iqn_n, 1)
-            tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1]) # (batch_size, iqn_n, iqn_n, 1)
+            tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
             # BY571 on github doesn't need previous step
             loss = torch.where(TD_Error < 0, 1 - tau, tau) * loss / self.iqn_kappa  # pinball loss
             loss = torch.sum(loss, dim=2)  # (batch_size, iqn_n, 1)

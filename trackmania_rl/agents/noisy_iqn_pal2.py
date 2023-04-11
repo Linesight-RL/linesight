@@ -113,6 +113,7 @@ class Agent(torch.nn.Module):
 
 # ==========================================================================================================================
 
+
 class Trainer:
     __slots__ = (
         "model",
@@ -181,73 +182,91 @@ class Trainer:
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 # (batch_size*iqn_n, 1)
-                done = done.reshape(-1, 1).repeat([self.iqn_n, 1]) # (batch_size*iqn_n, 1)
-                actions = actions[:, None] # (batch_size, 1)
+                done = done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                actions = actions[:, None]  # (batch_size, 1)
                 actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+
+                #
+                #   Use model to choose an action for next state.
+                #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
+                #
                 self.model.reset_noise()
-                q_stpo_alla, _ = self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)
-                # q_stpo_alla  : (batch_size*iqn_n,n_actions)
-                q_stpo_alla = q_stpo_alla.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                # q_stpo_alla (iqn_n, batch_size, n_actions)
-                q_stpo_alla = torch.mean(q_stpo_alla, dim=0)
-                # q_stpo_alla (batch_size, n_actions)
-                
-                a_tpo = torch.argmax(q_stpo_alla, dim=1)
-                # a_tpo (batch_size, )
+                a__tpo__model__reduced_repeated = (
+                    self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)[0]
+                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0)
+                    .argmax(dim=1, keepdim=True)
+                    .repeat([self.iqn_n, 1])
+                )  # (iqn_n * batch_size, 1)
 
-                a_tpo = a_tpo[:, None].repeat([self.iqn_n, 1]) # (iqn_n * batch_size, 1)
-                
+                #
+                #   Use model2 to evaluate the action chosen, per quantile.
+                #
                 self.model2.reset_noise()
-                q_stpot_alla, tau = self.model2(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)
-                # q_stpot_alla  : (batch_size*iqn_n,n_actions)
-                # tau : (batch_size*iqn_n, 1)
-                q_stpot_atpot = torch.gather(q_stpot_alla, 1, a_tpo)
-                # q_stpot_atpot : (batch_size*iqn_n, 1)
+                q__stpo__model2__quantiles_tau2, tau2 = self.model2(
+                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
+                )  # (batch_size*iqn_n,n_actions)
 
-                #=============== BEG PAL ==============
-                q_stpot_alla = q_stpot_alla.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                # q_stpot_alla (iqn_n, batch_size, n_actions)
-                q_stpot_alla = torch.mean(q_stpot_alla, dim=0)
-                # q_stpot_alla (batch_size, n_actions)
-                v_stpot = torch.max(q_stpot_alla, keepdim=True, dim=1)[0]
-                # v_stpo (batch_size, 1)
-                q_stpot_a = torch.gather(q_stpot_alla, 1, actions)
-                # q_stpo_a : (batch_size , 1)
-                #=============== END PAL ==============
+                #
+                #   Build IQN target on tau2 quantiles
+                #
+                outputs_target_tau2 = torch.where(
+                    done,
+                    rewards,
+                    rewards + pow(self.gamma, self.n_steps) * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated),
+                )  # (batch_size*iqn_n, 1)
+
+                # =============== BEG PAL ==============
+                # V(x') dans PAL deviens une distribution en IQN, on veux les quantiles de cette distribution. Il faut choisir une action, la meilleure action, et prendre les quantiles de cette action: notre V
+                # Parceque si tu max par quantile, tu melange des quantiles de distributions differentes
+                #
+                #   PAL Term
+                #
+                pal_term_tau2 = q__stpo__model2__quantiles_tau2.gather(
+                    1,
+                    q__stpo__model2__quantiles_tau2.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0)
+                    .argmax(dim=1, keepdim=True)
+                    .repeat([self.iqn_n, 1]),
+                ) - q__stpo__model2__quantiles_tau2.gather(1, actions_n)
+                # (batch_size*iqn_n, 1)
+
+                #
+                #   AL Term
+                #
+                q__st__model2__quantiles_tau2, tau2 = self.model2(
+                    state_img_tensor, state_float_tensor, self.iqn_n, tau=tau2
+                )  # (batch_size*iqn_n,n_actions)
+                al_term_tau2 = q__st__model2__quantiles_tau2.gather(
+                    1,
+                    q__st__model2__quantiles_tau2.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0)
+                    .argmax(dim=1, keepdim=True)
+                    .repeat([self.iqn_n, 1]),
+                ) - q__st__model2__quantiles_tau2.gather(1, actions_n)
+                # (batch_size*iqn_n, 1)
+
+                outputs_target_tau2 -= self.AL_alpha * torch.minimum(al_term_tau2, pal_term_tau2)
+                # =============== END PAL ==============
+
+                #
+                #   This is our target
+                #
+                outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
 
 
             self.model.reset_noise()
-            outputs, _ = self.model(state_img_tensor, state_float_tensor, self.iqn_n, tau=tau)
-            # outputs  : (batch_size*iqn_n,n_actions)
+            q__st__model__quantiles_tau3, tau3 = self.model(
+                state_img_tensor, state_float_tensor, self.iqn_n, tau=None
+            )  #  (batch_size*iqn_n,n_actions)
 
-            with torch.no_grad():
-                #=============== BEG PAL ==============
-                q_s_alla = outputs.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                # q_s_alla (iqn_n, batch_size, n_actions)
-                q_s_alla = torch.mean(q_s_alla, dim=0)
-                # q_s_alla (batch_size, n_actions)
-                q_s_a = torch.gather(q_s_alla, 1, actions)
-                # q_s_a (batch_size, 1)
-                v_s = torch.max(q_s_alla, keepdim=True, dim=1)[0]
-                # v_s (batch_size, 1)
-                #=============== END PAL ==============
+            mean_q_value = torch.mean(q__st__model__quantiles_tau3, dim=0).detach().cpu()
 
-                outputs_target = torch.where(done, rewards, rewards + pow(self.gamma, self.n_steps) * q_stpot_atpot) - self.AL_alpha * torch.minimum(v_s - q_s_a, v_stpot - q_stpot_a).repeat([self.iqn_n, 1])
-                # outputs_target : (batch_size * iqn_n, 1)
-                outputs_target = outputs_target.reshape([self.iqn_n, self.batch_size, 1])
-                # outputs_target : (iqn_n, batch_size, 1)
-                outputs_target = outputs_target.transpose(0, 1)
-                # outputs_target : (batch_size, iqn_n, 1)
+            outputs_tau3 = (
+                q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
+            )  # (batch_size, iqn_n, 1)
 
-            mean_q_value = torch.mean(outputs, dim=0).detach().cpu()
-            
-            outputs = torch.gather(outputs, 1, actions_n)
-            # (batch_size*iqn_n, 1)
-            outputs = outputs.reshape([self.iqn_n, self.batch_size, 1])
-            # (iqn_n, batch_size, 1)
-            outputs = outputs.transpose(0, 1)
-            # (batch_size, iqn_n, 1)
-            TD_Error = outputs_target[:, :, None, :] - outputs[:, None, :, :]
+            TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
             # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
             # Huber loss, my alternative
             loss = torch.where(
@@ -255,14 +274,11 @@ class Trainer:
                 0.5 * TD_Error**2,
                 self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
             )
-            tau = torch.reshape(tau, [self.iqn_n, self.batch_size, 1])
-            tau = tau.transpose(0, 1)  # (batch_size, iqn_n, 1)
-            tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1]) # (batch_size, iqn_n, iqn_n, 1)
-            # BY571 on github doesn't need previous step
-            loss = torch.where(TD_Error < 0, 1 - tau, tau) * loss / self.iqn_kappa  # pinball loss
-            loss = torch.sum(loss, dim=2)  # (batch_size, iqn_n, 1)
-            loss = torch.mean(loss, dim=1)  # (batch_size, 1)
-            loss = loss[:, 0]  # (batch_size, )
+            tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+            tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+            loss = (
+                (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+            )  # pinball loss # (batch_size, )
             total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
 
         self.scaler.scale(total_loss).backward()
@@ -270,6 +286,7 @@ class Trainer:
         self.scaler.update()
         buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
         return mean_q_value, total_loss.detach().cpu()
+
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
