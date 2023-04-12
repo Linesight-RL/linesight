@@ -11,8 +11,8 @@ import numpy as np
 import torch
 
 import trackmania_rl
-from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
+from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 # from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay

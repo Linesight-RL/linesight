@@ -6,16 +6,23 @@ H = 480
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 figures_max_steps_displayed = 200
 
-gamma = 1
-reward_per_tm_engine_step = -0.0025
-reward_on_finish = 2
-reward_on_failed_to_finish = 0
-
 running_speed = 10
 run_steps_per_action = 5
 ms_per_run_step = 10
 max_rollout_time_ms = 45_000
 n_steps = 3
+
+gamma = 1
+reward_per_tm_engine_step = -0.0025
+reward_on_finish = 2
+reward_on_failed_to_finish = 0
+reward_shaped_velocity = 2 / 200
+reward_bogus_velocity = -reward_per_tm_engine_step * run_steps_per_action / 400 # If we manage to have 400 speed, the agent will want to run forever
+reward_bogus_gas = -reward_per_tm_engine_step * run_steps_per_action / 50
+
+bogus_terminal_state_display_speed = 200
+
+
 
 float_input_dim = 2
 float_hidden_dim = 64
@@ -28,9 +35,9 @@ iqn_kappa = 1
 AL_alpha = 0.5
 
 memory_size = 30_000
-memory_size_start_learn = 0
-virtual_memory_size_start_learn = 0
-number_memories_generated_high_exploration = -1
+memory_size_start_learn = 1_000
+virtual_memory_size_start_learn = 1_000
+number_memories_generated_high_exploration = 100_000
 batch_size = 1024
 learning_rate = 2e-5
 # clip_grad_value = 100

@@ -1,7 +1,10 @@
 import time
 from collections import defaultdict
 
-import dxcam
+from . import dxshot as dxcam
+
+# as dxcam #https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
+# import dxcam
 import numpy as np
 import win32com.client
 import win32con
@@ -127,7 +130,6 @@ class TMInterfaceManager:
                     while frame is None:
                         frame = camera.grab()
 
-                        # if frame is not None:
                     frame = np.expand_dims(rgb2gray(frame), axis=0)  # shape = (1, 480, 640)
                     rv["frames"].append(frame)
 
@@ -183,8 +185,12 @@ class TMInterfaceManager:
                     #     # + misc.bogus_reward_per_speed * simulation_state.display_speed
                     #     # + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
                     # )
-                    rv["rewards"].append(misc.reward_per_tm_engine_step * self.run_steps_per_action)
-                    # rv["simstates"].append(simulation_state)
+                    rv["rewards"].append(
+                        misc.reward_per_tm_engine_step * self.run_steps_per_action
+                        + misc.reward_shaped_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
+                        + misc.reward_bogus_velocity * simulation_state.display_speed
+                        + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                    )
                     rv["done"].append(False)
 
                     prev_cpcount = cpcount
@@ -262,7 +268,14 @@ class TMInterfaceManager:
                     #     # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
                     # )
 
-                    rv["rewards"].append(misc.reward_per_tm_engine_step * self.run_steps_per_action + misc.reward_on_failed_to_finish)
+                    # FAILED TO FINISH
+                    rv["rewards"].append(
+                        misc.reward_per_tm_engine_step * self.run_steps_per_action
+                        + misc.reward_on_failed_to_finish
+                        + misc.reward_shaped_velocity * (misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
+                        + misc.reward_bogus_velocity * simulation_state.display_speed
+                        + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                    )
                     rv["done"].append(True)
                     stats_tracker["race_finished"].append(False)
                     stats_tracker["race_time"].append(self.max_time)
@@ -365,6 +378,10 @@ class TMInterfaceManager:
                                 misc.reward_per_tm_engine_step
                                 * (simulation_state.race_time / misc.ms_per_run_step - len(rv["frames"]) * self.run_steps_per_action)
                                 + misc.reward_on_finish
+                                + misc.reward_shaped_velocity * (
+                                            misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
+                                + misc.reward_bogus_velocity * simulation_state.display_speed
+                                + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
                             )
                             rv["done"].append(True)
                             stats_tracker["race_finished"].append(True)

@@ -8,6 +8,5 @@ dxcam
 matplotlib
 pydirectinput
 joblib
-numba
 mypy
 pprofile

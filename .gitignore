@@ -6,3 +6,5 @@
 *.joblib
 *mypy_cache*
 /.vscode
+*.pyd
+/old_runs

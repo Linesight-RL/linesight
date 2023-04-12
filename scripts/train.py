@@ -4,15 +4,14 @@ import weakref
 from collections import defaultdict
 from pathlib import Path
 
-import dxcam
+import trackmania_rl.dxshot as dxcam
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-import trackmania_rl
-from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
+from trackmania_rl import buffer_management, misc, nn_utilities, rollout
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 # from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
@@ -96,7 +95,6 @@ trainer = noisy_iqn_pal2.Trainer(
     iqn_kappa=misc.iqn_kappa,
     epsilon=misc.epsilon,
     gamma=misc.gamma,
-    n_steps=misc.n_steps,
     AL_alpha=misc.AL_alpha,
 )
 
@@ -127,7 +125,7 @@ while True:
     #   PLAY ONE ROUND
     # ===============================================
     rollout_start_time = time.time()
-    trainer.epsilon = 5 * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
+    trainer.epsilon = 10 * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
@@ -135,7 +133,9 @@ while True:
 
     fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
 
-    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
+    buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+        buffer, rollout_results, misc.n_steps, misc.gamma
+    )
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
 

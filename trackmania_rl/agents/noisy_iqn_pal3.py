@@ -1,5 +1,6 @@
 import math
 import random
+from typing import Optional
 
 import numpy as np
 import torch
@@ -74,26 +75,29 @@ class Agent(torch.nn.Module):
         nn_utilities.init_kaiming(self.iqn_fc)
         # A_head and V_head are NoisyLinear, already initialized
 
-    def forward(self, img, float_inputs, num_quantiles, tau):
+    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor]):
         batch_size = img.shape[0]
 
         img_outputs = self.img_head((img.to(torch.float16) - 128) / 128)  # PERF
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
-        
+
         if tau is None:
-            tau = torch.cuda.FloatTensor(batch_size * num_quantiles, 1).uniform_(0, 1)  # (batch_size * num_quantiles, 1) (random numbers)
-        
+            tau = torch.rand(size=(batch_size * num_quantiles, 1), device="cuda", dtype=torch.float32)
+
         quantile_net = torch.cos(
             torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * tau.expand(-1, self.iqn_embedding_dimension)
-        ) # (batch_size*num_quantiles, iqn_embedding_dimension)
+        )  # (batch_size*num_quantiles, iqn_embedding_dimension)
         # (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
-        quantile_net = self.lrelu(self.iqn_fc(quantile_net)) # (batch_size*num_quantiles, dense_input_dimension)
-        
-        hadamard_product = (torch.cat((img_outputs, float_outputs), 1) # (batch_size, dense_input_dimension)
-                            .unsqueeze(1) # (batch_size, 1, dense_input_dimension)
-                            .expand(-1, num_quantiles, -1) # (batch_size, num_quantiles, dense_input_dimension)
-                            .contiguous() # apparently we need to make a copy of the tensor here
-                            .view(batch_size * num_quantiles, -1) * quantile_net) # (batch_size*num_quantiles, dense_input_dimension)
+        quantile_net = self.lrelu(self.iqn_fc(quantile_net))  # (batch_size*num_quantiles, dense_input_dimension)
+
+        hadamard_product = (
+            torch.cat((img_outputs, float_outputs), 1)  # (batch_size, dense_input_dimension)
+            .unsqueeze(1)  # (batch_size, 1, dense_input_dimension)
+            .expand(-1, num_quantiles, -1)  # (batch_size, num_quantiles, dense_input_dimension)
+            .contiguous()  # apparently we need to make a copy of the tensor here
+            .view(batch_size * num_quantiles, -1)
+            * quantile_net
+        )  # (batch_size*num_quantiles, dense_input_dimension)
 
         A = self.A_head(hadamard_product)  # (batch_size*num_quantiles, n_actions)
         V = self.V_head(hadamard_product)  # (batch_size*num_quantiles, 1)
@@ -176,10 +180,9 @@ class Trainer:
             is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
 
             with torch.no_grad():
-
-                rewards_n = rewards.unsqueeze(-1).expand(-1, self.iqn_n) # (B, N)
-                done_n = done.unsqueeze(-1).expand(-1, self.iqn_n) # (B, N)
-                actions_n = actions.unsqueeze(-1).expand(-1, self.iqn_n).unsqueeze(-1) # (B, N, 1)
+                rewards_n = rewards.unsqueeze(-1).expand(-1, self.iqn_n)  # (B, N)
+                done_n = done.unsqueeze(-1).expand(-1, self.iqn_n)  # (B, N)
+                actions_n = actions.unsqueeze(-1).expand(-1, self.iqn_n).unsqueeze(-1)  # (B, N, 1)
 
                 #
                 #   Use model to choose an action for next state.
@@ -188,12 +191,12 @@ class Trainer:
 
                 self.model.reset_noise()
                 a__tpo__model__reduced_repeated = (
-                    self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)[0] #(BN, A)
-                    .view(self.batch_size, self.iqn_n, -1) # (B, N, A)
-                    .mean(dim=1) # (B, A)
-                    .argmax(dim=1, keepdim=True) # (B, 1)
-                    .unsqueeze(1) # (B, 1, 1)
-                    .expand(-1, self.iqn_n, -1) # (B, N, 1)
+                    self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)[0]  # (BN, A)
+                    .view(self.batch_size, self.iqn_n, -1)  # (B, N, A)
+                    .mean(dim=1)  # (B, A)
+                    .argmax(dim=1, keepdim=True)  # (B, 1)
+                    .unsqueeze(1)  # (B, 1, 1)
+                    .expand(-1, self.iqn_n, -1)  # (B, N, 1)
                 )  # (batch_size, iqn_n, 1)
 
                 #
@@ -203,7 +206,9 @@ class Trainer:
                 q__stpo__model2__quantiles_tau2, tau2 = self.model2(
                     next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
                 )  # (batch_size*iqn_n, n_actions)
-                q__stpo__model2__quantiles_tau2 = q__stpo__model2__quantiles_tau2.view(self.batch_size, self.iqn_n, -1) # (batch_size, iqn_n, n_actions)
+                q__stpo__model2__quantiles_tau2 = q__stpo__model2__quantiles_tau2.view(
+                    self.batch_size, self.iqn_n, -1
+                )  # (batch_size, iqn_n, n_actions)
 
                 #
                 #   Build IQN target on tau2 quantiles
@@ -211,7 +216,9 @@ class Trainer:
                 outputs_target_tau2 = torch.where(
                     done_n,
                     rewards_n,
-                    rewards_n + pow(self.gamma, self.n_steps) * q__stpo__model2__quantiles_tau2.gather(2, a__tpo__model__reduced_repeated).squeeze(-1),
+                    rewards_n
+                    + pow(self.gamma, self.n_steps)
+                    * q__stpo__model2__quantiles_tau2.gather(2, a__tpo__model__reduced_repeated).squeeze(-1),
                 )  # (batch_size, iqn_n)
 
                 # =============== BEG PAL ==============
@@ -220,14 +227,16 @@ class Trainer:
                 #
                 #   PAL Term
                 #
-                pal_term_tau2 = (q__stpo__model2__quantiles_tau2.gather(
-                    2,
-                    q__stpo__model2__quantiles_tau2 # (B, N, A)
-                    .mean(dim=1) # (B, A)
-                    .argmax(dim=1, keepdim=True) # (B, 1)
-                    .unsqueeze(-1) # (B, 1, 1)
-                    .expand(-1 , self.iqn_n, -1) # (B, N, 1)
-                ) - q__stpo__model2__quantiles_tau2.gather(2, actions_n)).squeeze(-1)
+                pal_term_tau2 = (
+                    q__stpo__model2__quantiles_tau2.gather(
+                        2,
+                        q__stpo__model2__quantiles_tau2.mean(dim=1)  # (B, N, A)  # (B, A)
+                        .argmax(dim=1, keepdim=True)  # (B, 1)
+                        .unsqueeze(-1)  # (B, 1, 1)
+                        .expand(-1, self.iqn_n, -1),  # (B, N, 1)
+                    )
+                    - q__stpo__model2__quantiles_tau2.gather(2, actions_n)
+                ).squeeze(-1)
                 # (batch_size, iqn_n)
 
                 #
@@ -236,18 +245,22 @@ class Trainer:
                 q__st__model2__quantiles_tau2, tau2 = self.model2(
                     state_img_tensor, state_float_tensor, self.iqn_n, tau=tau2
                 )  # (batch_size*iqn_n,n_actions)
-                q__st__model2__quantiles_tau2 = q__st__model2__quantiles_tau2.view(self.batch_size, self.iqn_n, -1) # (batch_size, iqn_n, n_actions)
-                al_term_tau2 = (q__st__model2__quantiles_tau2.gather(
-                    2,
-                    q__st__model2__quantiles_tau2 # (B, N, A)
-                    .mean(dim=1) # (B, A)
-                    .argmax(dim=1, keepdim=True) # (B, 1)
-                    .unsqueeze(-1) # (B, 1, 1)
-                    .expand(-1, self.iqn_n, -1) # (B, N, 1)
-                ) - q__st__model2__quantiles_tau2.gather(2, actions_n)).squeeze(-1)
+                q__st__model2__quantiles_tau2 = q__st__model2__quantiles_tau2.view(
+                    self.batch_size, self.iqn_n, -1
+                )  # (batch_size, iqn_n, n_actions)
+                al_term_tau2 = (
+                    q__st__model2__quantiles_tau2.gather(
+                        2,
+                        q__st__model2__quantiles_tau2.mean(dim=1)  # (B, N, A)  # (B, A)
+                        .argmax(dim=1, keepdim=True)  # (B, 1)
+                        .unsqueeze(-1)  # (B, 1, 1)
+                        .expand(-1, self.iqn_n, -1),  # (B, N, 1)
+                    )
+                    - q__st__model2__quantiles_tau2.gather(2, actions_n)
+                ).squeeze(-1)
                 # (batch_size, iqn_n)
 
-                outputs_target_tau2 -= self.AL_alpha * torch.minimum(al_term_tau2, pal_term_tau2) #(batch_size, iqn_n)
+                outputs_target_tau2 -= self.AL_alpha * torch.minimum(al_term_tau2, pal_term_tau2)  # (batch_size, iqn_n)
                 # =============== END PAL ==============
 
             self.model.reset_noise()
@@ -256,12 +269,14 @@ class Trainer:
             )  #  (batch_size*iqn_n,n_actions)
 
             mean_q_value = torch.mean(q__st__model__quantiles_tau3, dim=0).detach().cpu()
-            q__st__model__quantiles_tau3 = q__st__model__quantiles_tau3.view(self.batch_size, self.iqn_n, -1) # (batch_size, iqn_n, n_actions)
+            q__st__model__quantiles_tau3 = q__st__model__quantiles_tau3.view(
+                self.batch_size, self.iqn_n, -1
+            )  # (batch_size, iqn_n, n_actions)
 
-            outputs_tau3 = q__st__model__quantiles_tau3.gather(2, actions_n).squeeze(-1) # (batch_size, iqn_n)
+            outputs_tau3 = q__st__model__quantiles_tau3.gather(2, actions_n).squeeze(-1)  # (batch_size, iqn_n)
 
-            TD_error = outputs_target_tau2.unsqueeze(2) - outputs_tau3.unsqueeze(1) # (batch_size, iqn_n, iqn_n)
-            
+            TD_error = outputs_target_tau2.unsqueeze(2) - outputs_tau3.unsqueeze(1)  # (batch_size, iqn_n, iqn_n)
+
             #
             # Huber loss
             #
@@ -269,8 +284,8 @@ class Trainer:
                 torch.abs(TD_error) <= self.iqn_kappa,
                 0.5 * TD_error**2,
                 self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
-            ) # (batch_size, iqn_n, iqn_n)
-            tau3 = tau3.view(self.batch_size, 1, self.iqn_n).expand(-1, self.iqn_n, -1) # (batch_size, iqn_n, iqn_n)
+            )  # (batch_size, iqn_n, iqn_n)
+            tau3 = tau3.view(self.batch_size, 1, self.iqn_n).expand(-1, self.iqn_n, -1)  # (batch_size, iqn_n, iqn_n)
             loss = (
                 (torch.where(TD_error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)
             )  # pinball loss # (batch_size, )
@@ -281,7 +296,6 @@ class Trainer:
         self.scaler.update()
         buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
         return mean_q_value, total_loss.detach().cpu()
-
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
