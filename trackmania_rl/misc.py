@@ -28,8 +28,8 @@ iqn_kappa = 1
 AL_alpha = 0.5
 
 memory_size = 30_000
-memory_size_start_learn = 20_000
-virtual_memory_size_start_learn = 20_000
+memory_size_start_learn = 0
+virtual_memory_size_start_learn = 0
 number_memories_generated_high_exploration = -1
 batch_size = 1024
 learning_rate = 2e-5

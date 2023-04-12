@@ -10,3 +10,4 @@ pydirectinput
 joblib
 numba
 mypy
+pprofile

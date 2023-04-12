@@ -120,6 +120,8 @@ tmi = rollout.TMInterfaceManager(
     interface_name="TMInterface0",
 )
 
+print("Noisy STD : ", model1.A_head[0].std_init)
+
 while True:
     # ===============================================
     #   PLAY ONE ROUND
@@ -136,6 +138,10 @@ while True:
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
+
+    # if len(buffer) > 1300:
+    #     joblib.dump(buffer, save_dir / "buffer.joblib")
+    #     aaaaaaaaaaaaaaa
 
     # ===============================================
     #   LEARN ON BATCH
