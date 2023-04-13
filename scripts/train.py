@@ -64,22 +64,23 @@ scaler = torch.cuda.amp.GradScaler()
 #     prio_epsilon=misc.prio_epsilon,
 # )
 buffer = BasicExperienceReplay(capacity=misc.memory_size)
-# fast_stats_tracker = defaultdict(list)
-# slow_stats_tracker = defaultdict(list)
+fast_stats_tracker = defaultdict(list)
+slow_stats_tracker = defaultdict(list)
 # ========================================================
 # Load existing stuff
 # ========================================================
 # noinspection PyBroadException
-# try:
-model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
-model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
-optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
-# optimizer2.load_state_dict(torch.load(save_dir / "optimizer2.torch"))
-print(" =========================     Weights loaded !     ================================")
-slow_stats_tracker = joblib.load(save_dir / "slow_stats_tracker.joblib")
-fast_stats_tracker = joblib.load(save_dir / "fast_stats_tracker.joblib")
-print(" =========================      Stats loaded !      ================================")
-
+try:
+    model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
+    model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
+    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+    # optimizer2.load_state_dict(torch.load(save_dir / "optimizer2.torch"))
+    print(" =========================     Weights loaded !     ================================")
+    slow_stats_tracker = joblib.load(save_dir / "slow_stats_tracker.joblib")
+    fast_stats_tracker = joblib.load(save_dir / "fast_stats_tracker.joblib")
+    print(" =========================      Stats loaded !      ================================")
+except:
+    print(" Could not load anything")
 # ========================================================
 # Make the trainer
 # ========================================================
@@ -205,7 +206,7 @@ while True:
         )
         trainer.epsilon = misc.epsilon
         model1.train()
-        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps)
+        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps, misc.gamma)
         number_memories_generated += number_memories_added
 
         print("EVAL EVAL EVAL EVAL EVAL")
@@ -399,7 +400,7 @@ while True:
         ax.plot(slow_stats_tracker["q3_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="q3_rollout_sum_rewards")
         ax.plot(slow_stats_tracker["d9_rollout_sum_rewards"][-misc.figures_max_steps_displayed :], "r", label="d9_rollout_sum_rewards")
         ax.legend()
-        ax.set_ylim([-1.4, -0.9])
+        # ax.set_ylim([-1.4, -0.9])
         fig.savefig(base_dir / "figures" / "start_q.png")
         plt.close()
 
@@ -435,7 +436,7 @@ while True:
         ax.plot(slow_stats_tracker["d1_race_time"][-misc.figures_max_steps_displayed :], label="d1_race_time")
         ax.plot(slow_stats_tracker["min_race_time"][-misc.figures_max_steps_displayed :], label="min_race_time")
         ax.legend()
-        ax.set_ylim([11700, 14200])
+        # ax.set_ylim([11700, 14200])
         fig.suptitle(
             f"min: {slow_stats_tracker['min_race_time'][-1] / 1000:.2f}, eval: {slow_stats_tracker['eval_race_time'][-1] / 1000:.2f}, d1: {slow_stats_tracker['d1_race_time'][-1] / 1000:.2f}, q1: {slow_stats_tracker['q1_race_time'][-1] / 1000:.2f}, med: {slow_stats_tracker['median_race_time'][-1] / 1000:.2f}, q3: {slow_stats_tracker['q3_race_time'][-1] / 1000:.2f}, d9: {slow_stats_tracker['d9_race_time'][-1] / 1000:.2f}"
         )
@@ -460,7 +461,7 @@ while True:
                 label=f"gap_median_q_values_starting_frame_{i}",
             )
         ax.legend()
-        ax.set_ylim([-0.30, 0.005])
+        # ax.set_ylim([-0.30, 0.005])
         fig.savefig(base_dir / "figures" / "actions_gap_starting_frame.png")
         plt.close()
 

@@ -32,7 +32,7 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = 0.5
+AL_alpha = 0
 
 memory_size = 30_000
 memory_size_start_learn = 1_000
@@ -48,10 +48,13 @@ number_memories_trained_on_between_target_network_updates = 10000
 soft_update_tau = 0.1
 epsilon = 0.01
 
-prio_sample_with_segments = False
-prio_alpha = 0.2
-prio_beta = 0.8
-prio_epsilon = 1e-6
+# prio_sample_with_segments = False
+# prio_alpha = 0.2
+# prio_beta = 0.8
+# prio_epsilon = 1e-6prio_sample_with_segments = False
+# prio_alpha = 0.2
+# prio_beta = 0.8
+# prio_epsilon = 1e-6
 
 float_inputs_mean = np.array(
     [

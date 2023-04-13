@@ -321,7 +321,7 @@ class TMInterfaceManager:
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
                         do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
-                    if (
+                    elif (
                         _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0
                     ):  # TODO for next run : switch to elif instead of if
                         n_ors_light_desynchro += 1

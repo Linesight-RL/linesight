@@ -37,7 +37,7 @@ class NoisyLinear(nn.Linear):
         bias: bool = True,
         device: Optional[DEVICE_TYPING] = None,
         dtype: Optional[torch.dtype] = None,
-        std_init: float = 1.0,
+        std_init: float = 0.1,
     ):
         nn.Module.__init__(self)
         self.in_features = int(in_features)
