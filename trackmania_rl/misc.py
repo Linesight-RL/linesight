@@ -39,7 +39,7 @@ memory_size_start_learn = 1_000
 virtual_memory_size_start_learn = 1_000
 number_memories_generated_high_exploration = 100_000
 batch_size = 1024
-learning_rate = 2e-5
+learning_rate = 1e-4
 # clip_grad_value = 100
 
 number_times_single_memory_is_used_before_discard = 32
