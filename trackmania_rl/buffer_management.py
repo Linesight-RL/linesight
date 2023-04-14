@@ -3,12 +3,12 @@ import numpy as np
 from .experience_replay.experience_replay_interface import Experience, ExperienceReplayInterface
 
 
-def fill_buffer_from_rollout_with_n_steps_rule(buffer: ExperienceReplayInterface, rollout_results: dict, n_steps_max: int, gamma: float):
+def fill_buffer_from_rollout_with_n_steps_rule(buffer: ExperienceReplayInterface, rollout_results: dict, n_steps_max: int, gamma: float, discard_non_greedy_actions_in_nteps: bool):
     number_memories_added = 0
     for i in range(len(rollout_results["frames"])):
         n_steps = min(n_steps_max, len(rollout_results["frames"]) - i)
 
-        if not all(rollout_results["action_was_greedy"][i + 1 : i + n_steps]):
+        if discard_non_greedy_actions_in_nteps and not all(rollout_results["action_was_greedy"][i + 1 : i + n_steps]):
             # There was an exploration action during the n_steps, can't use this to learn
             continue
 

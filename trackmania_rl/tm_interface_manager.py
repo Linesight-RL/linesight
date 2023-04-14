@@ -165,26 +165,6 @@ class TMInterfaceManager:
                         ).astype(np.float32)
                     )
 
-                    # agade_reward = (
-                    #         (misc.agade_speed_reward * simulation_state.display_speed)
-                    #         + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                    #         + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                    #         + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                    #         + misc.agade_race_finish_reward * 0
-                    #         + misc.paul_constant_reward
-                    # )
-
-                    # rv["rewards"].append(
-                    #     agade_reward
-                    #     + misc.reward_per_input_gas * (
-                    #                 misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
-                    #     + misc.reward_per_lateral_contact * has_lateral_contact
-                    #     # misc.reward_per_tm_engine_step * self.run_steps_per_action
-                    #     # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                    #     # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                    #     # + misc.bogus_reward_per_speed * simulation_state.display_speed
-                    #     # + misc.bogus_reward_per_input_gas * simulation_state.scene_mobil.input_gas
-                    # )
                     rv["rewards"].append(
                         misc.reward_per_tm_engine_step * self.run_steps_per_action
                         + misc.reward_shaped_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
@@ -251,23 +231,6 @@ class TMInterfaceManager:
                         simulation_state.time - (1 + misc.run_steps_per_action * 10)
                         <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                     )
-
-                    # agade_reward = (
-                    #     (misc.agade_speed_reward * simulation_state.display_speed)
-                    #     + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                    #     + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                    #     + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                    #     + misc.agade_race_finish_reward * 0
-                    #     + misc.paul_constant_reward
-                    # )
-                    # rv["rewards"].append(  # TODO
-                    #     agade_reward
-                    #     + misc.reward_per_input_gas * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
-                    #     + misc.reward_per_lateral_contact * has_lateral_contact
-                    #     # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
-                    #     # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                    #     # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                    # )
 
                     # FAILED TO FINISH
                     rv["rewards"].append(
@@ -359,28 +322,11 @@ class TMInterfaceManager:
                             #     simulation_state.time - (1 + misc.run_steps_per_action * 10)
                             #     <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
                             # )
-                            # agade_reward = (
-                            #     (misc.agade_speed_reward * simulation_state.display_speed)
-                            #     + (misc.agade_static_penalty if simulation_state.display_speed <= 1 else 0)
-                            #     + (misc.agade_w_reward if simulation_state.scene_mobil.input_gas > 0 else 0)
-                            #     + misc.agade_cp_reward * (cpcount - prev_cpcount)
-                            #     + misc.agade_race_finish_reward * 1
-                            #     + misc.paul_constant_reward
-                            # )
-                            # rv["rewards"].append(  # TODO
-                            #     agade_reward
-                            #     + misc.reward_per_input_gas * (misc.gamma * simulation_state.scene_mobil.input_gas - prev_input_gas)
-                            #     + misc.reward_per_lateral_contact * has_lateral_contact
-                            #     # misc.reward_per_tm_engine_step * (simulation_state.race_time - prev_time) / 10
-                            #     # + misc.reward_per_cp_passed * (misc.gamma * cpcount - prev_cpcount)
-                            #     # # + misc.reward_per_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                            # )
                             rv["rewards"].append(
                                 misc.reward_per_tm_engine_step
                                 * (simulation_state.race_time / misc.ms_per_run_step - len(rv["frames"]) * self.run_steps_per_action)
                                 + misc.reward_on_finish
-                                + misc.reward_shaped_velocity * (
-                                            misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
+                                + misc.reward_shaped_velocity * (misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
                                 + misc.reward_bogus_velocity * simulation_state.display_speed
                                 + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
                             )

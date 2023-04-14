@@ -13,15 +13,21 @@ max_rollout_time_ms = 45_000
 n_steps = 3
 
 gamma = 1
+epsilon = 0.1
+discard_non_greedy_actions_in_nsteps = False
 reward_per_tm_engine_step = -0.0025
 reward_on_finish = 2
 reward_on_failed_to_finish = 0
 reward_shaped_velocity = 2 / 200
-reward_bogus_velocity = -reward_per_tm_engine_step * run_steps_per_action / 400 # If we manage to have 400 speed, the agent will want to run forever
+reward_bogus_velocity = (
+    -reward_per_tm_engine_step * run_steps_per_action / 400
+)  # If we manage to have 400 speed, the agent will want to run forever
 reward_bogus_gas = -reward_per_tm_engine_step * run_steps_per_action / 50
 
 bogus_terminal_state_display_speed = 200
 
+
+statistics_save_period_seconds = 60 * 10
 
 
 float_input_dim = 2
@@ -35,9 +41,10 @@ iqn_kappa = 1
 AL_alpha = 0
 
 memory_size = 30_000
-memory_size_start_learn = 1_000
-virtual_memory_size_start_learn = 1_000
-number_memories_generated_high_exploration = 100_000
+memory_size_start_learn = 29_000
+virtual_memory_size_start_learn = 0
+number_memories_generated_high_exploration = 29_000
+high_exploration_ratio =  10
 batch_size = 1024
 learning_rate = 1e-4
 # clip_grad_value = 100
@@ -46,7 +53,7 @@ number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
 
 soft_update_tau = 0.1
-epsilon = 0.01
+
 
 # prio_sample_with_segments = False
 # prio_alpha = 0.2

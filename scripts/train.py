@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+import importlib
+
 import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
-from trackmania_rl import buffer_management, misc, nn_utilities, rollout
+from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 # from trackmania_rl.experience_replay.prioritized_experience_replay import PrioritizedExperienceReplay
@@ -112,11 +114,10 @@ number_target_network_updates = 0
 
 model1.train()
 
-time_last_save = time.time()
-time_last_buffer_save = time.time()
+time_next_save = time.time() + misc.statistics_save_period_seconds
 
 dxcam.__factory._camera_instances = weakref.WeakValueDictionary()
-tmi = rollout.TMInterfaceManager(
+tmi = tm_interface_manager.TMInterfaceManager(
     running_speed=misc.running_speed,
     run_steps_per_action=misc.run_steps_per_action,
     max_time=misc.max_rollout_time_ms,
@@ -130,7 +131,8 @@ while True:
     #   PLAY ONE ROUND
     # ===============================================
     rollout_start_time = time.time()
-    trainer.epsilon = 10 * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
+    trainer.epsilon = misc.high_exploration_ratio * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
+    trainer.gamma = misc.gamma
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
@@ -139,7 +141,7 @@ while True:
     fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
 
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-        buffer, rollout_results, misc.n_steps, misc.gamma
+        buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
     )
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
@@ -172,21 +174,7 @@ while True:
             <= number_batches_done * misc.batch_size
         ):
             number_target_network_updates += 1
-            # print("UPDATE ", end="")
             print("UPDATE")
-            # model1, model2 = model2, model1
-            # optimizer1, optimizer2 = optimizer2, optimizer1
-            # trainer.optimizer = optimizer1
-
-            # B UPDATE Traceback (most recent call last):
-            #   File "C:\Users\chopi\projects\trackmania_rl\scripts\train.py", line 145, in <module>
-            #     mean_q_values, loss = trainer.train_on_batch(buffer)
-            #   File "c:\users\chopi\projects\trackmania_rl\trackmania_rl\agents\noisy_iqn.py", line 246, in train_on_batch
-            #     self.scaler.step(self.optimizer)
-            #   File "C:\Users\chopi\tools\mambaforge\envs\tm309\lib\site-packages\torch\cuda\amp\grad_scaler.py", line 368, in step
-            #     assert len(optimizer_state["found_inf_per_device"]) > 0, "No inf checks were recorded for this optimizer."
-            # AssertionError: No inf checks were recorded for this optimizer.
-
             nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
             # model2.load_state_dict(model.state_dict())
     print("")
@@ -194,8 +182,8 @@ while True:
     # ===============================================
     #   STATISTICS EVERY NOW AND THEN
     # ===============================================
-    if time.time() > time_last_save + 60 * 15:  # every 15 minutes
-        time_last_save = time.time()
+    if time.time() > time_next_save:  # every 15 minutes
+        time_next_save += misc.statistics_save_period_seconds
 
         # ===============================================
         #   EVAL RACE
@@ -210,7 +198,9 @@ while True:
         )
         trainer.epsilon = misc.epsilon
         model1.train()
-        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(buffer, rollout_results, misc.n_steps, misc.gamma)
+        buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+            buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
+        )
         number_memories_generated += number_memories_added
 
         print("EVAL EVAL EVAL EVAL EVAL")
@@ -261,6 +251,13 @@ while True:
             slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"] = list(
                 -np.abs(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"])
             )
+
+        slow_stats_tracker["gamma"].append(misc.gamma)
+        slow_stats_tracker["n_steps"].append(misc.n_steps)
+        slow_stats_tracker["epsilon"].append(misc.epsilon)
+        slow_stats_tracker["discard_non_greedy_actions_in_nsteps"].append(misc.discard_non_greedy_actions_in_nsteps)
+        slow_stats_tracker["reward_bogus_velocity"].append(misc.reward_bogus_velocity)
+        slow_stats_tracker["reward_bogus_gas"].append(misc.reward_bogus_gas)
 
         slow_stats_tracker[r"%race finished"].append(np.array(fast_stats_tracker["race_finished"]).mean())
         slow_stats_tracker["min_race_time"].append(np.array(fast_stats_tracker["race_time"]).min(initial=None))
@@ -552,6 +549,11 @@ while True:
         # torch.save(optimizer2.state_dict(), save_dir / "optimizer2.torch")
         joblib.dump(slow_stats_tracker, save_dir / "slow_stats_tracker.joblib")
         joblib.dump(fast_stats_tracker, save_dir / "fast_stats_tracker.joblib")
+
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+        importlib.reload(misc)
 
     # if time.time() > time_last_buffer_save + 60 * 60 * 6:  # every 2 hours
     #     print("SAVING MODEL AND OPTIMIZER")

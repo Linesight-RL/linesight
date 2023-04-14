@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 import numpy as np
 
@@ -14,7 +14,7 @@ class BasicExperienceReplay(ExperienceReplayInterface):
     def add(self, experience: Experience) -> None:
         self.buffer.append(experience)
 
-    def sample(self, n: int) -> Tuple[List[Experience], None, None]:
+    def sample(self, n: int) -> Tuple[List[Experience], None, Any]:
         # Simple sample with replacement, this way we don't have to worry about the case where n > len(buffer)
         return random.choices(population=self.buffer, k=n), None, np.ones(n)
 

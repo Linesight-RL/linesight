@@ -2,7 +2,7 @@
 # I was not able to install torchrl
 # Looks very similar to
 import math
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 import torch
 from torch import nn
