@@ -105,7 +105,7 @@ class Agent(torch.nn.Module):
 
         Q = V + A - A.mean(dim=-1, keepdim=True)
 
-        return Q, tau
+        return Q, tau, A.mean(dim=-1)
 
     def reset_noise(self):
         self.A_head[0].reset_noise()
@@ -207,7 +207,7 @@ class Trainer:
                 #   Use model2 to evaluate the action chosen, per quantile.
                 #
                 self.model2.reset_noise()
-                q__stpo__model2__quantiles_tau2, tau2 = self.model2(
+                q__stpo__model2__quantiles_tau2, tau2, _ = self.model2(
                     next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
                 )  # (batch_size*iqn_n,n_actions)
 
@@ -261,7 +261,7 @@ class Trainer:
                 )  # (batch_size, iqn_n, 1)
 
             self.model.reset_noise()
-            q__st__model__quantiles_tau3, tau3 = self.model(
+            q__st__model__quantiles_tau3, tau3, a_mean = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
 
@@ -284,7 +284,8 @@ class Trainer:
             loss = (
                 (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
             )  # pinball loss # (batch_size, )
-            total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
+
+            total_loss = torch.sum(is_weights * loss) + 0.5 * self.batch_size * (a_mean.mean() ** 2)  # total_loss.shape=torch.Size([])
 
         self.scaler.scale(total_loss).backward()
         self.scaler.step(self.optimizer)

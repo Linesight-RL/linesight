@@ -200,8 +200,10 @@ class TMInterfaceManager:
                     prev_input_gas = simulation_state.scene_mobil.input_gas
                     action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1], rv["floats"][-1])
 
-                    # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
-                    # action_was_greedy = True
+                    action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
+                    action_was_greedy = True
+
+                    print(action_idx, simulation_state.scene_mobil.input_gas)
 
                     self.iface.set_input_state(**misc.inputs[action_idx])
                     self.iface.set_speed(self.running_speed)
