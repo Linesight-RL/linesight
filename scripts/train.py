@@ -239,7 +239,7 @@ while True:
         model1.eval()
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
-                per_quantile_output, _ = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)
+                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
 
         for i, std in enumerate(list(per_quantile_output.cpu().numpy().std(axis=0))):
             slow_stats_tracker[f"std_within_iqn_quantiles_for_action{i}"].append(std)
