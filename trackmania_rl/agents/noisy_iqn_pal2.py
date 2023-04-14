@@ -285,7 +285,7 @@ class Trainer:
                 (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
             )  # pinball loss # (batch_size, )
 
-            total_loss = torch.sum(is_weights * loss) + 0.5 * self.batch_size * (a_mean.mean() ** 2)  # total_loss.shape=torch.Size([])
+            total_loss = torch.sum(is_weights * loss) + 0.5 * (a_mean ** 2).sum()  # total_loss.shape=torch.Size([])
 
         self.scaler.scale(total_loss).backward()
         self.scaler.step(self.optimizer)

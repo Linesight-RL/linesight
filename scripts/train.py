@@ -76,11 +76,15 @@ try:
     optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
     # optimizer2.load_state_dict(torch.load(save_dir / "optimizer2.torch"))
     print(" =========================     Weights loaded !     ================================")
+except:
+    print(" Could not load weights")
+
+try:
     slow_stats_tracker = joblib.load(save_dir / "slow_stats_tracker.joblib")
     fast_stats_tracker = joblib.load(save_dir / "fast_stats_tracker.joblib")
     print(" =========================      Stats loaded !      ================================")
 except:
-    print(" Could not load anything")
+    print(" Could not load stats")
 # ========================================================
 # Make the trainer
 # ========================================================
