@@ -1,16 +1,16 @@
+import importlib
 import random
 import time
-import weakref
+
+# import weakref
 from collections import defaultdict
 from pathlib import Path
 
-import trackmania_rl.dxshot as dxcam
+# import trackmania_rl.dxshot as dxcam
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-import importlib
 
 import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
@@ -116,8 +116,9 @@ model1.train()
 
 time_next_save = time.time() + misc.statistics_save_period_seconds
 
-dxcam.__factory._camera_instances = weakref.WeakValueDictionary()
+# dxcam.__factory._camera_instances = weakref.WeakValueDictionary()
 tmi = tm_interface_manager.TMInterfaceManager(
+    base_dir=base_dir,
     running_speed=misc.running_speed,
     run_steps_per_action=misc.run_steps_per_action,
     max_time=misc.max_rollout_time_ms,
@@ -126,23 +127,38 @@ tmi = tm_interface_manager.TMInterfaceManager(
 
 print("Noisy STD : ", model1.A_head[0].std_init)
 
-while True:
+for i in range(3):
     # ===============================================
     #   PLAY ONE ROUND
     # ===============================================
     rollout_start_time = time.time()
-    trainer.epsilon = misc.high_exploration_ratio * misc.epsilon if number_memories_generated < misc.number_memories_generated_high_exploration else misc.epsilon
+    trainer.epsilon = (
+        misc.high_exploration_ratio * misc.epsilon
+        if number_memories_generated < misc.number_memories_generated_high_exploration
+        else misc.epsilon
+    )
     trainer.gamma = misc.gamma
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
     )
 
+    # import sys
+    # sys.exit()
+    #
+
     fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
+    print("RACE TIME RATIO", fast_stats_tracker["race_time_ratio"][-1])
 
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
         buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
     )
+
+    # break
+    # import pdb
+    #
+    # pdb.set_trace()
+
     number_memories_generated += number_memories_added
     print(f" NMG={number_memories_generated:<8}")
 
@@ -184,6 +200,9 @@ while True:
     # ===============================================
     if time.time() > time_next_save:  # every 15 minutes
         time_next_save += misc.statistics_save_period_seconds
+
+        if number_batches_done == 0:
+            continue
 
         # ===============================================
         #   EVAL RACE
@@ -248,9 +267,7 @@ while True:
                 -np.abs(slow_stats_tracker[f"median_q_values_starting_frame_{i}"])
             )
 
-            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"] = list(
-                -np.abs(slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"])
-            )
+            slow_stats_tracker[f"gaps_median_starting_frame_{i}"] = list(-np.abs(slow_stats_tracker[f"gaps_median_starting_frame_{i}"]))
 
         slow_stats_tracker["gamma"].append(misc.gamma)
         slow_stats_tracker["n_steps"].append(misc.n_steps)
@@ -292,20 +309,20 @@ while True:
                 np.quantile(np.array(fast_stats_tracker[f"q_values_starting_frame_{i}"]), 0.9)
             )
 
-            slow_stats_tracker[f"gap_d1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.1)
+            slow_stats_tracker[f"gaps_d1_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gaps_starting_frame_{i}"]), 0.1)
             )
-            slow_stats_tracker[f"gap_q1_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.25)
+            slow_stats_tracker[f"gaps_q1_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gaps_starting_frame_{i}"]), 0.25)
             )
-            slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.5)
+            slow_stats_tracker[f"gaps_median_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gaps_starting_frame_{i}"]), 0.5)
             )
-            slow_stats_tracker[f"gap_q3_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.75)
+            slow_stats_tracker[f"gaps_q3_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gaps_starting_frame_{i}"]), 0.75)
             )
-            slow_stats_tracker[f"gap_d9_q_values_starting_frame_{i}"].append(
-                np.quantile(np.array(fast_stats_tracker[f"gap_q_values_starting_frame_{i}"]), 0.9)
+            slow_stats_tracker[f"gaps_d9_starting_frame_{i}"].append(
+                np.quantile(np.array(fast_stats_tracker[f"gaps_starting_frame_{i}"]), 0.9)
             )
 
         slow_stats_tracker["d1_rollout_sum_rewards"].append(np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"]), 0.1))
@@ -458,8 +475,8 @@ while True:
         )
         for i in range(len(misc.inputs)):
             ax.plot(
-                slow_stats_tracker[f"gap_median_q_values_starting_frame_{i}"][-misc.figures_max_steps_displayed :],
-                label=f"gap_median_q_values_starting_frame_{i}",
+                slow_stats_tracker[f"gaps_median_starting_frame_{i}"][-misc.figures_max_steps_displayed :],
+                label=f"gaps_median_starting_frame_{i}",
             )
         ax.legend()
         # ax.set_ylim([-0.30, 0.005])
@@ -535,7 +552,7 @@ while True:
         fast_stats_tracker["n_two_consecutive_frames_equal"] = fast_stats_tracker["n_two_consecutive_frames_equal"][-400:]
         for i in range(len(misc.inputs)):
             fast_stats_tracker[f"q_values_starting_frame_{i}"] = fast_stats_tracker[f"q_values_starting_frame_{i}"][-400:]
-            fast_stats_tracker[f"gap_q_values_starting_frame_{i}"] = fast_stats_tracker[f"gap_q_values_starting_frame_{i}"][-400:]
+            fast_stats_tracker[f"gaps_starting_frame_{i}"] = fast_stats_tracker[f"gaps_starting_frame_{i}"][-400:]
         fast_stats_tracker["n_frames_tmi_protection_triggered"].clear()
         fast_stats_tracker["train_on_batch_duration"].clear()
         fast_stats_tracker["race_time_ratio"].clear()

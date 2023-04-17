@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from typing import List, Tuple, Any
+from typing import Any, List, Tuple
 
 import numpy as np
 

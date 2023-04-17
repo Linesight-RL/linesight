@@ -1,28 +1,23 @@
 import time
 from collections import defaultdict
 
-from . import dxshot as dxcam
-
-# as dxcam #https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
-# import dxcam
+import numba
 import numpy as np
+import psutil
 import win32com.client
 import win32con
 
 # noinspection PyPackageRequirements
 import win32gui
+from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-from . import misc
-
-
-def rgb2gray(rgb):
-    # from https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
-    return np.dot(rgb, [0.333, 0.333, 0.333]).astype(np.uint8)
+from . import dxshot as dxcam  # https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
+from . import misc, time_parsing
 
 
 class TMInterfaceManager:
-    def __init__(self, running_speed=1, run_steps_per_action=10, max_time=2000, interface_name="TMInterface0"):
+    def __init__(self, base_dir, running_speed=1, run_steps_per_action=10, max_time=2000, interface_name="TMInterface0"):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
         self.set_timeout_is_done = False
@@ -34,13 +29,15 @@ class TMInterfaceManager:
         self.timeout_has_been_set = False
         self.interface_name = interface_name
 
+        self.camera = dxcam.create(output_idx=0, output_color="BGRA")
+        remove_fps_cap()
+        self.trackmania_window = win32gui.FindWindow("TmForever", None)
+        _set_window_focus(self.trackmania_window)
+        self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
+
     def rollout(self, exploration_policy, stats_tracker):
         print("S ", end="")
         rv = defaultdict(list)
-
-        trackmania_window = win32gui.FindWindow("TmForever", None)
-        _set_window_position(trackmania_window)
-        _set_window_focus(trackmania_window)
 
         if self.iface is None:
             print("Initialize connection to TMInterface ", end="")
@@ -64,15 +61,15 @@ class TMInterfaceManager:
             self.latest_tm_engine_speed_requested = self.running_speed
 
         compute_action_asap = False
-        camera = dxcam.create(region=_get_window_position(trackmania_window), output_color="RGB")
+        trackmania_window_region = _get_window_position(self.trackmania_window)
 
         # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
         _time = -3000
         cpcount = 0
         prev_cpcount = 0
-        # noinspection PyUnusedLocal
         prev_display_speed = 0
         prev_input_gas = 0
+        prev_time = -1
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -85,7 +82,7 @@ class TMInterfaceManager:
 
         do_not_exit_main_loop_before_time = 0
         do_not_compute_action_before_time = 0
-        prev_time = -1
+
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
 
@@ -105,12 +102,14 @@ class TMInterfaceManager:
                 ((msgtype & 0xFF) == 0) and prev_msgtype == 0 and (time.perf_counter_ns() > time_first_message0 + 1000_000_000)
             )
 
-            if ((msgtype & 0xFF00) == 0) or ignore_message0:
+            if (msgtype & 0xFF != 14) and (((msgtype & 0xFF00) == 0) or ignore_message0):
                 # No message is ready, or we are spammed with message 0
                 if ((msgtype & 0xFF00) != 0) and ignore_message0:
                     # We are spammed with message 0
                     time_first_message0 = time.perf_counter_ns()
-                    print("TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER ")
+                    print(
+                        "TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER "
+                    )
                     n_frames_tmi_protection_triggered += 1
 
                 if (
@@ -125,23 +124,33 @@ class TMInterfaceManager:
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
                     simulation_state = self.iface.get_simulation_state()
-                    camera.grab()  # Discard one frame to make sure we are on time
-                    frame = None
-                    while frame is None:
-                        frame = camera.grab()
 
-                    frame = np.expand_dims(rgb2gray(frame), axis=0)  # shape = (1, 480, 640)
+                    target_time = simulation_state.race_time
+                    parsed_time = -1
+                    iterations = 0
+                    frame = None
+                    while parsed_time != target_time:
+                        frame = None
+                        iterations += 1
+                        while frame is None:
+                            frame = self.camera.grab(region=trackmania_window_region)
+                        parsed_time = time_parsing.parse_time(frame, self.digits_library)
+
+                        if iterations > 10:
+                            print(f"warning capturing {iterations=}, {parsed_time=}, {target_time=}")
+
+                    # print(iterations)
+                    frame = rgb2gray(frame)  # shape = (1, 480, 640)
                     rv["frames"].append(frame)
 
-                    if len(rv["frames"]) > 2:
-                        if np.all(rv["frames"][-2] == rv["frames"][-1]):
-                            # Frames have not changged
-                            n_two_consecutive_frames_equal += 1
+                    if len(rv["frames"]) >= 2 and frames_equal(rv["frames"][-2], rv["frames"][-1]):
+                        # Frames have not changged
+                        n_two_consecutive_frames_equal += 1
 
-                    has_lateral_contact = (
-                        simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                        <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
-                    )
+                    # has_lateral_contact = (
+                    #     simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                    #     <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                    # )
 
                     rv["floats"].append(
                         np.array(
@@ -174,15 +183,20 @@ class TMInterfaceManager:
                     rv["done"].append(False)
 
                     prev_cpcount = cpcount
-                    # noinspection PyUnusedLocal
                     prev_display_speed = simulation_state.display_speed
                     prev_time = _time
                     prev_input_gas = simulation_state.scene_mobil.input_gas
+
                     action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1], rv["floats"][-1])
 
                     # action_idx = misc.action_forward_idx if _time < 2_000 else misc.action_backward_idx
                     # action_was_greedy = True
-                    # print(action_idx, simulation_state.scene_mobil.input_gas)
+
+                    # import random
+                    # action_idx = random.randint(0, 8)
+
+                    # print("REWARD ", rv["rewards"][-1])
+                    # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
 
                     self.iface.set_input_state(**misc.inputs[action_idx])
                     self.iface.set_speed(self.running_speed)
@@ -190,9 +204,9 @@ class TMInterfaceManager:
                     if n_th_action_we_compute == 0:
                         stats_tracker["q_value_starting_frame"].append(q_value)
                         for i, val in enumerate(np.nditer(q_values)):
-                            stats_tracker[f"q_values_starting_frame_{i}"].append(val - q_value)
+                            stats_tracker[f"q_values_starting_frame_{i}"].append(val)
                         for i, val in enumerate(np.nditer(np.sort(q_values))):
-                            stats_tracker[f"gap_q_values_starting_frame_{i}"].append(val - q_value)
+                            stats_tracker[f"gaps_starting_frame_{i}"].append(val - q_value)
 
                     rv["actions"].append(action_idx)
                     rv["action_was_greedy"].append(action_was_greedy)
@@ -285,6 +299,7 @@ class TMInterfaceManager:
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
                         do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
+
                     elif (
                         _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0
                     ):  # TODO for next run : switch to elif instead of if
@@ -381,16 +396,12 @@ class TMInterfaceManager:
 
         assert self.latest_tm_engine_speed_requested == 0
 
-        # Relase the DXCam resources
-        camera.release()
-        camera.stop()
-        del camera
-
         print("E", end="")
         return rv
 
 
 def _set_window_position(trackmania_window):
+    # Currently unused, might be used in the future for parallel environments
     win32gui.SetWindowPos(
         trackmania_window,
         win32con.HWND_TOPMOST,
@@ -415,3 +426,32 @@ def _get_window_position(trackmania_window):
     right = rect[2] - misc.wind32gui_margins["right"]
     bottom = rect[3] - misc.wind32gui_margins["bottom"]
     return left, top, right, bottom
+
+
+def remove_fps_cap():
+    # from @Kim on TrackMania Tool Assisted Discord server
+    process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
+    rwm = ReadWriteMemory()
+    for p in process:
+        pid = int(p.pid)
+        process = rwm.get_process_by_id(pid)
+        process.open()
+        process.write(0x005292F1, 4294919657)
+        process.write(0x005292F1 + 4, 2425393407)
+        process.write(0x005292F1 + 8, 2425393296)
+        process.close()
+        print(f"Disabled FPS cap of process {pid}")
+
+
+@numba.njit
+def rgb2gray(img):
+    img_bnw = np.empty(shape=(1, misc.H, misc.W), dtype=np.uint8)
+    for i in range(misc.H):
+        for j in range(misc.W):
+            img_bnw[0, i, j] = np.uint8(round(np.sum(img[i, j, :3], dtype=np.float32) / 3))
+    return img_bnw
+
+
+@numba.njit
+def frames_equal(img1, img2):
+    return np.all(img1 == img2)

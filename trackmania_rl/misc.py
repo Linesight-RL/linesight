@@ -10,19 +10,17 @@ running_speed = 10
 run_steps_per_action = 5
 ms_per_run_step = 10
 max_rollout_time_ms = 45_000
-n_steps = 3
+n_steps = 1
 
-gamma = 1
+gamma = 0.5
 epsilon = 0.1
-discard_non_greedy_actions_in_nsteps = False
-reward_per_tm_engine_step = -0.0025
-reward_on_finish = 2
+discard_non_greedy_actions_in_nsteps = True
+reward_per_tm_engine_step = 0 * -0.0025
+reward_on_finish = 0 * 2
 reward_on_failed_to_finish = 0
-reward_shaped_velocity = 2 / 200
-reward_bogus_velocity = (
-    -reward_per_tm_engine_step * run_steps_per_action / 400
-)  # If we manage to have 400 speed, the agent will want to run forever
-reward_bogus_gas = -reward_per_tm_engine_step * run_steps_per_action / 50
+reward_shaped_velocity = 0 * 2 / 200
+reward_bogus_velocity = 0 * (0.0025 * run_steps_per_action / 400)  # If we manage to have 400 speed, the agent will want to run forever
+reward_bogus_gas = 0.0025 * run_steps_per_action / 5
 
 bogus_terminal_state_display_speed = 200
 
@@ -42,9 +40,9 @@ AL_alpha = 0
 
 memory_size = 30_000
 memory_size_start_learn = 29_000
-virtual_memory_size_start_learn = 0
+virtual_memory_size_start_learn = -50_000
 number_memories_generated_high_exploration = 29_000
-high_exploration_ratio =  10
+high_exploration_ratio = 10
 batch_size = 1024
 learning_rate = 1e-4
 # clip_grad_value = 100
