@@ -51,6 +51,7 @@ class Agent(torch.nn.Module):
             torch.nn.LeakyReLU(inplace=True),
             noisy_linear.NoisyLinear(dense_hidden_dimension // 2, 1),
         )
+
         self.iqn_fc = torch.nn.Linear(
             iqn_embedding_dimension, dense_input_dimension
         )  # There is no word in the paper on how to init this layer?
@@ -259,7 +260,7 @@ class Trainer:
                 outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
                     0, 1
                 )  # (batch_size, iqn_n, 1)
-
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             self.model.reset_noise()
             q__st__model__quantiles_tau3, tau3 = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
@@ -303,7 +304,9 @@ class Trainer:
                 if self.epsilon > 0:
                     # We are not evaluating
                     self.model.reset_noise()
-                q_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().mean(axis=0)
+                q_values = (
+                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                )
 
         if random.random() < self.epsilon:
             return random.randrange(0, self.model.n_actions), False, np.max(q_values), q_values

@@ -8,3 +8,5 @@
 /.vscode
 *.pyd
 /old_runs
+/tensorboard
+/data

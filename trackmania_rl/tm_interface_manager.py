@@ -178,7 +178,9 @@ class TMInterfaceManager:
                         misc.reward_per_tm_engine_step * self.run_steps_per_action
                         + misc.reward_shaped_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
                         + misc.reward_bogus_velocity * simulation_state.display_speed
-                        + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                        # + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                        + misc.reward_bogus_gas * misc.inputs[rv["actions"][-1] if len(rv["actions"]) > 0 else 0]["accelerate"]
+                        + misc.reward_bogus_low_speed * (simulation_state.display_speed < 5)
                     )
                     rv["done"].append(False)
 
@@ -202,11 +204,11 @@ class TMInterfaceManager:
                     self.iface.set_speed(self.running_speed)
 
                     if n_th_action_we_compute == 0:
-                        stats_tracker["q_value_starting_frame"].append(q_value)
+                        stats_tracker["value_starting_frame"].append(q_value)
                         for i, val in enumerate(np.nditer(q_values)):
-                            stats_tracker[f"q_values_starting_frame_{i}"].append(val)
-                        for i, val in enumerate(np.nditer(np.sort(q_values))):
-                            stats_tracker[f"gaps_starting_frame_{i}"].append(val - q_value)
+                            stats_tracker[f"q_value_{i}_starting_frame"].append(val)
+                        # for i, val in enumerate(np.nditer(np.sort(q_values))):
+                        #     stats_tracker[f"gaps_starting_frame_{i}"].append(val - q_value)
 
                     rv["actions"].append(action_idx)
                     rv["action_was_greedy"].append(action_was_greedy)
@@ -252,7 +254,9 @@ class TMInterfaceManager:
                         + misc.reward_on_failed_to_finish
                         + misc.reward_shaped_velocity * (misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
                         + misc.reward_bogus_velocity * simulation_state.display_speed
-                        + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                        # + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                        + misc.reward_bogus_gas * misc.inputs[rv["actions"][-1] if len(rv["actions"]) > 0 else 0]["accelerate"]
+                        + misc.reward_bogus_low_speed * (simulation_state.display_speed < 5)
                     )
                     rv["done"].append(True)
                     stats_tracker["race_finished"].append(False)
@@ -343,7 +347,9 @@ class TMInterfaceManager:
                                 + misc.reward_on_finish
                                 + misc.reward_shaped_velocity * (misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
                                 + misc.reward_bogus_velocity * simulation_state.display_speed
-                                + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                                # + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                                + misc.reward_bogus_gas * misc.inputs[rv["actions"][-1] if len(rv["actions"]) > 0 else 0]["accelerate"]
+                                + misc.reward_bogus_low_speed * (simulation_state.display_speed < 5)
                             )
                             rv["done"].append(True)
                             stats_tracker["race_finished"].append(True)
