@@ -11,12 +11,14 @@ ms_per_run_step = 10
 max_rollout_time_ms = 30_000
 n_steps = 3
 
-anneal_step = 4
+anneal_step = 5
 
 gamma = [
     0.5,
     0.95,
     0.985,
+    1,
+    1,
     1,
     1,
 ][anneal_step]
@@ -29,12 +31,16 @@ reward_per_tm_engine_step = [
     -0.005,
     -0.0015,
     -0.0015,
+    -0.0015,
+    -0.0015,
 ][anneal_step]
 
 reward_on_finish = [
     0,
     0,
     0,
+    1,
+    1,
     1,
     1,
 ][anneal_step]
@@ -47,6 +53,8 @@ reward_bogus_velocity = [
     0.005 * run_steps_per_action / 200,
     0.0015 * run_steps_per_action / 400,
     0.0015 * run_steps_per_action / 1200,
+    0,
+    0,
 ][
     anneal_step
 ]  # If we manage to have 400 speed, the agent will want to run forever
@@ -56,10 +64,14 @@ reward_bogus_gas = [
     0,
     0,
     0,
+    0,
+    0,
 ][anneal_step]
 reward_bogus_low_speed = [
     0,
     -0.01,
+    0,
+    0,
     0,
     0,
     0,
@@ -77,11 +89,11 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = 0
+AL_alpha = [0, 0, 0, 0, 0, 0, 0.4][anneal_step]
 
 memory_size = 30_000
-memory_size_start_learn = 1000
-virtual_memory_size_start_learn = 1000
+memory_size_start_learn = 29_000
+virtual_memory_size_start_learn = 29_000
 number_memories_generated_high_exploration = 200_000
 high_exploration_ratio = 10
 batch_size = 1024
@@ -133,7 +145,7 @@ float_inputs_std = np.array(
 )
 
 # 1, 4, 7 : accelerate
-# 0, 3, 6 : 
+# 0, 3, 6 :
 # 2, 5, 8 : backwards
 
 inputs = [

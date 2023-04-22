@@ -29,11 +29,10 @@ layout = {
             "Multiline",
             [
                 "last400_min_race_time",
-                "eval_race_time",
                 "last400_d1_race_time",
-                "last400_q1_race_time",
+                # "last400_q1_race_time",
                 "last400_median_race_time",
-                "last400_q3_race_time",
+                # "last400_q3_race_time",
                 "last400_d9_race_time",
             ],
         ],
@@ -42,6 +41,27 @@ layout = {
         "noisy_std": ["Multiline", [f"std_due_to_noisy_for_action{i}" for i in range(len(misc.inputs))]],
         "iqn_std": ["Multiline", [f"std_within_iqn_quantiles_for_action{i}" for i in range(len(misc.inputs))]],
         "laststep_race_time_ratio": ["Multiline", ["laststep_race_time_ratio"]],
+        "observed_rollouts": [
+            "Multiline",
+            [
+                "last400_d1_rollout_sum_rewards",
+                "last400_median_rollout_sum_rewards",
+                "last400_d9_rollout_sum_rewards",
+            ]
+            + [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))],
+        ],
+        "race_time_with_eval": [
+            "Multiline",
+            [
+                "last400_min_race_time",
+                "eval_race_time",
+                "last400_d1_race_time",
+                # "last400_q1_race_time",
+                "last400_median_race_time",
+                # "last400_q3_race_time",
+                "last400_d9_race_time",
+            ],
+        ],
     },
 }
 tensorboard_writer.add_custom_scalars(layout)
@@ -169,6 +189,7 @@ while True:
         else misc.epsilon
     )
     trainer.gamma = misc.gamma
+    trainer.AL_alpha = misc.AL_alpha
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
@@ -232,6 +253,7 @@ while True:
             "gamma": misc.gamma,
             "n_steps": misc.n_steps,
             "epsilon": trainer.epsilon,
+            "AL_alpha": trainer.AL_alpha,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
             "reward_bogus_velocity": misc.reward_bogus_velocity,
             "reward_bogus_gas": misc.reward_bogus_gas,
@@ -343,6 +365,13 @@ while True:
                 global_step=step_stats["cumul_number_memories_generated"],
                 walltime=float(step_stats["cumul_training_hours"] * 3600),
             )
+
+        tensorboard_writer.add_text(
+            "times_summary",
+            f"min {step_stats['last400_min_race_time']/1000:.2f} ; d1 {step_stats['last400_d1_race_time']/1000:.2f} ; median {step_stats['last400_median_race_time']/1000:.2f} ; d9 {step_stats['last400_d9_race_time']/1000:.2f} ",
+            global_step=step_stats["cumul_number_memories_generated"],
+            walltime=float(step_stats["cumul_training_hours"] * 3600),
+        )
         step_stats_history.append(step_stats)
 
         # ===============================================
