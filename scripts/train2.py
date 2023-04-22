@@ -15,7 +15,7 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "03"
+run_name = "04"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -29,6 +29,7 @@ layout = {
             "Multiline",
             [
                 "last400_min_race_time",
+                "eval_race_time",
                 "last400_d1_race_time",
                 "last400_q1_race_time",
                 "last400_median_race_time",
@@ -36,7 +37,7 @@ layout = {
                 "last400_d9_race_time",
             ],
         ],
-        r"last400_%race finished": ["Multiline", [r"last400_%race finished"]],
+        # r"last400_%race finished": ["Multiline", [r"last400_%race finished"]],
         "loss": ["Multiline", ["laststep_mean_loss"]],
         "noisy_std": ["Multiline", [f"std_due_to_noisy_for_action{i}" for i in range(len(misc.inputs))]],
         "iqn_std": ["Multiline", [f"std_within_iqn_quantiles_for_action{i}" for i in range(len(misc.inputs))]],
@@ -329,12 +330,19 @@ while True:
             step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
         model1.train()
 
-        tensorboard_writer.add_scalars(
-            main_tag="",
-            tag_scalar_dict=step_stats,
-            global_step=step_stats["cumul_number_memories_generated"],
-            walltime=float(step_stats["cumul_training_hours"] * 3600),
-        )
+        # tensorboard_writer.add_scalars(
+        #     main_tag="",
+        #     tag_scalar_dict=step_stats,
+        #     global_step=step_stats["cumul_number_memories_generated"],
+        #     walltime=float(step_stats["cumul_training_hours"] * 3600),
+        # )
+        for k, v in step_stats.items():
+            tensorboard_writer.add_scalar(
+                tag=k,
+                scalar_value=v,
+                global_step=step_stats["cumul_number_memories_generated"],
+                walltime=float(step_stats["cumul_training_hours"] * 3600),
+            )
         step_stats_history.append(step_stats)
 
         # ===============================================

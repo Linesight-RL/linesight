@@ -9,27 +9,65 @@ running_speed = 10
 run_steps_per_action = 5
 ms_per_run_step = 10
 max_rollout_time_ms = 30_000
-n_steps = 2
+n_steps = 3
 
-gamma = [0.5, 0.95, 1][1]
-epsilon = 0.02
+anneal_step = 4
+
+gamma = [
+    0.5,
+    0.95,
+    0.985,
+    1,
+    1,
+][anneal_step]
+epsilon = 0.01
 discard_non_greedy_actions_in_nsteps = True
 
-reward_per_tm_engine_step = [0, -0.015, -0.0025][1]
+reward_per_tm_engine_step = [
+    0,
+    -0.015,
+    -0.005,
+    -0.0015,
+    -0.0015,
+][anneal_step]
 
-reward_on_finish = 0 * 2
+reward_on_finish = [
+    0,
+    0,
+    0,
+    1,
+    1,
+][anneal_step]
 reward_on_failed_to_finish = 0
 
 reward_shaped_velocity = 0
-reward_bogus_velocity = [0, 0.015 * run_steps_per_action / 100, 0.0025 * run_steps_per_action / 400][
-    1
+reward_bogus_velocity = [
+    0,
+    0.015 * run_steps_per_action / 100,
+    0.005 * run_steps_per_action / 200,
+    0.0015 * run_steps_per_action / 400,
+    0.0015 * run_steps_per_action / 1200,
+][
+    anneal_step
 ]  # If we manage to have 400 speed, the agent will want to run forever
-reward_bogus_gas = [0, 0.015 * run_steps_per_action / 2, 0.0025 * run_steps_per_action / 5][1]
-reward_bogus_low_speed = [0, -0.01, -0.0025][1]
+reward_bogus_gas = [
+    0,
+    0.015 * run_steps_per_action / 2,
+    0,
+    0,
+    0,
+][anneal_step]
+reward_bogus_low_speed = [
+    0,
+    -0.01,
+    0,
+    0,
+    0,
+][anneal_step]
 
-bogus_terminal_state_display_speed = 200
+bogus_terminal_state_display_speed = 320
 
-statistics_save_period_seconds = 120
+statistics_save_period_seconds = 60 * 10
 
 float_input_dim = 2
 float_hidden_dim = 64
@@ -94,8 +132,12 @@ float_inputs_std = np.array(
     ]
 )
 
+# 1, 4, 7 : accelerate
+# 0, 3, 6 : 
+# 2, 5, 8 : backwards
+
 inputs = [
-    {  # 0
+    {  # 0 : Left, nothing else
         "left": True,
         "right": False,
         "accelerate": False,
@@ -113,7 +155,7 @@ inputs = [
         "accelerate": False,
         "brake": True,
     },
-    {  # 3
+    {  # 3 : Right, nothing else
         "left": False,
         "right": True,
         "accelerate": False,
