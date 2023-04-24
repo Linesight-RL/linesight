@@ -15,7 +15,7 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "04"
+run_name = "06"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +169,8 @@ trainer = noisy_iqn_pal2.Trainer(
 # Training loop
 # ========================================================
 model1.train()
+model1.V_head.eval()
+model2.V_head.eval()
 time_next_save = time.time() + misc.statistics_save_period_seconds
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
@@ -178,7 +180,15 @@ tmi = tm_interface_manager.TMInterfaceManager(
     interface_name="TMInterface0",
 )
 
+# iprofile = 0
+
 while True:
+
+    # iprofile += 1
+    # if iprofile == 50:
+    #     import sys
+    #     sys.exit()
+
     # ===============================================
     #   PLAY ONE ROUND
     # ===============================================
@@ -190,6 +200,8 @@ while True:
     )
     trainer.gamma = misc.gamma
     trainer.AL_alpha = misc.AL_alpha
+    for param_group in optimizer1.param_groups:
+        param_group['lr'] = misc.learning_rate
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
@@ -197,6 +209,7 @@ while True:
     number_frames_played += len(rollout_results["frames"])
     cumul_number_frames_played += len(rollout_results["frames"])
     fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
+    print("race time ratio  ", np.median(np.array(fast_stats_tracker["race_time_ratio"])))
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
         buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
     )
@@ -254,6 +267,7 @@ while True:
             "n_steps": misc.n_steps,
             "epsilon": trainer.epsilon,
             "AL_alpha": trainer.AL_alpha,
+            "learning_rate": misc.learning_rate,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
             "reward_bogus_velocity": misc.reward_bogus_velocity,
             "reward_bogus_gas": misc.reward_bogus_gas,
@@ -311,6 +325,7 @@ while True:
         cumul_number_frames_played += len(rollout_results["frames"])
         trainer.epsilon = misc.epsilon
         model1.train()
+        model1.V_head.eval()
         buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
             buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
         )
@@ -351,6 +366,7 @@ while True:
         for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
             step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
         model1.train()
+        model1.V_head.eval()
 
         # tensorboard_writer.add_scalars(
         #     main_tag="",

@@ -19,6 +19,7 @@ class Agent(torch.nn.Module):
         n_actions,
         float_inputs_mean,
         float_inputs_std,
+        n_w,
     ):
         super().__init__()
         self.img_head = torch.nn.Sequential(
@@ -42,14 +43,20 @@ class Agent(torch.nn.Module):
         dense_input_dimension = conv_head_output_dim + float_hidden_dim
 
         self.A_head = torch.nn.Sequential(
-            noisy_linear.NoisyLinear(dense_input_dimension, dense_hidden_dimension // 2),
+            torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
             torch.nn.LeakyReLU(inplace=True),
-            noisy_linear.NoisyLinear(dense_hidden_dimension // 2, n_actions),
+            torch.nn.Linear(dense_hidden_dimension // 2, n_actions),
         )
         self.V_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
             torch.nn.LeakyReLU(inplace=True),
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
+        )
+
+        self.W_head = torch.nn.Sequential(
+            torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
+            torch.nn.LeakyReLU(inplace=True),
+            torch.nn.Linear(dense_hidden_dimension // 2, n_w),
         )
 
         self.iqn_fc = torch.nn.Linear(
@@ -96,6 +103,9 @@ class Agent(torch.nn.Module):
         quantile_net = self.iqn_fc(quantile_net)
         # (batch_size*num_quantiles, dense_input_dimension)
         quantile_net = self.lrelu(quantile_net)
+
+        W = self.W_head(concat)  # (batch_size, n_w)
+
         # (batch_size*num_quantiles, dense_input_dimension)
         concat = concat.repeat(num_quantiles, 1)
         # (batch_size*num_quantiles, dense_input_dimension)
@@ -104,9 +114,10 @@ class Agent(torch.nn.Module):
         A = self.A_head(concat)  # (batch_size*num_quantiles, n_actions)
         V = self.V_head(concat)  # (batch_size*num_quantiles, 1) #need to check this
 
+
         Q = V + A - A.mean(dim=-1, keepdim=True)
 
-        return Q, tau
+        return Q, tau, W
 
     def reset_noise(self):
         self.A_head[0].reset_noise()
@@ -304,9 +315,20 @@ class Trainer:
                 if self.epsilon > 0:
                     # We are not evaluating
                     self.model.reset_noise()
-                q_values = (
-                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
-                )
+                q_values, _, w_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=torch.linspace(0.05, 0.95, self.iqn_k)[:, None].to("cuda"))
+                q_values = q_values[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                aaaaaaaaaaaaaa
+                # q_values.shape ()
+                # w_values.shape (1, n_w)
+
+                # QUOTA PAPER
+                r = random.random()
+                if r < beta * epsilon_gamma:
+                    w = random.randrange(0, self.model.n_w)
+                elif r < beta:
+                    w = np.argmax(w_values.ravel())
+
+
 
         if random.random() < self.epsilon:
             return random.randrange(0, self.model.n_actions), False, np.max(q_values), q_values

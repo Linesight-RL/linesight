@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 
+import math
 import numba
 import numpy as np
 import psutil
@@ -13,6 +14,7 @@ from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
 from . import dxshot as dxcam  # https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
+# from . import dxcam
 from . import misc, time_parsing
 
 
@@ -28,12 +30,21 @@ class TMInterfaceManager:
         self.max_time = max_time
         self.timeout_has_been_set = False
         self.interface_name = interface_name
-
+        # int(interface_name[-1])
         self.camera = dxcam.create(output_idx=0, output_color="BGRA")
         remove_fps_cap()
         self.trackmania_window = win32gui.FindWindow("TmForever", None)
         _set_window_focus(self.trackmania_window)
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
+
+        # if interface_name == "TMInterface0":
+        #     self.zou = (1854, 37, 2494, 517)
+        # elif interface_name == "TMInterface1":
+        #     self.zou = (1854, 725, 2494, 1205)
+        # elif interface_name == "TMInterface2":
+        #     self.zou = (1174, 37, 1814, 517)
+        # else:
+        #     self.zou = (1174, 725, 1814, 1205)
 
     def rollout(self, exploration_policy, stats_tracker):
         print("S ", end="")
@@ -54,6 +65,8 @@ class TMInterfaceManager:
                 self.iface._wait_for_server_response()
                 self.iface.registered = True
 
+            self.iface.execute_command(f"set countdown_speed {self.running_speed}")
+
         assert self.iface._ensure_connected()
 
         if self.latest_tm_engine_speed_requested == 0:
@@ -63,13 +76,21 @@ class TMInterfaceManager:
         compute_action_asap = False
         trackmania_window_region = _get_window_position(self.trackmania_window)
 
+        #
+        # trackmania_window_region = (
+        #     trackmania_window_region[0] - 2560,
+        #     trackmania_window_region[1],
+        #     trackmania_window_region[2] - 2560,
+        #     trackmania_window_region[3]
+        #                             )
+
         # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
         _time = -3000
         cpcount = 0
         prev_cpcount = 0
         prev_display_speed = 0
         prev_input_gas = 0
-        prev_time = -1
+
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -82,6 +103,8 @@ class TMInterfaceManager:
 
         do_not_exit_main_loop_before_time = 0
         do_not_compute_action_before_time = 0
+        last_known_simulation_state = None
+
 
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
@@ -123,13 +146,13 @@ class TMInterfaceManager:
 
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
-                    simulation_state = self.iface.get_simulation_state()
+                    sim_state_race_time = last_known_simulation_state.race_time
+                    sim_state_display_speed = last_known_simulation_state.display_speed
 
-                    target_time = simulation_state.race_time
                     parsed_time = -1
                     iterations = 0
                     frame = None
-                    while parsed_time != target_time:
+                    while parsed_time != sim_state_race_time:
                         frame = None
                         iterations += 1
                         while frame is None:
@@ -137,15 +160,11 @@ class TMInterfaceManager:
                         parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
                         if iterations > 10:
-                            print(f"warning capturing {iterations=}, {parsed_time=}, {target_time=}")
+                            print(f"warning capturing {iterations=}, {parsed_time=}, {sim_state_race_time=}")
 
                     # print(iterations)
                     frame = rgb2gray(frame)  # shape = (1, 480, 640)
                     rv["frames"].append(frame)
-
-                    if len(rv["frames"]) >= 2 and frames_equal(rv["frames"][-2], rv["frames"][-1]):
-                        # Frames have not changged
-                        n_two_consecutive_frames_equal += 1
 
                     # has_lateral_contact = (
                     #     simulation_state.time - (1 + misc.run_steps_per_action * 10)
@@ -155,8 +174,8 @@ class TMInterfaceManager:
                     rv["floats"].append(
                         np.array(
                             [
-                                simulation_state.display_speed,
-                                simulation_state.race_time,
+                                sim_state_display_speed,
+                                sim_state_race_time,
                                 # simulation_state.scene_mobil.engine.gear,
                                 # simulation_state.scene_mobil.input_gas,
                                 # simulation_state.scene_mobil.input_brake,
@@ -176,18 +195,15 @@ class TMInterfaceManager:
 
                     rv["rewards"].append(
                         misc.reward_per_tm_engine_step * self.run_steps_per_action
-                        + misc.reward_shaped_velocity * (misc.gamma * simulation_state.display_speed - prev_display_speed)
-                        + misc.reward_bogus_velocity * simulation_state.display_speed
-                        # + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
+                        + misc.reward_shaped_velocity * (misc.gamma * sim_state_display_speed - prev_display_speed)
+                        + misc.reward_bogus_velocity * sim_state_display_speed
                         + misc.reward_bogus_gas * misc.inputs[rv["actions"][-1] if len(rv["actions"]) > 0 else 0]["accelerate"]
-                        + misc.reward_bogus_low_speed * (simulation_state.display_speed < 5)
+                        + misc.reward_bogus_low_speed * (sim_state_display_speed < 5)
                     )
                     rv["done"].append(False)
 
                     prev_cpcount = cpcount
-                    prev_display_speed = simulation_state.display_speed
-                    prev_time = _time
-                    prev_input_gas = simulation_state.scene_mobil.input_gas
+                    prev_display_speed = sim_state_display_speed
 
                     action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1], rv["floats"][-1])
 
@@ -207,8 +223,6 @@ class TMInterfaceManager:
                         stats_tracker["value_starting_frame"].append(q_value)
                         for i, val in enumerate(np.nditer(q_values)):
                             stats_tracker[f"q_value_{i}_starting_frame"].append(val)
-                        # for i, val in enumerate(np.nditer(np.sort(q_values))):
-                        #     stats_tracker[f"gaps_starting_frame_{i}"].append(val - q_value)
 
                     rv["actions"].append(action_idx)
                     rv["action_was_greedy"].append(action_was_greedy)
@@ -233,7 +247,7 @@ class TMInterfaceManager:
                 # ============================
 
                 if not self.timeout_has_been_set:
-                    self.iface.set_timeout(3_000)
+                    self.iface.set_timeout(10_000)
                     self.timeout_has_been_set = True
 
                 if not give_up_signal_has_been_sent:
@@ -241,12 +255,14 @@ class TMInterfaceManager:
                     give_up_signal_has_been_sent = True
 
                 if _time > self.max_time and this_rollout_has_seen_t_negative and not this_rollout_is_finished:
+                    # FAILED TO FINISH IN TIME
                     simulation_state = self.iface.get_simulation_state()
                     print(f"      --- {simulation_state.race_time:>6} ", end="")
-                    has_lateral_contact = (
-                        simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                        <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
-                    )
+
+                    # has_lateral_contact = (
+                    #     simulation_state.time - (1 + misc.run_steps_per_action * 10)
+                    #     <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
+                    # )
 
                     # FAILED TO FINISH
                     rv["rewards"].append(
@@ -254,7 +270,6 @@ class TMInterfaceManager:
                         + misc.reward_on_failed_to_finish
                         + misc.reward_shaped_velocity * (misc.gamma * misc.bogus_terminal_state_display_speed - prev_display_speed)
                         + misc.reward_bogus_velocity * simulation_state.display_speed
-                        # + misc.reward_bogus_gas * simulation_state.scene_mobil.input_gas
                         + misc.reward_bogus_gas * misc.inputs[rv["actions"][-1] if len(rv["actions"]) > 0 else 0]["accelerate"]
                         + misc.reward_bogus_low_speed * (simulation_state.display_speed < 5)
                     )
@@ -271,30 +286,19 @@ class TMInterfaceManager:
 
                     self.iface.set_speed(0)
                     self.latest_tm_engine_speed_requested = 0
-                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
+                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
 
                 if not this_rollout_is_finished:
                     this_rollout_has_seen_t_negative |= _time < 0
 
-                    if _time == -2000:
+                    if _time == -1000:
                         # Press forward 2000ms before the race starts
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
-                    # elif _time == -100 and not self.snapshot_before_start_is_made:
-                    #     print("Save simulation state")
-                    #     self.simulation_state_to_rewind_to_for_restart = self.iface.get_simulation_state()
-                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas=}")
-                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer=}")
-                    #     print(f"{self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake=}")
-                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_gas == 1.0 #TODO
-                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_steer == 0.0
-                    #     # assert self.simulation_state_to_rewind_to_for_restart.scene_mobil.input_brake == 0.0
-                    #     self.snapshot_before_start_is_made = True
                     elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
-                        # print(f"{_time=}")
-
-                        # BEGIN AGADE TRICK - UNTESTED YET
+                        # BEGIN AGADE TRICK
                         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
-                        msg.write_buffer(self.iface.get_simulation_state().data)
+                        last_known_simulation_state = self.iface.get_simulation_state()
+                        msg.write_buffer(last_known_simulation_state.data)
                         self.iface._send_message(msg)
                         self.iface._wait_for_server_response()
                         # END AGADE TRICK
@@ -425,13 +429,25 @@ def _set_window_focus(trackmania_window):
     win32gui.SetForegroundWindow(trackmania_window)
 
 
-def _get_window_position(trackmania_window):
+def pb__get_window_position(trackmania_window):
     rect = win32gui.GetWindowRect(trackmania_window)
     left = rect[0] + misc.wind32gui_margins["left"]
     top = rect[1] + misc.wind32gui_margins["top"]
     right = rect[2] - misc.wind32gui_margins["right"]
     bottom = rect[3] - misc.wind32gui_margins["bottom"]
     return left, top, right, bottom
+
+def _get_window_position(trackmania_window):
+	rect = win32gui.GetWindowRect(trackmania_window)
+	clientRect = win32gui.GetClientRect(trackmania_window) #https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+	windowOffset = math.floor(((rect[2]-rect[0])-clientRect[2])/2)
+	titleOffset = ((rect[3]-rect[1])-clientRect[3]) - windowOffset
+	rect = (rect[0]+windowOffset, rect[1]+titleOffset, rect[2]-windowOffset, rect[3]-windowOffset)
+	top = rect[1]+round(((rect[3] - rect[1])-misc.H)/2)
+	left = rect[0]+round(((rect[2] - rect[0])-misc.W)/2)#Could there be a 1 pixel error with these roundings?
+	right = left+misc.W
+	bottom = top+misc.H
+	return left, top ,right, bottom
 
 
 def remove_fps_cap():
@@ -449,7 +465,7 @@ def remove_fps_cap():
         print(f"Disabled FPS cap of process {pid}")
 
 
-@numba.njit
+@numba.njit(fastmath=True)
 def rgb2gray(img):
     img_bnw = np.empty(shape=(1, misc.H, misc.W), dtype=np.uint8)
     for i in range(misc.H):
@@ -458,6 +474,6 @@ def rgb2gray(img):
     return img_bnw
 
 
-@numba.njit
+@numba.njit(fastmath=True)
 def frames_equal(img1, img2):
     return np.all(img1 == img2)
