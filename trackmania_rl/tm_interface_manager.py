@@ -14,6 +14,7 @@ from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
 from . import dxshot as dxcam  # https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
+
 # from . import dxcam
 from . import misc, time_parsing
 
@@ -46,7 +47,10 @@ class TMInterfaceManager:
         # else:
         #     self.zou = (1174, 725, 1814, 1205)
 
-    def rollout(self, exploration_policy, stats_tracker):
+    def rollout(self, exploration_policy, stats_tracker, zone_centers):
+
+        current_zone = 0
+
         print("S ", end="")
         rv = defaultdict(list)
 
@@ -90,7 +94,8 @@ class TMInterfaceManager:
         prev_cpcount = 0
         prev_display_speed = 0
         prev_input_gas = 0
-
+        prev_position = None
+        prev_speed = None
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -104,7 +109,6 @@ class TMInterfaceManager:
         do_not_exit_main_loop_before_time = 0
         do_not_compute_action_before_time = 0
         last_known_simulation_state = None
-
 
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
@@ -437,17 +441,18 @@ def pb__get_window_position(trackmania_window):
     bottom = rect[3] - misc.wind32gui_margins["bottom"]
     return left, top, right, bottom
 
+
 def _get_window_position(trackmania_window):
-	rect = win32gui.GetWindowRect(trackmania_window)
-	clientRect = win32gui.GetClientRect(trackmania_window) #https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-	windowOffset = math.floor(((rect[2]-rect[0])-clientRect[2])/2)
-	titleOffset = ((rect[3]-rect[1])-clientRect[3]) - windowOffset
-	rect = (rect[0]+windowOffset, rect[1]+titleOffset, rect[2]-windowOffset, rect[3]-windowOffset)
-	top = rect[1]+round(((rect[3] - rect[1])-misc.H)/2)
-	left = rect[0]+round(((rect[2] - rect[0])-misc.W)/2)#Could there be a 1 pixel error with these roundings?
-	right = left+misc.W
-	bottom = top+misc.H
-	return left, top ,right, bottom
+    rect = win32gui.GetWindowRect(trackmania_window)
+    clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
+    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
+    rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
+    top = rect[1] + round(((rect[3] - rect[1]) - misc.H) / 2)
+    left = rect[0] + round(((rect[2] - rect[0]) - misc.W) / 2)  # Could there be a 1 pixel error with these roundings?
+    right = left + misc.W
+    bottom = top + misc.H
+    return left, top, right, bottom
 
 
 def remove_fps_cap():

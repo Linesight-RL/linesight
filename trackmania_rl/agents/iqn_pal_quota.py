@@ -114,7 +114,6 @@ class Agent(torch.nn.Module):
         A = self.A_head(concat)  # (batch_size*num_quantiles, n_actions)
         V = self.V_head(concat)  # (batch_size*num_quantiles, 1) #need to check this
 
-
         Q = V + A - A.mean(dim=-1, keepdim=True)
 
         return Q, tau, W
@@ -315,7 +314,9 @@ class Trainer:
                 if self.epsilon > 0:
                     # We are not evaluating
                     self.model.reset_noise()
-                q_values, _, w_values = self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=torch.linspace(0.05, 0.95, self.iqn_k)[:, None].to("cuda"))
+                q_values, _, w_values = self.model(
+                    state_img_tensor, state_float_tensor, self.iqn_k, tau=torch.linspace(0.05, 0.95, self.iqn_k)[:, None].to("cuda")
+                )
                 q_values = q_values[0].cpu().numpy().astype(np.float32).mean(axis=0)
                 aaaaaaaaaaaaaa
                 # q_values.shape ()
@@ -327,8 +328,6 @@ class Trainer:
                     w = random.randrange(0, self.model.n_w)
                 elif r < beta:
                     w = np.argmax(w_values.ravel())
-
-
 
         if random.random() < self.epsilon:
             return random.randrange(0, self.model.n_actions), False, np.max(q_values), q_values

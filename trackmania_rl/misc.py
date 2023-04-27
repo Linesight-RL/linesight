@@ -49,9 +49,9 @@ reward_on_failed_to_finish = 0
 reward_shaped_velocity = 0
 reward_bogus_velocity = [
     0,
-    2*(0.05 / run_steps_per_action) / 400, #Should not have been divided !
-    2*0.01 / run_steps_per_action / 400, #Should not have been divided !
-    2*0.01 / run_steps_per_action / 400, #Should not have been divided !
+    2 * (0.05 / run_steps_per_action) / 400,  # Should not have been divided !
+    2 * 0.01 / run_steps_per_action / 400,  # Should not have been divided !
+    2 * 0.01 / run_steps_per_action / 400,  # Should not have been divided !
     0.0016 * run_steps_per_action / 1200,
     0,
     0,
@@ -60,8 +60,8 @@ reward_bogus_velocity = [
 ]  # If we manage to have 400 speed, the agent will want to run forever
 reward_bogus_gas = [
     0,
-    2*(0.05 / run_steps_per_action) / 2, #Should not have been divided !
-    2*(0.01 / run_steps_per_action) / 2, #Should not have been divided !
+    2 * (0.05 / run_steps_per_action) / 2,  # Should not have been divided !
+    2 * (0.01 / run_steps_per_action) / 2,  # Should not have been divided !
     0,
     0,
     0,
@@ -69,8 +69,8 @@ reward_bogus_gas = [
 ][anneal_step]
 reward_bogus_low_speed = [
     0,
-    -2*(0.05 / run_steps_per_action) / 2,
-    -2*(0.01 / run_steps_per_action) / 2,
+    -2 * (0.05 / run_steps_per_action) / 2,
+    -2 * (0.01 / run_steps_per_action) / 2,
     0,
     0,
     0,

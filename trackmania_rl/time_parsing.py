@@ -7,15 +7,15 @@ import numpy as np
 
 from . import misc
 
-five_digits_center = np.array([14, 33, 47, 67, 81])# + 1
+five_digits_center = np.array([14, 33, 47, 67, 81])  # + 1
 
 digits_radius = 6  # int(W*6/640)
 time_screen_width_percentage = 0.075
 time_screen_height_percentage = 0.025
-time_screen_height = 0.9725 #0.975 before
+time_screen_height = 0.9725  # 0.975 before
 
-h_min_time = round((time_screen_height - time_screen_height_percentage) * misc.H) # - 2 before
-h_max_time = round((time_screen_height + time_screen_height_percentage) * misc.H) # - 2 before
+h_min_time = round((time_screen_height - time_screen_height_percentage) * misc.H)  # - 2 before
+h_max_time = round((time_screen_height + time_screen_height_percentage) * misc.H)  # - 2 before
 w_min_time = round((0.5 - time_screen_width_percentage) * misc.W)
 w_max_time = round((0.5 + time_screen_width_percentage) * misc.W)
 
@@ -27,10 +27,11 @@ class DigitsLibrary:
         "digits_stack",
         "digits_value_stack",
     )
+
     def __init__(self, digits_filename):
-        self.digits = np.load(digits_filename, allow_pickle=True) # A digit is size (24x12) pixels, stored as np.uint8
+        self.digits = np.load(digits_filename, allow_pickle=True)  # A digit is size (24x12) pixels, stored as np.uint8
         self.digit_set = set({tuple(digit.flatten()) for digit, _ in self.digits})
-        self.digits_stack = np.stack(self.digits[:, 0]).astype(np.float32) # Currently (44, 24, 12)
+        self.digits_stack = np.stack(self.digits[:, 0]).astype(np.float32)  # Currently (44, 24, 12)
         self.digits_value_stack = np.stack(self.digits[:, 1])
 
 

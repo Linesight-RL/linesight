@@ -183,7 +183,6 @@ tmi = tm_interface_manager.TMInterfaceManager(
 # iprofile = 0
 
 while True:
-
     # iprofile += 1
     # if iprofile == 50:
     #     import sys
@@ -201,7 +200,7 @@ while True:
     trainer.gamma = misc.gamma
     trainer.AL_alpha = misc.AL_alpha
     for param_group in optimizer1.param_groups:
-        param_group['lr'] = misc.learning_rate
+        param_group["lr"] = misc.learning_rate
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
