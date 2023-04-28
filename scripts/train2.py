@@ -16,7 +16,7 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "08"
+run_name = "09"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -388,14 +388,14 @@ while True:
             tensorboard_writer.add_scalar(
                 tag=k,
                 scalar_value=v,
-                global_step=step_stats["cumul_number_memories_generated"],
+                global_step=step_stats["cumul_number_frames_played"],
                 walltime=float(step_stats["cumul_training_hours"] * 3600),
             )
 
         tensorboard_writer.add_text(
             "times_summary",
             f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} : min {step_stats['last400_min_race_time']:.2f} ; d1 {step_stats['last400_d1_race_time']:.2f} ; median {step_stats['last400_median_race_time']:.2f} ; d9 {step_stats['last400_d9_race_time']:.2f} ",
-            global_step=step_stats["cumul_number_memories_generated"],
+            global_step=step_stats["cumul_number_frames_played"],
             walltime=float(step_stats["cumul_training_hours"] * 3600),
         )
         step_stats_history.append(step_stats)
