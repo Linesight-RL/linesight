@@ -1,6 +1,4 @@
 # from Agade09
-import os
-
 import cv2
 import numba
 import numpy as np

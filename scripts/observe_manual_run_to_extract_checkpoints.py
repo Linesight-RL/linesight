@@ -1,8 +1,9 @@
-from tminterface.interface import TMInterface
-from tminterface.client import Client, run_client
 import sys
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+from tminterface.client import Client, run_client
+from tminterface.interface import TMInterface
 
 
 class MainClient(Client):
@@ -91,6 +92,8 @@ server_name = f"TMInterface{sys.argv[1]}" if len(sys.argv) > 1 else "TMInterface
 print(f"Connecting to {server_name}...")
 client = MainClient()
 run_client(client, server_name)
+# %%
+import matplotlib.pyplot as plt
 
 plt.plot(client.zone_centers[:, 0], client.zone_centers[:, 2])
 plt.plot(-np.array(client.raw_position_list)[:, 0], np.array(client.raw_position_list)[:, 2])

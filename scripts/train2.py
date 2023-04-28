@@ -2,6 +2,7 @@ import importlib
 import random
 import time
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -15,12 +16,11 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "06"
+run_name = "08"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
-
 
 layout = {
     "ABCDE": {
@@ -172,12 +172,15 @@ model1.train()
 model1.V_head.eval()
 model2.V_head.eval()
 time_next_save = time.time() + misc.statistics_save_period_seconds
+zone_centers = np.load(str(base_dir / "maps" / "map3.npy"))
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
     running_speed=misc.running_speed,
-    run_steps_per_action=misc.run_steps_per_action,
-    max_time=misc.max_rollout_time_ms,
+    run_steps_per_action=misc.tm_engine_step_per_action,
+    max_overall_duration_ms=misc.max_overall_duration_ms,
+    max_minirace_duration_ms=misc.max_minirace_duration_ms,
     interface_name="TMInterface0",
+    zone_centers=zone_centers,
 )
 
 # iprofile = 0
@@ -207,10 +210,18 @@ while True:
     )
     number_frames_played += len(rollout_results["frames"])
     cumul_number_frames_played += len(rollout_results["frames"])
-    fast_stats_tracker["race_time_ratio"].append(fast_stats_tracker["race_time"][-1] / ((time.time() - rollout_start_time) * 1000))
+    fast_stats_tracker["race_time_ratio"].append(
+        fast_stats_tracker["race_time_for_ratio"][-1] / ((time.time() - rollout_start_time) * 1000)
+    )
     print("race time ratio  ", np.median(np.array(fast_stats_tracker["race_time_ratio"])))
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-        buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
+        buffer,
+        rollout_results,
+        misc.n_steps,
+        misc.gamma,
+        misc.discard_non_greedy_actions_in_nsteps,
+        misc.n_checkpoints_in_inputs,
+        zone_centers,
     )
     number_memories_generated += number_memories_added
     cumul_number_memories_generated += number_memories_added
@@ -268,39 +279,33 @@ while True:
             "AL_alpha": trainer.AL_alpha,
             "learning_rate": misc.learning_rate,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
-            "reward_bogus_velocity": misc.reward_bogus_velocity,
-            "reward_bogus_gas": misc.reward_bogus_gas,
-            "reward_bogus_low_speed": misc.reward_bogus_low_speed,
+            "reward_per_ms_velocity": misc.reward_per_ms_velocity,
+            "reward_per_ms_press_forward": misc.reward_per_ms_press_forward,
+            # "reward_bogus_low_speed": misc.reward_bogus_low_speed,
             #
             r"last400_%race finished": np.array(fast_stats_tracker["race_finished"][-400:]).mean(),
             r"last400_%light_desynchro": np.array(fast_stats_tracker["n_ors_light_desynchro"][-400:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action)),
+            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
             r"last400_%consecutive_frames_equal": np.array(fast_stats_tracker["n_two_consecutive_frames_equal"][-400:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_run_step * misc.run_steps_per_action)),
+            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
             #
             "laststep_mean_loss": np.array(fast_stats_tracker["loss"]).mean(),
             "laststep_n_tmi_protection": np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum(),
             "laststep_race_time_ratio": np.median(np.array(fast_stats_tracker["race_time_ratio"])),
             "laststep_train_on_batch_duration": np.median(np.array(fast_stats_tracker["train_on_batch_duration"])),
             #
-            "last400_min_race_time": np.array(fast_stats_tracker["race_time"][-400:]).min(initial=None),
-            "last400_d1_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.1),
-            "last400_q1_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.25),
-            "last400_median_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.5),
-            "last400_q3_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.75),
-            "last400_d9_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.9),
+            "last400_min_race_time": np.array(fast_stats_tracker["race_time"][-400:]).min(initial=None) / 1000,
+            "last400_d1_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.1) / 1000,
+            "last400_q1_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.25) / 1000,
+            "last400_median_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.5) / 1000,
+            "last400_q3_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.75) / 1000,
+            "last400_d9_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.9) / 1000,
             #
             "last400_d1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.1),
             "last400_q1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.25),
             "last400_median_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.5),
             "last400_q3_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.75),
             "last400_d9_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.9),
-            #
-            "last400_d1_rollout_sum_rewards": np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"][-400:]), 0.1),
-            "last400_q1_rollout_sum_rewards": np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"][-400:]), 0.25),
-            "last400_median_rollout_sum_rewards": np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"][-400:]), 0.5),
-            "last400_q3_rollout_sum_rewards": np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"][-400:]), 0.75),
-            "last400_d9_rollout_sum_rewards": np.quantile(np.array(fast_stats_tracker["rollout_sum_rewards"][-400:]), 0.9),
             #
         }
 
@@ -326,7 +331,13 @@ while True:
         model1.train()
         model1.V_head.eval()
         buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-            buffer, rollout_results, misc.n_steps, misc.gamma, misc.discard_non_greedy_actions_in_nsteps
+            buffer,
+            rollout_results,
+            misc.n_steps,
+            misc.gamma,
+            misc.discard_non_greedy_actions_in_nsteps,
+            misc.n_checkpoints_in_inputs,
+            zone_centers,
         )
         number_memories_generated += number_memories_added
         cumul_number_memories_generated += number_memories_added
@@ -336,36 +347,36 @@ while True:
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
-        # ===============================================
-        #   SPREAD
-        # ===============================================
-
-        # Faire 100 tirages avec noisy, et les tau de IQN fixés
-        tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-        state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
-            "cuda", memory_format=torch.channels_last, non_blocking=True
-        )
-        state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda", non_blocking=True)
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                list_of_q_values = []
-                for i in range(400):
-                    model1.reset_noise()
-                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
-
-        for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
-            step_stats[f"std_due_to_noisy_for_action{i}"] = std
-
-        # Désactiver noisy, tirer des tau équitablement répartis
-        model1.eval()
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
-
-        for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
-            step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-        model1.train()
-        model1.V_head.eval()
+        # # ===============================================
+        # #   SPREAD
+        # # ===============================================
+        #
+        # # Faire 100 tirages avec noisy, et les tau de IQN fixés
+        # tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+        # state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
+        #     "cuda", memory_format=torch.channels_last, non_blocking=True
+        # )
+        # state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda", non_blocking=True)
+        # with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+        #     with torch.no_grad():
+        #         list_of_q_values = []
+        #         for i in range(400):
+        #             model1.reset_noise()
+        #             list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
+        #
+        # for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
+        #     step_stats[f"std_due_to_noisy_for_action{i}"] = std
+        #
+        # # Désactiver noisy, tirer des tau équitablement répartis
+        # model1.eval()
+        # with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+        #     with torch.no_grad():
+        #         per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
+        #
+        # for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
+        #     step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+        # model1.train()
+        # model1.V_head.eval()
 
         # tensorboard_writer.add_scalars(
         #     main_tag="",
@@ -383,7 +394,7 @@ while True:
 
         tensorboard_writer.add_text(
             "times_summary",
-            f"min {step_stats['last400_min_race_time']/1000:.2f} ; d1 {step_stats['last400_d1_race_time']/1000:.2f} ; median {step_stats['last400_median_race_time']/1000:.2f} ; d9 {step_stats['last400_d9_race_time']/1000:.2f} ",
+            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} : min {step_stats['last400_min_race_time']:.2f} ; d1 {step_stats['last400_d1_race_time']:.2f} ; median {step_stats['last400_median_race_time']:.2f} ; d9 {step_stats['last400_d9_race_time']:.2f} ",
             global_step=step_stats["cumul_number_memories_generated"],
             walltime=float(step_stats["cumul_training_hours"] * 3600),
         )
