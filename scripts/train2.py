@@ -16,7 +16,7 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "09"
+run_name = "11"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -24,7 +24,8 @@ tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_na
 
 layout = {
     "ABCDE": {
-        "eval_q_values_starting_frame": ["Multiline", [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))]],
+        "eval_q_values_starting_frame": ["Multiline",
+                                         [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))]],
         "race_time": [
             "Multiline",
             [
@@ -41,15 +42,15 @@ layout = {
         "noisy_std": ["Multiline", [f"std_due_to_noisy_for_action{i}" for i in range(len(misc.inputs))]],
         "iqn_std": ["Multiline", [f"std_within_iqn_quantiles_for_action{i}" for i in range(len(misc.inputs))]],
         "laststep_race_time_ratio": ["Multiline", ["laststep_race_time_ratio"]],
-        "observed_rollouts": [
-            "Multiline",
-            [
-                "last400_d1_rollout_sum_rewards",
-                "last400_median_rollout_sum_rewards",
-                "last400_d9_rollout_sum_rewards",
-            ]
-            + [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))],
-        ],
+        # "observed_rollouts": [
+        #     "Multiline",
+        #     [
+        #         "last400_d1_rollout_sum_rewards",
+        #         "last400_median_rollout_sum_rewards",
+        #         "last400_d9_rollout_sum_rewards",
+        #     ]
+        #     + [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))],
+        # ],
         "race_time_with_eval": [
             "Multiline",
             [
@@ -68,10 +69,10 @@ tensorboard_writer.add_custom_scalars(layout)
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
-torch.cuda.manual_seed_all(43)
-torch.manual_seed(43)
-random.seed(43)
-np.random.seed(43)
+torch.cuda.manual_seed_all(44)
+torch.manual_seed(44)
+random.seed(44)
+np.random.seed(44)
 
 plt.style.use("seaborn")
 
@@ -231,9 +232,10 @@ while True:
     #   LEARN ON BATCH
     # ===============================================
     while (
-        cumul_number_memories_generated >= misc.memory_size_start_learn
-        and cumul_number_batches_done * misc.batch_size
-        <= misc.number_times_single_memory_is_used_before_discard * (cumul_number_memories_generated - misc.virtual_memory_size_start_learn)
+            cumul_number_memories_generated >= misc.memory_size_start_learn
+            and cumul_number_batches_done * misc.batch_size
+            <= misc.number_times_single_memory_is_used_before_discard * (
+                    cumul_number_memories_generated - misc.virtual_memory_size_start_learn)
     ):
         train_start_time = time.time()
         mean_q_values, loss = trainer.train_on_batch(buffer)
@@ -246,8 +248,8 @@ while True:
         #   UPDATE TARGET NETWORK
         # ===============================================
         if (
-            misc.number_memories_trained_on_between_target_network_updates * cumul_number_target_network_updates
-            <= cumul_number_batches_done * misc.batch_size
+                misc.number_memories_trained_on_between_target_network_updates * cumul_number_target_network_updates
+                <= cumul_number_batches_done * misc.batch_size
         ):
             cumul_number_target_network_updates += 1
             print("UPDATE")
@@ -285,9 +287,12 @@ while True:
             #
             r"last400_%race finished": np.array(fast_stats_tracker["race_finished"][-400:]).mean(),
             r"last400_%light_desynchro": np.array(fast_stats_tracker["n_ors_light_desynchro"][-400:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
-            r"last400_%consecutive_frames_equal": np.array(fast_stats_tracker["n_two_consecutive_frames_equal"][-400:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+                                         / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (
+                        misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+            r"last400_%consecutive_frames_equal": np.array(
+                fast_stats_tracker["n_two_consecutive_frames_equal"][-400:]).sum()
+                                                  / (np.array(fast_stats_tracker["race_time"][-400:]).sum() / (
+                        misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
             #
             "laststep_mean_loss": np.array(fast_stats_tracker["loss"]).mean(),
             "laststep_n_tmi_protection": np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum(),
@@ -301,16 +306,22 @@ while True:
             "last400_q3_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.75) / 1000,
             "last400_d9_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-400:]), 0.9) / 1000,
             #
-            "last400_d1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.1),
-            "last400_q1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.25),
-            "last400_median_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.5),
-            "last400_q3_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.75),
-            "last400_d9_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.9),
+            "last400_d1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]),
+                                                           0.1),
+            "last400_q1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]),
+                                                           0.25),
+            "last400_median_value_starting_frame": np.quantile(
+                np.array(fast_stats_tracker["value_starting_frame"][-400:]), 0.5),
+            "last400_q3_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]),
+                                                           0.75),
+            "last400_d9_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-400:]),
+                                                           0.9),
             #
         }
 
         for i in range(len(misc.inputs)):
-            step_stats[f"last400_q_value_{i}_starting_frame"] = np.mean(fast_stats_tracker[f"q_value_{i}_starting_frame"][-400:])
+            step_stats[f"last400_q_value_{i}_starting_frame"] = np.mean(
+                fast_stats_tracker[f"q_value_{i}_starting_frame"][-400:])
 
         # TODO : add more recent loss than last400, that's too slow
 
@@ -341,42 +352,53 @@ while True:
         )
         number_memories_generated += number_memories_added
         cumul_number_memories_generated += number_memories_added
-        step_stats["eval_race_time"] = eval_stats_tracker["race_time"][-1]
+        step_stats["eval_race_time"] = eval_stats_tracker["race_time"][-1] / 1000
         for i in range(len(misc.inputs)):
             step_stats[f"eval_q_value_{i}_starting_frame"] = eval_stats_tracker[f"q_value_{i}_starting_frame"][-1]
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
-        # # ===============================================
-        # #   SPREAD
-        # # ===============================================
-        #
-        # # Faire 100 tirages avec noisy, et les tau de IQN fixés
-        # tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-        # state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
-        #     "cuda", memory_format=torch.channels_last, non_blocking=True
-        # )
-        # state_float_tensor = torch.as_tensor(np.expand_dims(rollout_results["floats"][0], axis=0)).to("cuda", non_blocking=True)
-        # with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-        #     with torch.no_grad():
-        #         list_of_q_values = []
-        #         for i in range(400):
-        #             model1.reset_noise()
-        #             list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
-        #
-        # for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
-        #     step_stats[f"std_due_to_noisy_for_action{i}"] = std
-        #
-        # # Désactiver noisy, tirer des tau équitablement répartis
-        # model1.eval()
-        # with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-        #     with torch.no_grad():
-        #         per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
-        #
-        # for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
-        #     step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-        # model1.train()
-        # model1.V_head.eval()
+        # ===============================================
+        #   SPREAD
+        # ===============================================
+
+        # Faire 100 tirages avec noisy, et les tau de IQN fixés
+        tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+        state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
+            "cuda", memory_format=torch.channels_last, non_blocking=True
+        )
+        state_float_tensor = torch.as_tensor(np.expand_dims(np.hstack(
+            (
+                0,
+                rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
+                rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
+                rollout_results["car_orientation"][0].T.dot(
+                    (zone_centers[0: misc.n_checkpoints_in_inputs, :] - rollout_results["car_position"][0]).T
+                ).T.ravel(),
+                np.zeros(misc.n_checkpoints_in_inputs - 2),
+            )
+        ).astype(np.float32), axis=0)).to("cuda", non_blocking=True)
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.no_grad():
+                list_of_q_values = []
+                for i in range(400):
+                    model1.reset_noise()
+                    list_of_q_values.append(
+                        model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
+
+        for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
+            step_stats[f"std_due_to_noisy_for_action{i}"] = std
+
+        # Désactiver noisy, tirer des tau équitablement répartis
+        model1.eval()
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.no_grad():
+                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
+
+        for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
+            step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+        model1.train()
+        model1.V_head.eval()
 
         # tensorboard_writer.add_scalars(
         #     main_tag="",
@@ -404,9 +426,15 @@ while True:
         #   Buffer stats
         # ===============================================
 
-        print("Mean in buffer", np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0))
-        print("Std in buffer ", np.array([experience.state_float for experience in buffer.buffer]).std(axis=0))
+        mean_in_buffer = np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0)
+        std_in_buffer = np.array([experience.state_float for experience in buffer.buffer]).std(axis=0)
 
+        print("Raw mean in buffer  :", mean_in_buffer.round(1))
+        print("Raw std in buffer   :", std_in_buffer.round(1))
+        print("")
+        print("Corr mean in buffer :", ((mean_in_buffer - misc.float_inputs_mean) / misc.float_inputs_std).round(1))
+        print("Corr std in buffer  :", (std_in_buffer / misc.float_inputs_std).round(1))
+        print("")
         # ===============================================
         #   CLEANUP
         # ===============================================
