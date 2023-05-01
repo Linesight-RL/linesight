@@ -61,8 +61,8 @@ class Agent(torch.nn.Module):
         self.iqn_embedding_dimension = iqn_embedding_dimension
         self.n_actions = n_actions
 
-        self.float_inputs_mean = torch.tensor(float_inputs_mean, dtype=torch.float16).to("cuda")
-        self.float_inputs_std = torch.tensor(float_inputs_std, dtype=torch.float16).to("cuda")
+        self.float_inputs_mean = torch.tensor(float_inputs_mean, dtype=torch.float32).to("cuda")
+        self.float_inputs_std = torch.tensor(float_inputs_std, dtype=torch.float32).to("cuda")
 
     def initialize_weights(self):
         for m in self.img_head:

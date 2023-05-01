@@ -328,7 +328,7 @@ class TMInterfaceManager:
                 # ============================
 
                 if not self.timeout_has_been_set:
-                    self.iface.set_timeout(5_000)
+                    self.iface.set_timeout(7_000)
                     self.timeout_has_been_set = True
 
                 if not give_up_signal_has_been_sent:
@@ -374,6 +374,7 @@ class TMInterfaceManager:
                         # Press forward 2000ms before the race starts
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
                     elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
+
                         # BEGIN AGADE TRICK
                         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
                         last_known_simulation_state = self.iface.get_simulation_state()
@@ -410,52 +411,61 @@ class TMInterfaceManager:
                 print("CP ", end="")
                 current = self.iface._read_int32()
                 target = self.iface._read_int32()
+                cpcount += 1
                 # ============================
                 # BEGIN ON CP COUNT
                 # ============================
 
                 print(f"CTNF=({current}, {target}, {this_rollout_has_seen_t_negative}, {this_rollout_is_finished})", end='')
+                if current == target:  # Finished the race !!
 
-                if this_rollout_has_seen_t_negative:
-                    cpcount += 1
-                    if current == target:  # Finished the race !!
-                        self.iface.prevent_simulation_finish()
-                        if not this_rollout_is_finished:  # We shouldn't take into account a race finished after we ended the rollout
-                            print(
-                                f"Z=({rv['current_zone_idx'][-1]})",end='')
-                            simulation_state = self.iface.get_simulation_state()
-                            stats_tracker["race_finished"].append(True)
-                            stats_tracker["race_time"].append(simulation_state.race_time)
-                            stats_tracker["race_time_for_ratio"].append(simulation_state.race_time)
-                            stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
-                            stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
-                            stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
+                    # BEGIN AGADE TRICK
+                    msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
+                    simulation_state = self.iface.get_simulation_state()
+                    simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
+                    msg.write_buffer(simulation_state.data)
+                    self.iface._send_message(msg)
+                    self.iface._wait_for_server_response()
+                    # END AGADE TRICK
 
-                            this_rollout_is_finished = True
-                            self.iface.set_speed(0)
-                            self.latest_tm_engine_speed_requested = 0
-                            do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
-                            print(f"+++    {simulation_state.race_time:>6} ", end="")
+                    # self.iface.prevent_simulation_finish() # Agade claims his trick above is better. Don't poke Agade.
 
-                            if rv["current_zone_idx"][-1] != len(self.zone_centers) - 1:
-                                # We have not captured a frame where the car has entered our final virtual zone
-                                # Let's put one in, artificially
-                                assert rv["current_zone_idx"][-1] == len(self.zone_centers) - 2
-                                rv["current_zone_idx"].append(len(self.zone_centers) - 1)
-                                rv["frames"].append(np.nan)
-                                rv["zone_entrance_time_ms"].append(simulation_state.race_time)
-                                rv["display_speed"].append(simulation_state.display_speed)
-                                rv["input_w"].append(np.nan)
-                                rv["actions"].append(np.nan)
-                                rv["action_was_greedy"].append(np.nan)
-                                rv["car_position"].append(np.nan)
-                                rv["car_orientation"].append(np.nan)
-                                rv["car_velocity"].append(np.nan)
-                                rv["fraction_time_in_previous_zone"].append(
-                                    (simulation_state.race_time - (len(rv["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action)
-                                    / misc.ms_per_action
-                                )
-                                assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
+                    if this_rollout_has_seen_t_negative and not this_rollout_is_finished:  # We shouldn't take into account a race finished after we ended the rollout
+                        print(
+                            f"Z=({rv['current_zone_idx'][-1]})",end='')
+                        simulation_state = self.iface.get_simulation_state()
+                        stats_tracker["race_finished"].append(True)
+                        stats_tracker["race_time"].append(simulation_state.race_time)
+                        stats_tracker["race_time_for_ratio"].append(simulation_state.race_time)
+                        stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                        stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
+                        stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
+
+                        this_rollout_is_finished = True
+                        self.iface.set_speed(0)
+                        self.latest_tm_engine_speed_requested = 0
+                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
+                        print(f"+++    {simulation_state.race_time:>6} ", end="")
+
+                        if rv["current_zone_idx"][-1] != len(self.zone_centers) - 1:
+                            # We have not captured a frame where the car has entered our final virtual zone
+                            # Let's put one in, artificially
+                            assert rv["current_zone_idx"][-1] == len(self.zone_centers) - 2
+                            rv["current_zone_idx"].append(len(self.zone_centers) - 1)
+                            rv["frames"].append(np.nan)
+                            rv["zone_entrance_time_ms"].append(simulation_state.race_time)
+                            rv["display_speed"].append(simulation_state.display_speed)
+                            rv["input_w"].append(np.nan)
+                            rv["actions"].append(np.nan)
+                            rv["action_was_greedy"].append(np.nan)
+                            rv["car_position"].append(np.nan)
+                            rv["car_orientation"].append(np.nan)
+                            rv["car_velocity"].append(np.nan)
+                            rv["fraction_time_in_previous_zone"].append(
+                                (simulation_state.race_time - (len(rv["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action)
+                                / misc.ms_per_action
+                            )
+                            assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
 
                 # ============================
                 # END ON CP COUNT

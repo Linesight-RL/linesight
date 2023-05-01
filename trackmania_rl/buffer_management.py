@@ -124,7 +124,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                     state_zone_center_coordinates_in_car_reference_system.ravel(),
                     current_zone_idx >= np.arange(first_zone_idx_in_input + 1, last_zone_idx_in_input),
                 )
-            ).astype(np.float32)
+            ).astype(np.float32) # TODO : cache this so that state_float and next_state_float can share memory for different experiences
             action = rollout_results["actions"][i]
             done = mini_race_finished or mini_race_timeout
 
