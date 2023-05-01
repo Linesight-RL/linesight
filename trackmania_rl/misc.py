@@ -13,7 +13,6 @@ n_checkpoints_in_inputs = 16
 max_overall_duration_ms = 180_000
 max_minirace_duration_ms = 24_000
 
-
 epsilon = 0.01
 discard_non_greedy_actions_in_nsteps = True
 
@@ -86,10 +85,10 @@ iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
 memory_size = 300_000
-memory_size_start_learn = 10_000
-virtual_memory_size_start_learn = 0
-number_memories_generated_high_exploration = 100_000
-high_exploration_ratio = 25
+memory_size_start_learn = 50_000
+virtual_memory_size_start_learn = 50_000
+number_memories_generated_high_exploration = 50_000
+high_exploration_ratio = 5
 batch_size = 1024
 learning_rate = 5e-5
 
