@@ -16,7 +16,9 @@ from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_ma
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
-run_name = "14"
+
+
+run_name = "17"
 zone_centers = np.load(str(base_dir / "maps" / "map5.npy"))
 
 save_dir = base_dir / "save" / run_name
@@ -24,7 +26,7 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
 
 layout = {
-    "02": {
+    "99": {
         "eval_q_values_starting_frame": ["Multiline",
                                          [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))]],
         "race_time": [
@@ -57,6 +59,18 @@ layout = {
                 "last100_d1_zone_reached",
                 "last100_median_zone_reached",
                 "last100_d9_zone_reached",
+            ],
+        ],
+        "single_zone_reached": [
+            "Multiline",
+            [
+                "single_zone_reached",
+            ],
+        ],
+        "single_race_time": [
+            "Multiline",
+            [
+                "single_race_time",
             ],
         ],
     },
@@ -170,7 +184,6 @@ model1.train()
 model1.V_head.eval()
 model2.V_head.eval()
 time_next_save = time.time() + misc.statistics_save_period_seconds
-zone_centers = np.load(str(base_dir / "maps" / "map3.npy"))
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
     running_speed=misc.running_speed,
@@ -212,6 +225,18 @@ while True:
         fast_stats_tracker["race_time_for_ratio"][-1] / ((time.time() - rollout_start_time) * 1000)
     )
     fast_stats_tracker["zone_reached"].append(len(rollout_results["zone_entrance_time_ms"]) - 1)
+    tensorboard_writer.add_scalar(
+        tag="single_race_time",
+        scalar_value=fast_stats_tracker["race_time"][-1] /  1000,
+        global_step=cumul_number_frames_played,
+        walltime=float(cumul_training_hours * 3600),
+    )
+    tensorboard_writer.add_scalar(
+        tag="single_zone_reached",
+        scalar_value=fast_stats_tracker["zone_reached"][-1],
+        global_step=cumul_number_frames_played,
+        walltime=float(cumul_training_hours * 3600),
+    )
     print("race time ratio  ", np.median(np.array(fast_stats_tracker["race_time_ratio"])))
     buffer, number_memories_added = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
         buffer,
@@ -364,6 +389,18 @@ while True:
         step_stats["eval_race_time"] = eval_stats_tracker["race_time"][-1] / 1000
         for i in range(len(misc.inputs)):
             step_stats[f"eval_q_value_{i}_starting_frame"] = eval_stats_tracker[f"q_value_{i}_starting_frame"][-1]
+        tensorboard_writer.add_scalar(
+            tag="single_race_time",
+            scalar_value=eval_stats_tracker["race_time"][-1]/1000,
+            global_step=cumul_number_frames_played,
+            walltime=float(cumul_training_hours * 3600),
+        )
+        tensorboard_writer.add_scalar(
+            tag="single_zone_reached",
+            scalar_value=len(rollout_results["zone_entrance_time_ms"]) - 1,
+            global_step=cumul_number_frames_played,
+            walltime=float(cumul_training_hours * 3600),
+        )
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
@@ -425,7 +462,7 @@ while True:
 
         tensorboard_writer.add_text(
             "times_summary",
-            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')}: {step_stats['last100_min_race_time']:.2f} / {step_stats['last100_d1_race_time']:.2f} / {step_stats['last100_median_race_time']:.2f} / {step_stats['last100_d9_race_time']:.2f} / {min([ss['last100_min_race_time'] for ss in step_stats_history] + [step_stats['last100_min_race_time']]):.2f} (min, d1, med, d9, alltime_min)",
+            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')}: {step_stats['last100_min_race_time']:.2f} / {step_stats['last100_d1_race_time']:.2f} / {step_stats['last100_median_race_time']:.2f} / {step_stats['last100_d9_race_time']:.2f} / {min([ss['last100_min_race_time'] for ss in step_stats_history] + [ss['eval_race_time'] for ss in step_stats_history] + [step_stats['last100_min_race_time'], step_stats['eval_race_time']]):.2f} (min, d1, med, d9, alltime_min)",
             global_step=step_stats["cumul_number_frames_played"],
             walltime=float(step_stats["cumul_training_hours"] * 3600),
         )

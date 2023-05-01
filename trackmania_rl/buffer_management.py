@@ -2,6 +2,7 @@ import numpy as np
 
 from . import misc
 from .experience_replay.experience_replay_interface import Experience, ExperienceReplayInterface
+import random
 
 
 def fill_buffer_from_rollout_with_n_steps_rule(
@@ -29,9 +30,11 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         current_zone_idx = rollout_results["current_zone_idx"][i]
         assert current_zone_idx < len(zone_centers) - 1
 
-        for first_zone_idx_in_input in range(
+        mini_race_range = range(
             max(0, current_zone_idx + 2 - n_checkpoints_in_inputs), 1 + min(current_zone_idx, len(zone_centers) - n_checkpoints_in_inputs)
-        ):
+        )
+
+        for first_zone_idx_in_input in random.sample(mini_race_range, min(len(mini_race_range), misc.sample_n_mini_races)):
             # A mini-race is defined as a race between Zone and Zone + n_checkpoints_in_inputs - 1 (both included)
             # That mini-race terminates as soon as the car enters Zone + n_checkpoints_in_inputs - 1
             # Given a frame, we define multiple mini-races simultaneously: one where the car has just started, one where the car is close to finish, etc...

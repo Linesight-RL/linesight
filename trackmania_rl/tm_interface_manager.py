@@ -193,10 +193,11 @@ class TMInterfaceManager:
                         sim_state_position = np.array(last_known_simulation_state.dyna.current_state.position, dtype=np.float64)  # (3,)
                         sim_state_orientation = last_known_simulation_state.dyna.current_state.rotation.to_numpy()  # (3, 3)
                         sim_state_velocity = np.array(last_known_simulation_state.dyna.current_state.linear_speed, dtype=np.float64)  # (3,)
-
-                        if np.linalg.norm(next_zone_center - sim_state_position) <= np.linalg.norm(
+                        d1 = np.linalg.norm(next_zone_center - sim_state_position)
+                        d2 = np.linalg.norm(
                             current_zone_center - sim_state_position
-                        ):
+                        )
+                        if d1 <= d2 and d1 <= misc.max_allowable_distance_to_checkpoint:
                             # Move from one virtual zone to another
                             rv["fraction_time_in_previous_zone"].append(
                                 fraction_time_spent_in_current_zone(

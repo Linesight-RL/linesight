@@ -18,5 +18,6 @@ def fraction_time_spent_in_current_zone(current_zone_center, next_zone_center, c
     # Output : the intersection point between the line and the plane
     planeNormal = next_zone_center - current_zone_center
     si = -planeNormal.dot(current_pos - (next_zone_center + current_zone_center) / 2) / planeNormal.dot(next_pos - current_pos)
-    assert 0 <= si <= 1, si
-    return si
+    return 0 if si < 0 else (1 if si > 1 else si)
+    # assert 0 <= si <= 1, si
+    # return si
