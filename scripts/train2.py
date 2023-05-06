@@ -17,8 +17,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-
-run_name = "17"
+run_name = "20"
 zone_centers = np.load(str(base_dir / "maps" / "map5.npy"))
 
 save_dir = base_dir / "save" / run_name
@@ -27,8 +26,7 @@ tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_na
 
 layout = {
     "99": {
-        "eval_q_values_starting_frame": ["Multiline",
-                                         [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))]],
+        "eval_q_values_starting_frame": ["Multiline", [f"eval_q_value_{i}_starting_frame" for i in range(len(misc.inputs))]],
         "race_time": [
             "Multiline",
             [
@@ -73,6 +71,15 @@ layout = {
                 "single_race_time",
             ],
         ],
+        "tm_interface_performance": [
+            "Multiline",
+            [
+                "laststep_time_to_answer_normal_step",
+                "laststep_time_to_answer_action_step",
+                "laststep_time_between_normal_on_run_steps",
+                "laststep_time_between_action_on_run_steps",
+            ],
+        ]
     },
 }
 tensorboard_writer.add_custom_scalars(layout)
@@ -112,6 +119,7 @@ model2 = noisy_iqn_pal2.Agent(
 ).to("cuda")
 print(model1)
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.9)
 scaler = torch.cuda.amp.GradScaler()
 buffer = BasicExperienceReplay(capacity=misc.memory_size)
 fast_stats_tracker = defaultdict(list)
@@ -225,9 +233,18 @@ while True:
         fast_stats_tracker["race_time_for_ratio"][-1] / ((time.time() - rollout_start_time) * 1000)
     )
     fast_stats_tracker["zone_reached"].append(len(rollout_results["zone_entrance_time_ms"]) - 1)
+
+    if fast_stats_tracker["race_time"][-1] < min(
+        [ss["last100_min_race_time"] * 1000 for ss in step_stats_history]
+        + [ss["eval_race_time"] * 1000 for ss in step_stats_history]
+        + fast_stats_tracker["race_time"][:-1]+ [9999999999]
+    ):
+        # This is a new alltime_minimum
+        joblib.dump(rollout_results, save_dir / f"rollout_results_{fast_stats_tracker['race_time'][-1]}.joblib")
+
     tensorboard_writer.add_scalar(
         tag="single_race_time",
-        scalar_value=fast_stats_tracker["race_time"][-1] /  1000,
+        scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
         global_step=cumul_number_frames_played,
         walltime=float(cumul_training_hours * 3600),
     )
@@ -255,10 +272,9 @@ while True:
     #   LEARN ON BATCH
     # ===============================================
     while (
-            cumul_number_memories_generated >= misc.memory_size_start_learn
-            and cumul_number_batches_done * misc.batch_size
-            <= misc.number_times_single_memory_is_used_before_discard * (
-                    cumul_number_memories_generated - misc.virtual_memory_size_start_learn)
+        cumul_number_memories_generated >= misc.memory_size_start_learn
+        and cumul_number_batches_done * misc.batch_size
+        <= misc.number_times_single_memory_is_used_before_discard * (cumul_number_memories_generated - misc.virtual_memory_size_start_learn)
     ):
         train_start_time = time.time()
         mean_q_values, loss = trainer.train_on_batch(buffer)
@@ -271,8 +287,8 @@ while True:
         #   UPDATE TARGET NETWORK
         # ===============================================
         if (
-                misc.number_memories_trained_on_between_target_network_updates * cumul_number_target_network_updates
-                <= cumul_number_batches_done * misc.batch_size
+            misc.number_memories_trained_on_between_target_network_updates * cumul_number_target_network_updates
+            <= cumul_number_batches_done * misc.batch_size
         ):
             cumul_number_target_network_updates += 1
             print("UPDATE")
@@ -310,17 +326,19 @@ while True:
             #
             r"last100_%race finished": np.array(fast_stats_tracker["race_finished"][-100:]).mean(),
             r"last100_%light_desynchro": np.array(fast_stats_tracker["n_ors_light_desynchro"][-100:]).sum()
-                                         / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (
-                        misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
-            r"last100_%consecutive_frames_equal": np.array(
-                fast_stats_tracker["n_two_consecutive_frames_equal"][-100:]).sum()
-                                                  / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (
-                        misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+            r"last100_%consecutive_frames_equal": np.array(fast_stats_tracker["n_two_consecutive_frames_equal"][-100:]).sum()
+            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
             #
             "laststep_mean_loss": np.array(fast_stats_tracker["loss"]).mean(),
             "laststep_n_tmi_protection": np.array(fast_stats_tracker["n_frames_tmi_protection_triggered"]).sum(),
             "laststep_race_time_ratio": np.median(np.array(fast_stats_tracker["race_time_ratio"])),
             "laststep_train_on_batch_duration": np.median(np.array(fast_stats_tracker["train_on_batch_duration"])),
+            #
+            "laststep_time_to_answer_normal_step": np.median(np.array(fast_stats_tracker["time_to_answer_normal_step"])),
+            "laststep_time_to_answer_action_step": np.median(np.array(fast_stats_tracker["time_to_answer_action_step"])),
+            "laststep_time_between_normal_on_run_steps": np.median(np.array(fast_stats_tracker["time_between_normal_on_run_steps"])),
+            "laststep_time_between_action_on_run_steps": np.median(np.array(fast_stats_tracker["time_between_action_on_run_steps"])),
             #
             "last100_min_race_time": np.array(fast_stats_tracker["race_time"][-100:]).min(initial=None) / 1000,
             "last100_d1_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-100:]), 0.1) / 1000,
@@ -329,33 +347,22 @@ while True:
             "last100_q3_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-100:]), 0.75) / 1000,
             "last100_d9_race_time": np.quantile(np.array(fast_stats_tracker["race_time"][-100:]), 0.9) / 1000,
             #
-            "last100_d1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]),
-                                                           0.1),
-            "last100_q1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]),
-                                                           0.25),
-            "last100_median_value_starting_frame": np.quantile(
-                np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.5),
-            "last100_q3_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]),
-                                                           0.75),
-            "last100_d9_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]),
-                                                           0.9),
+            "last100_d1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.1),
+            "last100_q1_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.25),
+            "last100_median_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.5),
+            "last100_q3_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.75),
+            "last100_d9_value_starting_frame": np.quantile(np.array(fast_stats_tracker["value_starting_frame"][-100:]), 0.9),
             #
-            "last100_d1_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]),
-                                                           0.1),
-            "last100_q1_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]),
-                                                           0.25),
-            "last100_median_zone_reached": np.quantile(
-                np.array(fast_stats_tracker["zone_reached"][-100:]), 0.5),
-            "last100_q3_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]),
-                                                           0.75),
-            "last100_d9_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]),
-                                                           0.9),
+            "last100_d1_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]), 0.1),
+            "last100_q1_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]), 0.25),
+            "last100_median_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]), 0.5),
+            "last100_q3_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]), 0.75),
+            "last100_d9_zone_reached": np.quantile(np.array(fast_stats_tracker["zone_reached"][-100:]), 0.9),
             #
         }
 
         for i in range(len(misc.inputs)):
-            step_stats[f"last100_q_value_{i}_starting_frame"] = np.mean(
-                fast_stats_tracker[f"q_value_{i}_starting_frame"][-100:])
+            step_stats[f"last100_q_value_{i}_starting_frame"] = np.mean(fast_stats_tracker[f"q_value_{i}_starting_frame"][-100:])
 
         # TODO : add more recent loss than last400, that's too slow
 
@@ -389,9 +396,18 @@ while True:
         step_stats["eval_race_time"] = eval_stats_tracker["race_time"][-1] / 1000
         for i in range(len(misc.inputs)):
             step_stats[f"eval_q_value_{i}_starting_frame"] = eval_stats_tracker[f"q_value_{i}_starting_frame"][-1]
+
+        if eval_stats_tracker["race_time"][-1] < min(
+            [ss["last100_min_race_time"] * 1000 for ss in step_stats_history]
+            + [ss["eval_race_time"] * 1000 for ss in step_stats_history]
+            + fast_stats_tracker["race_time"] + [9999999999]
+        ):
+            # This is a new alltime_minimum
+            joblib.dump(rollout_results, save_dir / f"rollout_results_{eval_stats_tracker['race_time'][-1]}.joblib")
+
         tensorboard_writer.add_scalar(
             tag="single_race_time",
-            scalar_value=eval_stats_tracker["race_time"][-1]/1000,
+            scalar_value=eval_stats_tracker["race_time"][-1] / 1000,
             global_step=cumul_number_frames_played,
             walltime=float(cumul_training_hours * 3600),
         )
@@ -413,24 +429,28 @@ while True:
         state_img_tensor = torch.as_tensor(np.expand_dims(rollout_results["frames"][0], axis=0)).to(
             "cuda", memory_format=torch.channels_last, non_blocking=True
         )
-        state_float_tensor = torch.as_tensor(np.expand_dims(np.hstack(
-            (
-                0,
-                rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
-                rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
-                rollout_results["car_orientation"][0].T.dot(
-                    (zone_centers[0: misc.n_checkpoints_in_inputs, :] - rollout_results["car_position"][0]).T
-                ).T.ravel(),
-                np.zeros(misc.n_checkpoints_in_inputs - 2),
+        state_float_tensor = torch.as_tensor(
+            np.expand_dims(
+                np.hstack(
+                    (
+                        0,
+                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
+                        rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
+                        rollout_results["car_orientation"][0]
+                        .T.dot((zone_centers[0 : misc.n_checkpoints_in_inputs, :] - rollout_results["car_position"][0]).T)
+                        .T.ravel(),
+                        np.zeros(misc.n_checkpoints_in_inputs - 2),
+                    )
+                ).astype(np.float32),
+                axis=0,
             )
-        ).astype(np.float32), axis=0)).to("cuda", non_blocking=True)
+        ).to("cuda", non_blocking=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 list_of_q_values = []
                 for i in range(400):
                     model1.reset_noise()
-                    list_of_q_values.append(
-                        model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
+                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
 
         for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
             step_stats[f"std_due_to_noisy_for_action{i}"] = std
@@ -488,6 +508,11 @@ while True:
         fast_stats_tracker["train_on_batch_duration"].clear()
         fast_stats_tracker["race_time_ratio"].clear()
         fast_stats_tracker["loss"].clear()
+
+        fast_stats_tracker["laststep_time_to_answer_normal_step"].clear()
+        fast_stats_tracker["laststep_time_to_answer_action_step"].clear()
+        fast_stats_tracker["laststep_time_between_normal_on_run_steps"].clear()
+        fast_stats_tracker["laststep_time_between_action_on_run_steps"].clear()
 
         for key, value in fast_stats_tracker.items():
             print(f"{len(value)} : {key}")  # FIXME

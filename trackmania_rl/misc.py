@@ -13,12 +13,12 @@ n_checkpoints_in_inputs = 16
 max_overall_duration_ms = 180_000
 max_minirace_duration_ms = 24_000
 
-epsilon = 0.01
+epsilon = 0.05
 discard_non_greedy_actions_in_nsteps = True
 
 
 
-anneal_step = 4
+anneal_step = 3
 n_steps = [
     1,
     3,
@@ -54,7 +54,7 @@ reward_on_finish = [
     1,
     1,
 ][anneal_step]
-reward_on_failed_to_finish = 0
+reward_on_failed_to_finish = [0,0,0,-1,-1][anneal_step]
 reward_per_ms_velocity = [
     0.15 / ms_per_action / 800,
     0.03 / ms_per_action / 800,
@@ -89,9 +89,9 @@ memory_size = 500_000
 memory_size_start_learn = 400_000
 virtual_memory_size_start_learn = 400_000
 number_memories_generated_high_exploration = 400_000
-high_exploration_ratio = 2
+high_exploration_ratio = 1
 batch_size = 1024
-learning_rate = 5e-5
+learning_rate = 1e-5
 
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
