@@ -16,7 +16,7 @@ max_minirace_duration_ms = 24_000
 epsilon = 0.05
 discard_non_greedy_actions_in_nsteps = True
 
-anneal_step = 1
+anneal_step = 2
 n_steps = [
     1,
     3,
