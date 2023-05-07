@@ -60,10 +60,22 @@ class TMInterfaceManager:
 
     def rollout(self, exploration_policy, stats_tracker):
 
+        zone_centers_delta = (np.random.rand(*self.zone_centers.shape) - 0.5) * misc.zone_centers_jitter
+        zone_centers_delta[:, 1] = 0 # Don't change the elevation
+        zone_centers_delta[-3:, :] = 0 # Don't change the final zones
+        if misc.epsilon <= 0:
+            zone_centers_delta *= 0
+        zone_centers = self.zone_centers + zone_centers_delta
+
         time_to_answer_normal_step = 0
         time_to_answer_action_step = 0
         time_between_normal_on_run_steps = 0
         time_between_action_on_run_steps = 0
+        time_to_grab_frame = 0
+        time_between_grab_frame = 0
+        time_to_construct_and_policy = 0
+        time_to_iface_set_set = 0
+        time_after_iface_set_set = 0
 
         print("S ", end="")
 
@@ -78,6 +90,9 @@ class TMInterfaceManager:
             "car_position": [],
             "car_orientation": [],
             "car_velocity": [],
+            "car_angular_speed": [],
+            "car_gear_and_wheels": [],
+            "q_values": [],
             "fraction_time_in_previous_zone": [],
         }
 
@@ -99,6 +114,8 @@ class TMInterfaceManager:
                 self.iface.registered = True
 
             self.iface.execute_command(f"set countdown_speed {self.running_speed}")
+            self.iface.execute_command(f"set autologin pb4608")
+            self.iface.execute_command(f"set set skip_map_load_screens true")
 
         assert self.iface._ensure_connected()
 
@@ -121,9 +138,9 @@ class TMInterfaceManager:
         _time = -3000
         cpcount = 0
         current_zone_idx = 0
-        current_zone_center = self.zone_centers[0, :]
-        next_zone_center = self.zone_centers[1, :]
-        prev_sim_state_position = self.zone_centers[0, :]
+        current_zone_center = zone_centers[0, :]
+        next_zone_center = zone_centers[1, :]
+        prev_sim_state_position = zone_centers[0, :]
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -155,7 +172,7 @@ class TMInterfaceManager:
             msgtype = self.iface._read_int32()
             ignore_message0 = (
                     ((msgtype & 0xFF) == 0) and prev_msgtype == 0 and (
-                        time.perf_counter_ns() > time_first_message0 + 1000_000_000)
+                    time.perf_counter_ns() > time_first_message0 + 1000_000_000)
             )
 
             if (msgtype & 0xFF != 14) and (((msgtype & 0xFF00) == 0) or ignore_message0):
@@ -180,28 +197,50 @@ class TMInterfaceManager:
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
 
-                    if current_zone_idx == len(self.zone_centers) - 1:
+                    if current_zone_idx == len(zone_centers) - 1:
                         # This might happen if the car enters my last virtual zone, but has not finished the race yet.
                         # Just press forward and do not record any experience
                         self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
                         self.iface.set_speed(self.running_speed)
                     else:
                         # ===================================================================================================
+
+                        pc2 = time.perf_counter_ns()
+
                         iterations = 0
                         frame = None
                         while frame is None:
                             frame = self.camera.grab(region=trackmania_window_region)
                         parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
+                        time_to_grab_frame += time.perf_counter_ns() - pc2
+                        pc2 = time.perf_counter_ns()
+
                         # ===================================================================================================
 
                         sim_state_race_time = last_known_simulation_state.race_time
                         sim_state_display_speed = last_known_simulation_state.display_speed
                         sim_state_position = np.array(last_known_simulation_state.dyna.current_state.position,
-                                                      dtype=np.float64)  # (3,)
+                                                      dtype=np.float32)  # (3,)
                         sim_state_orientation = last_known_simulation_state.dyna.current_state.rotation.to_numpy()  # (3, 3)
                         sim_state_velocity = np.array(last_known_simulation_state.dyna.current_state.linear_speed,
-                                                      dtype=np.float64)  # (3,)
+                                                      dtype=np.float32)  # (3,)
+                        sim_state_angular_speed = np.array(last_known_simulation_state.dyna.current_state.angular_speed,
+                                                           dtype=np.float32)  # (3,)
+                        sim_state_car_gear_and_wheels = np.array(
+                            [last_known_simulation_state.simulation_wheels[0].real_time_state.is_sliding,
+                             # Bool
+                             last_known_simulation_state.simulation_wheels[1].real_time_state.is_sliding,
+                             # Bool
+                             last_known_simulation_state.simulation_wheels[2].real_time_state.is_sliding,
+                             # Bool
+                             last_known_simulation_state.simulation_wheels[3].real_time_state.is_sliding,
+                             # Bool
+                             last_known_simulation_state.scene_mobil.gearbox_state,  # Bool
+                             last_known_simulation_state.scene_mobil.engine.gear,  # 0 -> 5 approx
+                             last_known_simulation_state.scene_mobil.engine.actual_rpm
+                             # 0-10000 aoorox
+                             ], dtype=np.float32)
                         d1 = np.linalg.norm(next_zone_center - sim_state_position)
                         d2 = np.linalg.norm(
                             current_zone_center - sim_state_position
@@ -215,14 +254,14 @@ class TMInterfaceManager:
                             )
                             current_zone_idx += 1
                             rv["zone_entrance_time_ms"].append(sim_state_race_time)
-                            current_zone_center = self.zone_centers[current_zone_idx]
+                            current_zone_center = zone_centers[current_zone_idx]
 
                         else:
                             rv["fraction_time_in_previous_zone"].append(np.nan)  # Won't be used
 
                         rv["current_zone_idx"].append(current_zone_idx)
 
-                        if current_zone_idx == len(self.zone_centers) - 1:
+                        if current_zone_idx == len(zone_centers) - 1:
                             rv["frames"].append(np.nan)
                             rv["display_speed"].append(sim_state_display_speed)
                             rv["input_w"].append(np.nan)
@@ -231,6 +270,8 @@ class TMInterfaceManager:
                             rv["car_position"].append(np.nan)
                             rv["car_orientation"].append(np.nan)
                             rv["car_velocity"].append(np.nan)
+                            rv["car_angular_speed"].append(np.nan)
+                            rv["car_gear_and_wheels"].append(np.nan)
 
                             assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
 
@@ -247,8 +288,12 @@ class TMInterfaceManager:
                             print(f"+V+    {sim_state_race_time:>6} ", end="")
                         else:
 
-                            next_zone_center = self.zone_centers[1 + current_zone_idx]
+                            next_zone_center = zone_centers[1 + current_zone_idx]
                             # ===================================================================================================
+
+                            time_between_grab_frame += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             while parsed_time != sim_state_race_time:
                                 frame = None
                                 iterations += 1
@@ -259,20 +304,23 @@ class TMInterfaceManager:
                                 if iterations > 10:
                                     print(f"warning capturing {iterations=}, {parsed_time=}, {sim_state_race_time=}")
 
+                            time_to_grab_frame += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
 
                             prev_sim_state_position = sim_state_position
 
                             # ==== Construct features
                             first_zone_idx_in_input = min(current_zone_idx,
-                                                          len(self.zone_centers) - misc.n_checkpoints_in_inputs)
+                                                          len(zone_centers) - misc.n_checkpoints_in_inputs)
                             time_mini_race_start_ms = rv["zone_entrance_time_ms"][first_zone_idx_in_input]
                             current_overall_time_ms = sim_state_race_time  # TODO CHECK IF OFF BY ONE
                             mini_race_duration_ms = current_overall_time_ms - time_mini_race_start_ms
 
                             state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.T.dot(
                                 (
-                                        self.zone_centers[
+                                        zone_centers[
                                         first_zone_idx_in_input: first_zone_idx_in_input + misc.n_checkpoints_in_inputs,
                                         :]
                                         - sim_state_position
@@ -281,10 +329,19 @@ class TMInterfaceManager:
                             state_y_map_vector_in_car_reference_system = sim_state_orientation.T.dot(
                                 np.array([0, 1, 0]))
                             state_car_velocity_in_car_reference_system = sim_state_orientation.T.dot(sim_state_velocity)
+                            state_car_angular_velocity_in_car_reference_system = sim_state_orientation.T.dot(
+                                sim_state_angular_speed)
+
+                            previous_action = misc.inputs[0 if len(rv["actions"]) == 0 else rv["actions"][-1]]
 
                             floats = np.hstack(
                                 (
                                     mini_race_duration_ms,
+                                    np.array([previous_action['accelerate'], previous_action['brake'],
+                                              previous_action['left'],
+                                              previous_action['right']]),  # NEW
+                                    sim_state_car_gear_and_wheels.ravel(),  # NEW
+                                    state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
                                     state_car_velocity_in_car_reference_system.ravel(),
                                     state_y_map_vector_in_car_reference_system.ravel(),
                                     state_zone_center_coordinates_in_car_reference_system.ravel(),
@@ -296,6 +353,9 @@ class TMInterfaceManager:
 
                             action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1],
                                                                                                   floats)
+
+                            time_to_construct_and_policy += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
 
                             # action_idx = misc.action_forward_idx if _time < 100000000 else misc.action_backward_idx
                             # action_was_greedy = True
@@ -310,6 +370,9 @@ class TMInterfaceManager:
                             self.iface.set_input_state(**misc.inputs[action_idx])
                             self.iface.set_speed(self.running_speed)
 
+                            time_to_iface_set_set += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             if n_th_action_we_compute == 0:
                                 stats_tracker["value_starting_frame"].append(q_value)
                                 for i, val in enumerate(np.nditer(q_values)):
@@ -322,10 +385,15 @@ class TMInterfaceManager:
                             rv["car_position"].append(sim_state_position)
                             rv["car_orientation"].append(sim_state_orientation)
                             rv["car_velocity"].append(sim_state_velocity)
+                            rv["car_angular_speed"].append(sim_state_angular_speed)
+                            rv["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
+                            rv["q_values"].append(q_values)
 
                             self.latest_tm_engine_speed_requested = self.running_speed
                             compute_action_asap = False
                             n_th_action_we_compute += 1
+
+                            time_after_iface_set_set += time.perf_counter_ns() - pc2
 
                 continue
 
@@ -394,6 +462,17 @@ class TMInterfaceManager:
                         time_between_normal_on_run_steps / simulation_state.race_time * 50)
                     stats_tracker["time_between_action_on_run_steps"].append(
                         time_between_action_on_run_steps / simulation_state.race_time * 50)
+
+                    stats_tracker["time_to_grab_frame"].append(time_to_grab_frame / simulation_state.race_time * 50)
+                    stats_tracker["time_between_grab_frame"].append(
+                        time_between_grab_frame / simulation_state.race_time * 50)
+                    stats_tracker["time_to_construct_and_policy"].append(
+                        time_to_construct_and_policy / simulation_state.race_time * 50)
+                    stats_tracker["time_to_iface_set_set"].append(
+                        time_to_iface_set_set / simulation_state.race_time * 50)
+                    stats_tracker["time_after_iface_set_set"].append(
+                        time_after_iface_set_set / simulation_state.race_time * 50)
+
                     this_rollout_is_finished = True
 
                     self.iface.set_speed(0)
@@ -403,8 +482,8 @@ class TMInterfaceManager:
                 if not this_rollout_is_finished:
                     this_rollout_has_seen_t_negative |= _time < 0
 
-                    if _time == -1000:
-                        # Press forward 2000ms before the race starts
+                    if _time == -10:
+                        # Press forward before the race starts
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
                     elif _time >= 0 and _time % (
                             10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
@@ -492,7 +571,7 @@ class TMInterfaceManager:
                     #         call
                     #         last):
                     #         File
-                    #         "C:\Users\chopi\projects\trackmania_rl\scripts\train2.py", line
+                    #         "C:\Users\chopi\projects\trackmania_rl\scripts\train.py", line
                     #         218, in < module >
                     #         rollout_results = tmi.rollout(
                     #             File
@@ -544,6 +623,15 @@ class TMInterfaceManager:
                             time_between_normal_on_run_steps / simulation_state.race_time * 50)
                         stats_tracker["time_between_action_on_run_steps"].append(
                             time_between_action_on_run_steps / simulation_state.race_time * 50)
+                        stats_tracker["time_to_grab_frame"].append(time_to_grab_frame / simulation_state.race_time * 50)
+                        stats_tracker["time_between_grab_frame"].append(
+                            time_between_grab_frame / simulation_state.race_time * 50)
+                        stats_tracker["time_to_construct_and_policy"].append(
+                            time_to_construct_and_policy / simulation_state.race_time * 50)
+                        stats_tracker["time_to_iface_set_set"].append(
+                            time_to_iface_set_set / simulation_state.race_time * 50)
+                        stats_tracker["time_after_iface_set_set"].append(
+                            time_after_iface_set_set / simulation_state.race_time * 50)
 
                         this_rollout_is_finished = True
                         self.iface.set_speed(0)
@@ -551,11 +639,11 @@ class TMInterfaceManager:
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
                         print(f"+++    {simulation_state.race_time:>6} ", end="")
 
-                        if rv["current_zone_idx"][-1] != len(self.zone_centers) - 1:
+                        if rv["current_zone_idx"][-1] != len(zone_centers) - 1:
                             # We have not captured a frame where the car has entered our final virtual zone
                             # Let's put one in, artificially
-                            assert rv["current_zone_idx"][-1] == len(self.zone_centers) - 2
-                            rv["current_zone_idx"].append(len(self.zone_centers) - 1)
+                            assert rv["current_zone_idx"][-1] == len(zone_centers) - 2
+                            rv["current_zone_idx"].append(len(zone_centers) - 1)
                             rv["frames"].append(np.nan)
                             rv["zone_entrance_time_ms"].append(simulation_state.race_time)
                             rv["display_speed"].append(simulation_state.display_speed)
@@ -565,9 +653,11 @@ class TMInterfaceManager:
                             rv["car_position"].append(np.nan)
                             rv["car_orientation"].append(np.nan)
                             rv["car_velocity"].append(np.nan)
+                            rv["car_angular_speed"].append(np.nan)
+                            rv["car_gear_and_wheels"].append(np.nan)
                             rv["fraction_time_in_previous_zone"].append(
                                 (simulation_state.race_time - (
-                                            len(rv["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action)
+                                        len(rv["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action)
                                 / misc.ms_per_action
                             )
                             assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1

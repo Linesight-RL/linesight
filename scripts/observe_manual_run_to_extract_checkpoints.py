@@ -12,8 +12,9 @@ class MainClient(Client):
         self.race_finished = False
         self.raw_position_list = []
         self.period_save_pos_ms = 10
-        self.target_time_gap_between_cp_ms = 500
-        self.target_distance_between_cp_m = 25
+        # self.target_time_gap_between_cp_ms = 500
+        self.target_distance_between_cp_m = 10
+        self.zone_centers = None
 
     def on_registered(self, iface: TMInterface) -> None:
         print(f"Registered to {iface.server_name}")
@@ -71,8 +72,7 @@ class MainClient(Client):
         a = np.array(self.raw_position_list)
         b = np.linalg.norm(a[:-1] - a[1:], axis=1)  # b[i] : distance traveled between point i and point i+1, for i > 0
         c = np.pad(b.cumsum(), (1, 0))  # c[i] : distance traveled between point 0 and point i
-        target_distance_between_cp_m = 25
-        number_zones = round(c[-1] / target_distance_between_cp_m - 0.5) + 0.5  # half a zone for the end
+        number_zones = round(c[-1] / self.target_distance_between_cp_m - 0.5) + 0.5  # half a zone for the end
         zone_length = c[-1] / number_zones
         index_first_pos_in_new_zone = np.unique(c // zone_length, return_index=True)[1][1:]
         index_last_pos_in_current_zone = index_first_pos_in_new_zone - 1
@@ -95,5 +95,6 @@ run_client(client, server_name)
 # %%
 import matplotlib.pyplot as plt
 
-plt.plot(client.zone_centers[:, 0], client.zone_centers[:, 2])
-plt.plot(-np.array(client.raw_position_list)[:, 0], np.array(client.raw_position_list)[:, 2])
+fig, ax = plt.subplots(figsize=(26, 15))
+plt.scatter(client.zone_centers[:, 0], client.zone_centers[:, 2], s=0.5)
+plt.scatter(-np.array(client.raw_position_list)[:, 0], np.array(client.raw_position_list)[:, 2], s=0.5)
