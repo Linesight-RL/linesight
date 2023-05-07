@@ -76,6 +76,7 @@ class TMInterfaceManager:
         time_to_construct_and_policy = 0
         time_to_iface_set_set = 0
         time_after_iface_set_set = 0
+        time_exploration_policy = 0
 
         print("S ", end="")
 
@@ -351,10 +352,13 @@ class TMInterfaceManager:
                                 )
                             ).astype(np.float32)
 
+                            time_to_construct_and_policy += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1],
                                                                                                   floats)
 
-                            time_to_construct_and_policy += time.perf_counter_ns() - pc2
+                            time_exploration_policy += time.perf_counter_ns() - pc2
                             pc2 = time.perf_counter_ns()
 
                             # action_idx = misc.action_forward_idx if _time < 100000000 else misc.action_backward_idx
@@ -468,6 +472,8 @@ class TMInterfaceManager:
                         time_between_grab_frame / simulation_state.race_time * 50)
                     stats_tracker["time_to_construct_and_policy"].append(
                         time_to_construct_and_policy / simulation_state.race_time * 50)
+                    stats_tracker["time_exploration_policy"].append(
+                        time_exploration_policy / simulation_state.race_time * 50)
                     stats_tracker["time_to_iface_set_set"].append(
                         time_to_iface_set_set / simulation_state.race_time * 50)
                     stats_tracker["time_after_iface_set_set"].append(
@@ -628,6 +634,8 @@ class TMInterfaceManager:
                             time_between_grab_frame / simulation_state.race_time * 50)
                         stats_tracker["time_to_construct_and_policy"].append(
                             time_to_construct_and_policy / simulation_state.race_time * 50)
+                        stats_tracker["time_exploration_policy"].append(
+                            time_exploration_policy / simulation_state.race_time * 50)
                         stats_tracker["time_to_iface_set_set"].append(
                             time_to_iface_set_set / simulation_state.race_time * 50)
                         stats_tracker["time_after_iface_set_set"].append(

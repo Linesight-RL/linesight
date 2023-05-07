@@ -359,6 +359,8 @@ while True:
                 np.array(fast_stats_tracker["time_between_grab_frame"])),
             "laststep_time_to_construct_and_policy": np.median(
                 np.array(fast_stats_tracker["time_to_construct_and_policy"])),
+            "laststep_time_exploration_policy": np.median(
+                np.array(fast_stats_tracker["time_exploration_policy"])),
             "laststep_time_to_iface_set_set": np.median(
                 np.array(fast_stats_tracker["time_to_iface_set_set"])),
             "laststep_time_after_iface_set_set": np.median(
@@ -556,6 +558,7 @@ while True:
         fast_stats_tracker["laststep_time_to_grab_frame"].clear()
         fast_stats_tracker["laststep_time_between_grab_frame"].clear()
         fast_stats_tracker["laststep_time_to_construct_and_policy"].clear()
+        fast_stats_tracker["laststep_time_exploration_policy"].clear()
         fast_stats_tracker["laststep_time_to_iface_set_set"].clear()
         fast_stats_tracker["laststep_time_after_iface_set_set"].clear()
 
