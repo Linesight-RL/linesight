@@ -73,10 +73,12 @@ class TMInterfaceManager:
         time_between_action_on_run_steps = 0
         time_to_grab_frame = 0
         time_between_grab_frame = 0
-        time_to_construct_and_policy = 0
         time_to_iface_set_set = 0
         time_after_iface_set_set = 0
         time_exploration_policy = 0
+        time_A_rgb2gray = 0
+        time_A_geometry = 0
+        time_A_stack = 0
 
         print("S ", end="")
 
@@ -310,6 +312,9 @@ class TMInterfaceManager:
 
                             rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
 
+                            time_A_rgb2gray += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             prev_sim_state_position = sim_state_position
 
                             # ==== Construct features
@@ -335,6 +340,9 @@ class TMInterfaceManager:
 
                             previous_action = misc.inputs[0 if len(rv["actions"]) == 0 else rv["actions"][-1]]
 
+                            time_A_geometry += time.perf_counter_ns() - pc2
+                            pc2 = time.perf_counter_ns()
+
                             floats = np.hstack(
                                 (
                                     mini_race_duration_ms,
@@ -352,7 +360,7 @@ class TMInterfaceManager:
                                 )
                             ).astype(np.float32)
 
-                            time_to_construct_and_policy += time.perf_counter_ns() - pc2
+                            time_A_stack += time.perf_counter_ns() - pc2
                             pc2 = time.perf_counter_ns()
 
                             action_idx, action_was_greedy, q_value, q_values = exploration_policy(rv["frames"][-1],
@@ -470,8 +478,12 @@ class TMInterfaceManager:
                     stats_tracker["time_to_grab_frame"].append(time_to_grab_frame / simulation_state.race_time * 50)
                     stats_tracker["time_between_grab_frame"].append(
                         time_between_grab_frame / simulation_state.race_time * 50)
-                    stats_tracker["time_to_construct_and_policy"].append(
-                        time_to_construct_and_policy / simulation_state.race_time * 50)
+                    stats_tracker["time_A_rgb2gray"].append(
+                        time_A_rgb2gray / simulation_state.race_time * 50)
+                    stats_tracker["time_A_geometry"].append(
+                        time_A_geometry / simulation_state.race_time * 50)
+                    stats_tracker["time_A_stack"].append(
+                        time_A_stack / simulation_state.race_time * 50)
                     stats_tracker["time_exploration_policy"].append(
                         time_exploration_policy / simulation_state.race_time * 50)
                     stats_tracker["time_to_iface_set_set"].append(
@@ -632,8 +644,12 @@ class TMInterfaceManager:
                         stats_tracker["time_to_grab_frame"].append(time_to_grab_frame / simulation_state.race_time * 50)
                         stats_tracker["time_between_grab_frame"].append(
                             time_between_grab_frame / simulation_state.race_time * 50)
-                        stats_tracker["time_to_construct_and_policy"].append(
-                            time_to_construct_and_policy / simulation_state.race_time * 50)
+                        stats_tracker["time_A_rgb2gray"].append(
+                            time_A_rgb2gray / simulation_state.race_time * 50)
+                        stats_tracker["time_A_geometry"].append(
+                            time_A_geometry / simulation_state.race_time * 50)
+                        stats_tracker["time_A_stack"].append(
+                            time_A_stack / simulation_state.race_time * 50)
                         stats_tracker["time_exploration_policy"].append(
                             time_exploration_policy / simulation_state.race_time * 50)
                         stats_tracker["time_to_iface_set_set"].append(

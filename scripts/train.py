@@ -246,6 +246,12 @@ while True:
                     save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / f"actions.joblib")
         joblib.dump(rollout_results["q_values"],
                     save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / f"q_values.joblib")
+        torch.save(model1.state_dict(),
+                   save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "weights1.torch")
+        torch.save(model2.state_dict(),
+                   save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "weights2.torch")
+        torch.save(optimizer1.state_dict(),
+                   save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "optimizer1.torch")
 
     tensorboard_writer.add_scalar(
         tag="single_race_time",
@@ -357,8 +363,12 @@ while True:
                 np.array(fast_stats_tracker["time_to_grab_frame"])),
             "laststep_time_between_grab_frame": np.median(
                 np.array(fast_stats_tracker["time_between_grab_frame"])),
-            "laststep_time_to_construct_and_policy": np.median(
-                np.array(fast_stats_tracker["time_to_construct_and_policy"])),
+            "laststep_time_A_rgb2gray": np.median(
+                np.array(fast_stats_tracker["time_A_rgb2gray"])),
+            "laststep_time_A_geometry": np.median(
+                np.array(fast_stats_tracker["time_A_geometry"])),
+            "laststep_time_A_stack": np.median(
+                np.array(fast_stats_tracker["time_A_stack"])),
             "laststep_time_exploration_policy": np.median(
                 np.array(fast_stats_tracker["time_exploration_policy"])),
             "laststep_time_to_iface_set_set": np.median(
@@ -440,6 +450,12 @@ while True:
                         save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / f"actions.joblib")
             joblib.dump(rollout_results["q_values"],
                         save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / f"q_values.joblib")
+            torch.save(model1.state_dict(),
+                       save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "weights1.torch")
+            torch.save(model2.state_dict(),
+                       save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "weights2.torch")
+            torch.save(optimizer1.state_dict(),
+                       save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "optimizer1.torch")
 
         tensorboard_writer.add_scalar(
             tag="single_race_time",
@@ -557,7 +573,9 @@ while True:
 
         fast_stats_tracker["laststep_time_to_grab_frame"].clear()
         fast_stats_tracker["laststep_time_between_grab_frame"].clear()
-        fast_stats_tracker["laststep_time_to_construct_and_policy"].clear()
+        fast_stats_tracker["laststep_time_A_rgb2gray"].clear()
+        fast_stats_tracker["laststep_time_A_geometry"].clear()
+        fast_stats_tracker["laststep_time_A_stack"].clear()
         fast_stats_tracker["laststep_time_exploration_policy"].clear()
         fast_stats_tracker["laststep_time_to_iface_set_set"].clear()
         fast_stats_tracker["laststep_time_after_iface_set_set"].clear()
