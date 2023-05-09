@@ -23,13 +23,21 @@ class Agent(torch.nn.Module):
     ):
         super().__init__()
         self.img_head = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(16, 16), stride=8),
+            torch.nn.Conv2d(
+                in_channels=1, out_channels=16, kernel_size=(16, 16), stride=8
+            ),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=(8, 8), stride=4),
+            torch.nn.Conv2d(
+                in_channels=16, out_channels=32, kernel_size=(8, 8), stride=4
+            ),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(4, 4), stride=2),
+            torch.nn.Conv2d(
+                in_channels=32, out_channels=64, kernel_size=(4, 4), stride=2
+            ),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=1),
+            torch.nn.Conv2d(
+                in_channels=64, out_channels=64, kernel_size=(3, 3), stride=1
+            ),
             torch.nn.LeakyReLU(inplace=True),
             torch.nn.Flatten(),
         )
@@ -68,8 +76,12 @@ class Agent(torch.nn.Module):
         self.iqn_embedding_dimension = iqn_embedding_dimension
         self.n_actions = n_actions
 
-        self.float_inputs_mean = torch.tensor(float_inputs_mean, dtype=torch.float16).to("cuda")
-        self.float_inputs_std = torch.tensor(float_inputs_std, dtype=torch.float16).to("cuda")
+        self.float_inputs_mean = torch.tensor(
+            float_inputs_mean, dtype=torch.float16
+        ).to("cuda")
+        self.float_inputs_std = torch.tensor(float_inputs_std, dtype=torch.float16).to(
+            "cuda"
+        )
 
     def initialize_weights(self):
         for m in self.img_head:
@@ -85,7 +97,9 @@ class Agent(torch.nn.Module):
     def forward(self, img, float_inputs, num_quantiles, tau):
         batch_size = img.shape[0]
         img_outputs = self.img_head((img.to(torch.float16) - 128) / 128)  # PERF
-        float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
+        float_outputs = self.float_feature_extractor(
+            (float_inputs - self.float_inputs_mean) / self.float_inputs_std
+        )
         # (batch_size, dense_input_dimension) OK
         concat = torch.cat((img_outputs, float_outputs), 1)
         if tau is None:
@@ -96,7 +110,9 @@ class Agent(torch.nn.Module):
             [-1, self.iqn_embedding_dimension]
         )  # (batch_size*num_quantiles, iqn_embedding_dimension) (still random numbers)
         quantile_net = torch.cos(
-            torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * quantile_net
+            torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda")
+            * math.pi
+            * quantile_net
         )  # (batch_size*num_quantiles, iqn_embedding_dimension)
         # (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
         # (batch_size*num_quantiles, dense_input_dimension)
@@ -173,31 +189,45 @@ class Trainer:
         batch, idxs, is_weights = buffer.sample(self.batch_size)
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            state_img_tensor = torch.as_tensor(np.array([memory.state_img for memory in batch])).to(
-                memory_format=torch.channels_last, non_blocking=True, device="cuda"
-            )
-            state_float_tensor = torch.as_tensor(np.array([memory.state_float for memory in batch])).to(non_blocking=True, device="cuda")
-            actions = torch.as_tensor(np.array([memory.action for memory in batch]), dtype=torch.int64).to(non_blocking=True, device="cuda")
-            rewards = torch.as_tensor(np.array([memory.reward for memory in batch])).to(non_blocking=True, device="cuda")
-            gammas_pow_nsteps = torch.as_tensor(np.array([memory.gamma_pow_nsteps for memory in batch])).to(
+            state_img_tensor = torch.as_tensor(
+                np.array([memory.state_img for memory in batch])
+            ).to(memory_format=torch.channels_last, non_blocking=True, device="cuda")
+            state_float_tensor = torch.as_tensor(
+                np.array([memory.state_float for memory in batch])
+            ).to(non_blocking=True, device="cuda")
+            actions = torch.as_tensor(
+                np.array([memory.action for memory in batch]), dtype=torch.int64
+            ).to(non_blocking=True, device="cuda")
+            rewards = torch.as_tensor(np.array([memory.reward for memory in batch])).to(
                 non_blocking=True, device="cuda"
             )
-            done = torch.as_tensor(np.array([memory.done for memory in batch])).to(non_blocking=True, device="cuda")
-            next_state_img_tensor = torch.as_tensor(np.array([memory.next_state_img for memory in batch])).to(
-                memory_format=torch.channels_last, non_blocking=True, device="cuda"
-            )
-            next_state_float_tensor = torch.as_tensor(np.array([memory.next_state_float for memory in batch])).to(
+            gammas_pow_nsteps = torch.as_tensor(
+                np.array([memory.gamma_pow_nsteps for memory in batch])
+            ).to(non_blocking=True, device="cuda")
+            done = torch.as_tensor(np.array([memory.done for memory in batch])).to(
                 non_blocking=True, device="cuda"
             )
-            is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
+            next_state_img_tensor = torch.as_tensor(
+                np.array([memory.next_state_img for memory in batch])
+            ).to(memory_format=torch.channels_last, non_blocking=True, device="cuda")
+            next_state_float_tensor = torch.as_tensor(
+                np.array([memory.next_state_float for memory in batch])
+            ).to(non_blocking=True, device="cuda")
+            is_weights = torch.as_tensor(is_weights).to(
+                non_blocking=True, device="cuda"
+            )
 
             with torch.no_grad():
                 rewards = rewards.reshape(-1, 1).repeat(
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 # (batch_size*iqn_n, 1)
-                gammas_pow_nsteps = gammas_pow_nsteps.reshape(-1, 1).repeat([self.iqn_n, 1])
-                done = done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                gammas_pow_nsteps = gammas_pow_nsteps.reshape(-1, 1).repeat(
+                    [self.iqn_n, 1]
+                )
+                done = done.reshape(-1, 1).repeat(
+                    [self.iqn_n, 1]
+                )  # (batch_size*iqn_n, 1)
                 actions = actions[:, None]  # (batch_size, 1)
                 actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
 
@@ -207,7 +237,12 @@ class Trainer:
                 #
                 self.model.reset_noise()
                 a__tpo__model__reduced_repeated = (
-                    self.model(next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None)[0]
+                    self.model(
+                        next_state_img_tensor,
+                        next_state_float_tensor,
+                        self.iqn_n,
+                        tau=None,
+                    )[0]
                     .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
                     .mean(dim=0)
                     .argmax(dim=1, keepdim=True)
@@ -228,7 +263,11 @@ class Trainer:
                 outputs_target_tau2 = torch.where(
                     done,
                     rewards,
-                    rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated),
+                    rewards
+                    + gammas_pow_nsteps
+                    * q__stpo__model2__quantiles_tau2.gather(
+                        1, a__tpo__model__reduced_repeated
+                    ),
                 )  # (batch_size*iqn_n, 1)
 
                 # =============== BEG PAL ==============
@@ -239,7 +278,9 @@ class Trainer:
                 #
                 pal_term_tau2 = q__stpo__model2__quantiles_tau2.gather(
                     1,
-                    q__stpo__model2__quantiles_tau2.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    q__stpo__model2__quantiles_tau2.reshape(
+                        [self.iqn_n, self.batch_size, self.model.n_actions]
+                    )
                     .mean(dim=0)
                     .argmax(dim=1, keepdim=True)
                     .repeat([self.iqn_n, 1]),
@@ -254,20 +295,26 @@ class Trainer:
                 )  # (batch_size*iqn_n,n_actions)
                 al_term_tau2 = q__st__model2__quantiles_tau2.gather(
                     1,
-                    q__st__model2__quantiles_tau2.reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    q__st__model2__quantiles_tau2.reshape(
+                        [self.iqn_n, self.batch_size, self.model.n_actions]
+                    )
                     .mean(dim=0)
                     .argmax(dim=1, keepdim=True)
                     .repeat([self.iqn_n, 1]),
                 ) - q__st__model2__quantiles_tau2.gather(1, actions_n)
                 # (batch_size*iqn_n, 1)
 
-                outputs_target_tau2 -= self.AL_alpha * torch.minimum(al_term_tau2, pal_term_tau2)
+                outputs_target_tau2 -= self.AL_alpha * torch.minimum(
+                    al_term_tau2, pal_term_tau2
+                )
                 # =============== END PAL ==============
 
                 #
                 #   This is our target
                 #
-                outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
+                outputs_target_tau2 = outputs_target_tau2.reshape(
+                    [self.iqn_n, self.batch_size, 1]
+                ).transpose(
                     0, 1
                 )  # (batch_size, iqn_n, 1)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
@@ -276,10 +323,14 @@ class Trainer:
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
 
-            mean_q_value = torch.mean(q__st__model__quantiles_tau3, dim=0).detach().cpu()
+            mean_q_value = (
+                torch.mean(q__st__model__quantiles_tau3, dim=0).detach().cpu()
+            )
 
             outputs_tau3 = (
-                q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
+                q__st__model__quantiles_tau3.gather(1, actions_n)
+                .reshape([self.iqn_n, self.batch_size, 1])
+                .transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
             TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
@@ -290,10 +341,16 @@ class Trainer:
                 0.5 * TD_Error**2,
                 self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
             )
-            tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
-            tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+            tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(
+                0, 1
+            )  # (batch_size, iqn_n, 1)
+            tau3 = tau3[:, None, :, :].expand(
+                [-1, self.iqn_n, -1, -1]
+            )  # (batch_size, iqn_n, iqn_n, 1)
             loss = (
-                (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+                (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa)
+                .sum(dim=2)
+                .mean(dim=1)[:, 0]
             )  # pinball loss # (batch_size, )
 
             total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
@@ -307,15 +364,20 @@ class Trainer:
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
-                state_img_tensor = torch.as_tensor(np.expand_dims(img_inputs, axis=0)).to(
-                    "cuda", memory_format=torch.channels_last, non_blocking=True
-                )
-                state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
+                state_img_tensor = torch.as_tensor(
+                    np.expand_dims(img_inputs, axis=0)
+                ).to("cuda", memory_format=torch.channels_last, non_blocking=True)
+                state_float_tensor = torch.as_tensor(
+                    np.expand_dims(float_inputs, axis=0)
+                ).to("cuda", non_blocking=True)
                 if self.epsilon > 0:
                     # We are not evaluating
                     self.model.reset_noise()
                 q_values, _, w_values = self.model(
-                    state_img_tensor, state_float_tensor, self.iqn_k, tau=torch.linspace(0.05, 0.95, self.iqn_k)[:, None].to("cuda")
+                    state_img_tensor,
+                    state_float_tensor,
+                    self.iqn_k,
+                    tau=torch.linspace(0.05, 0.95, self.iqn_k)[:, None].to("cuda"),
                 )
                 q_values = q_values[0].cpu().numpy().astype(np.float32).mean(axis=0)
                 aaaaaaaaaaaaaa
@@ -330,6 +392,11 @@ class Trainer:
                     w = np.argmax(w_values.ravel())
 
         if random.random() < self.epsilon:
-            return random.randrange(0, self.model.n_actions), False, np.max(q_values), q_values
+            return (
+                random.randrange(0, self.model.n_actions),
+                False,
+                np.max(q_values),
+                q_values,
+            )
         else:
             return np.argmax(q_values), True, np.max(q_values), q_values

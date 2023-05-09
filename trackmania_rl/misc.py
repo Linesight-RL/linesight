@@ -19,7 +19,7 @@ discard_non_greedy_actions_in_nsteps = True
 anneal_step = 1
 n_steps = [
     1,
-    3,
+    1,
     3,
     3,
     3,
@@ -82,18 +82,18 @@ iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
 memory_size = 500_000
-memory_size_start_learn = 100_000
-virtual_memory_size_start_learn = 100_000
+memory_size_start_learn = 1000
+virtual_memory_size_start_learn = 1000
 number_memories_generated_high_exploration = 400_000
-high_exploration_ratio = 2
+high_exploration_ratio = 3
 batch_size = 1024
 learning_rate = 5e-5
 
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
-sample_n_mini_races = 4
+sample_n_mini_races = 8
 
-soft_update_tau = 0.1
+soft_update_tau = [1.0, 0.5, 0.2, 0.1][anneal_step]
 
 float_inputs_mean = np.array(
     [
@@ -433,24 +433,24 @@ inputs = [
         "accelerate": False,
         "brake": True,
     },
-    {  # 9 Brake and accelerate
-        "left": False,
-        "right": False,
-        "accelerate": True,
-        "brake": True,
-    },
-    {  # 10 Brake and accelerate left
-        "left": True,
-        "right": False,
-        "accelerate": True,
-        "brake": True,
-    },
-    {  # 11 Brake and accelerate right
-        "left": False,
-        "right": True,
-        "accelerate": True,
-        "brake": True,
-    },
+    # {  # 9 Brake and accelerate
+    #     "left": False,
+    #     "right": False,
+    #     "accelerate": True,
+    #     "brake": True,
+    # },
+    # {  # 10 Brake and accelerate left
+    #     "left": True,
+    #     "right": False,
+    #     "accelerate": True,
+    #     "brake": True,
+    # },
+    # {  # 11 Brake and accelerate right
+    #     "left": False,
+    #     "right": True,
+    #     "accelerate": True,
+    #     "brake": True,
+    # },
 ]
 
 action_forward_idx = 0  # Accelerate forward, don't turn
@@ -458,6 +458,8 @@ action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 25
 road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don't take risk there are curvy roads
-max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
+max_allowable_distance_to_checkpoint = np.sqrt(
+    (distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2
+)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
