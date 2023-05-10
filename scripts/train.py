@@ -19,7 +19,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import (
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "30"
+run_name = "31"
 map_name = "map3"
 zone_centers = np.load(
     str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy")
@@ -112,7 +112,7 @@ tensorboard_writer.add_custom_scalars(layout)
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
-random_seed = 44
+random_seed = 444
 torch.cuda.manual_seed_all(random_seed)
 torch.manual_seed(random_seed)
 random.seed(random_seed)
