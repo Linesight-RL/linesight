@@ -13,10 +13,10 @@ n_zone_centers_in_inputs = 16
 max_overall_duration_ms = 180_000
 max_minirace_duration_ms = 25_000
 
-epsilon = 0.05
+epsilon = 0.01
 discard_non_greedy_actions_in_nsteps = True
 
-anneal_step = 0
+anneal_step = 1
 n_steps = [
     1,
     3,
@@ -81,19 +81,19 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
-memory_size = 500_000
-memory_size_start_learn = 1000
+memory_size = 300_000
+memory_size_start_learn = 10000
 virtual_memory_size_start_learn = 1000
-number_memories_generated_high_exploration = 400_000
-high_exploration_ratio = 3
+number_memories_generated_high_exploration = 100000
+high_exploration_ratio = 23
 batch_size = 1024
 learning_rate = 5e-5
 
 number_times_single_memory_is_used_before_discard = 32
 number_memories_trained_on_between_target_network_updates = 10000
-sample_n_mini_races = 8
+sample_n_mini_races = 8000000000
 
-soft_update_tau = [1.0, 0.5, 0.2, 0.1][anneal_step]
+soft_update_tau = 0.2  # [1.0, 0.5, 0.2, 0.1][anneal_step]
 
 float_inputs_mean = np.array(
     [

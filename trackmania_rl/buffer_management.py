@@ -158,13 +158,14 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             state_car_velocity_in_car_reference_system = car_orientation.T.dot(
                 car_velocity
             )
-            car_angular_speed = rollout_results["car_angular_speed"][i]
-            previous_action = misc.inputs[
-                rollout_results["actions"][misc.action_forward_idx if i == 0 else i - 1]
-            ]
-            state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(
-                car_angular_speed
-            )
+            # FIXME RUN13
+            # car_angular_speed = rollout_results["car_angular_speed"][i]
+            # previous_action = misc.inputs[
+            #     rollout_results["actions"][misc.action_forward_idx if i == 0 else i - 1]
+            # ]
+            # state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(
+            #     car_angular_speed
+            # )
             assert state_zone_center_coordinates_in_car_reference_system.shape == (
                 n_zone_centers_in_inputs,
                 3,
@@ -216,15 +217,16 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_car_velocity_in_car_reference_system = (
                     next_car_orientation.T.dot(next_car_velocity)
                 )
-                next_car_angular_speed = rollout_results["car_angular_speed"][
-                    i + n_steps
-                ]
-                next_previous_action = misc.inputs[
-                    rollout_results["actions"][i + n_steps - 1]
-                ]
-                next_state_car_angular_velocity_in_car_reference_system = (
-                    next_car_orientation.T.dot(next_car_angular_speed)
-                )
+                # FIXME RUN13
+                # next_car_angular_speed = rollout_results["car_angular_speed"][
+                #     i + n_steps
+                # ]
+                # next_previous_action = misc.inputs[
+                #     rollout_results["actions"][i + n_steps - 1]
+                # ]
+                # next_state_car_angular_velocity_in_car_reference_system = (
+                #     next_car_orientation.T.dot(next_car_angular_speed)
+                # )
                 next_state_img = rollout_results["frames"][i + n_steps]
                 next_state_float = np.hstack(
                     (

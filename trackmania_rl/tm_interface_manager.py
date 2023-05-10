@@ -610,7 +610,7 @@ class TMInterfaceManager:
                 if not this_rollout_is_finished:
                     this_rollout_has_seen_t_negative |= _time < 0
 
-                    if _time == -10:
+                    if _time == -1000:
                         # Press forward before the race starts
                         self.iface.set_input_state(
                             **(misc.inputs[misc.action_forward_idx])
