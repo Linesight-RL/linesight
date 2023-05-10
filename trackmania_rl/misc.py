@@ -89,9 +89,9 @@ high_exploration_ratio = 23
 batch_size = 1024
 learning_rate = 5e-5
 
-number_times_single_memory_is_used_before_discard = 32
+number_times_single_memory_is_used_before_discard = 32 * 4
 number_memories_trained_on_between_target_network_updates = 10000
-sample_n_mini_races = 8000000000
+subsample_n_mini_races = 4
 
 soft_update_tau = 0.2  # [1.0, 0.5, 0.2, 0.1][anneal_step]
 

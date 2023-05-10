@@ -40,7 +40,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         )
 
         for first_zone_idx_in_input in random.sample(
-            mini_race_range, min(len(mini_race_range), misc.sample_n_mini_races)
+            mini_race_range, min(len(mini_race_range), misc.subsample_n_mini_races)
         ):
             # A mini-race is defined as a race between Zone and Zone + n_zone_centers_in_inputs - 1 (both included)
             # That mini-race terminates as soon as the car enters Zone + n_zone_centers_in_inputs - 1
