@@ -433,24 +433,24 @@ inputs = [
         "accelerate": False,
         "brake": True,
     },
-    # {  # 9 Brake and accelerate
-    #     "left": False,
-    #     "right": False,
-    #     "accelerate": True,
-    #     "brake": True,
-    # },
-    # {  # 10 Brake and accelerate left
-    #     "left": True,
-    #     "right": False,
-    #     "accelerate": True,
-    #     "brake": True,
-    # },
-    # {  # 11 Brake and accelerate right
-    #     "left": False,
-    #     "right": True,
-    #     "accelerate": True,
-    #     "brake": True,
-    # },
+    {  # 9 Brake and accelerate
+        "left": False,
+        "right": False,
+        "accelerate": True,
+        "brake": True,
+    },
+    {  # 10 Brake and accelerate left
+        "left": True,
+        "right": False,
+        "accelerate": True,
+        "brake": True,
+    },
+    {  # 11 Brake and accelerate right
+        "left": False,
+        "right": True,
+        "accelerate": True,
+        "brake": True,
+    },
 ]
 
 action_forward_idx = 0  # Accelerate forward, don't turn
