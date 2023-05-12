@@ -19,7 +19,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import (
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "32"
+run_name = "33"
 map_name = "map3"
 zone_centers = np.load(
     str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy")
@@ -602,7 +602,7 @@ while True:
             + [9999999999]
         ):
             # This is a new alltime_minimum
-            (save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}").mkdir(
+            (save_dir / "best_runs" / f"{eval_stats_tracker['race_time'][-1]}").mkdir(
                 parents=True, exist_ok=True
             )
             joblib.dump(
