@@ -17,7 +17,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "34"
+run_name = "36"
 map_name = "map3"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -298,21 +298,21 @@ while True:
         tag="explo_race_time",
         scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
         global_step=cumul_number_frames_played,
-        walltime=float(cumul_training_hours * 3600),
+        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
     )
     if fast_stats_tracker["race_finished"][-1]:
         tensorboard_writer.add_scalar(
             tag="explo_race_time_finished",
             scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
             global_step=cumul_number_frames_played,
-            walltime=float(cumul_training_hours * 3600),
+            walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
         )
 
     tensorboard_writer.add_scalar(
         tag="single_zone_reached",
         scalar_value=fast_stats_tracker["zone_reached"][-1],
         global_step=cumul_number_frames_played,
-        walltime=float(cumul_training_hours * 3600),
+        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
     )
     print("race time ratio  ", np.median(np.array(fast_stats_tracker["race_time_ratio"])))
     (
@@ -505,7 +505,7 @@ while True:
                 tag="eval_race_time_finished",
                 scalar_value=eval_stats_tracker["race_time"][-1] / 1000,
                 global_step=cumul_number_frames_played,
-                walltime=float(cumul_training_hours * 3600),
+                walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
             )
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
@@ -640,8 +640,8 @@ while True:
         # ===============================================
         importlib.reload(misc)
 
-        if cumul_training_hours > 2:
-            misc.reward_per_ms_press_forward = 0
+        # if cumul_training_hours > 2:
+        #     misc.reward_per_ms_press_forward = 0
 
         time_next_save += misc.statistics_save_period_seconds
 
