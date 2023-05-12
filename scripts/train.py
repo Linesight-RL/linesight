@@ -609,35 +609,35 @@ while True:
                 rollout_results["actions"],
                 save_dir
                 / "best_runs"
-                / f"{fast_stats_tracker['race_time'][-1]}"
+                / f"{eval_stats_tracker['race_time'][-1]}"
                 / f"actions.joblib",
             )
             joblib.dump(
                 rollout_results["q_values"],
                 save_dir
                 / "best_runs"
-                / f"{fast_stats_tracker['race_time'][-1]}"
+                / f"{eval_stats_tracker['race_time'][-1]}"
                 / f"q_values.joblib",
             )
             torch.save(
                 model1.state_dict(),
                 save_dir
                 / "best_runs"
-                / f"{fast_stats_tracker['race_time'][-1]}"
+                / f"{eval_stats_tracker['race_time'][-1]}"
                 / "weights1.torch",
             )
             torch.save(
                 model2.state_dict(),
                 save_dir
                 / "best_runs"
-                / f"{fast_stats_tracker['race_time'][-1]}"
+                / f"{eval_stats_tracker['race_time'][-1]}"
                 / "weights2.torch",
             )
             torch.save(
                 optimizer1.state_dict(),
                 save_dir
                 / "best_runs"
-                / f"{fast_stats_tracker['race_time'][-1]}"
+                / f"{eval_stats_tracker['race_time'][-1]}"
                 / "optimizer1.torch",
             )
 
