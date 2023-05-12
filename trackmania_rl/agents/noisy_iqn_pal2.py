@@ -5,7 +5,8 @@ import numpy as np
 import torch
 
 from .. import nn_utilities, noisy_linear
-from ..experience_replay.experience_replay_interface import ExperienceReplayInterface
+from ..experience_replay.experience_replay_interface import \
+    ExperienceReplayInterface
 
 
 class Agent(torch.nn.Module):
@@ -50,11 +51,11 @@ class Agent(torch.nn.Module):
         dense_input_dimension = conv_head_output_dim + float_hidden_dim
 
         self.A_head = torch.nn.Sequential(
-            noisy_linear.NoisyLinear(
+            torch.nn.Linear(
                 dense_input_dimension, dense_hidden_dimension // 2
             ),
             torch.nn.LeakyReLU(inplace=True),
-            noisy_linear.NoisyLinear(dense_hidden_dimension // 2, n_actions),
+            torch.nn.Linear(dense_hidden_dimension // 2, n_actions),
         )
         self.V_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
@@ -127,8 +128,9 @@ class Agent(torch.nn.Module):
         return Q, tau
 
     def reset_noise(self):
-        self.A_head[0].reset_noise()
-        self.A_head[2].reset_noise()
+        pass
+        # self.A_head[0].reset_noise()
+        # self.A_head[2].reset_noise()
         # self.V_head[0].reset_noise()
         # self.V_head[2].reset_noise()
 
@@ -376,6 +378,7 @@ class Trainer:
                 )
 
         if random.random() < self.epsilon:
+            # Choose a random action
             return (
                 random.randrange(0, self.model.n_actions),
                 False,
