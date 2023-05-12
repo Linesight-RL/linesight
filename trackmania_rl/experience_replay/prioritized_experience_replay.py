@@ -42,9 +42,7 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
             default_prio_float = float(self.tree.total() / (1e9 * self.tree.n_entries))
         self.tree.add(default_prio_float, experience)
 
-    def sample(
-        self, n: int
-    ) -> Tuple[List[Experience], List[int], npt.NDArray[np.float32]]:
+    def sample(self, n: int) -> Tuple[List[Experience], List[int], npt.NDArray[np.float32]]:
         batch = []
         idxs = []
         prios_int64 = []
@@ -56,9 +54,7 @@ class PrioritizedExperienceReplay(ExperienceReplayInterface):
             batch.append(experience)
             idxs.append(idx)
             # self.tree.update(idx, p_int64 / 2e9)  # Modified vs Agade's code
-        is_weight = np.power(
-            self.tree.n_entries * np.array(prios_int64) / total_int64, -self.prio_beta
-        ).astype(np.float32)
+        is_weight = np.power(self.tree.n_entries * np.array(prios_int64) / total_int64, -self.prio_beta).astype(np.float32)
         return batch, idxs, is_weight
 
     def update(self, idxs: List[int], errors) -> None:

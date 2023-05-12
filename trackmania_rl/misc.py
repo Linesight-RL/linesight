@@ -13,7 +13,8 @@ n_zone_centers_in_inputs = 16
 max_overall_duration_ms = 180_000
 max_minirace_duration_ms = 25_000
 
-epsilon = 0.05
+epsilon = 0.01
+q_values_randomization_amplitude = 0.02
 discard_non_greedy_actions_in_nsteps = True
 
 anneal_step = 1
@@ -458,8 +459,6 @@ action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 25
 road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don't take risk there are curvy roads
-max_allowable_distance_to_checkpoint = np.sqrt(
-    (distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2
-)
+max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!

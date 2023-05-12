@@ -12,12 +12,8 @@ time_screen_width_percentage = 0.075
 time_screen_height_percentage = 0.025
 time_screen_height = 0.9725  # 0.975 before
 
-h_min_time = round(
-    (time_screen_height - time_screen_height_percentage) * misc.H
-)  # - 2 before
-h_max_time = round(
-    (time_screen_height + time_screen_height_percentage) * misc.H
-)  # - 2 before
+h_min_time = round((time_screen_height - time_screen_height_percentage) * misc.H)  # - 2 before
+h_max_time = round((time_screen_height + time_screen_height_percentage) * misc.H)  # - 2 before
 w_min_time = round((0.5 - time_screen_width_percentage) * misc.W)
 w_max_time = round((0.5 + time_screen_width_percentage) * misc.W)
 
@@ -31,13 +27,9 @@ class DigitsLibrary:
     )
 
     def __init__(self, digits_filename):
-        self.digits = np.load(
-            digits_filename, allow_pickle=True
-        )  # A digit is size (24x12) pixels, stored as np.uint8
+        self.digits = np.load(digits_filename, allow_pickle=True)  # A digit is size (24x12) pixels, stored as np.uint8
         self.digit_set = set({tuple(digit.flatten()) for digit, _ in self.digits})
-        self.digits_stack = np.stack(self.digits[:, 0]).astype(
-            np.float32
-        )  # Currently (44, 24, 12)
+        self.digits_stack = np.stack(self.digits[:, 0]).astype(np.float32)  # Currently (44, 24, 12)
         self.digits_value_stack = np.stack(self.digits[:, 1])
 
 
@@ -70,15 +62,11 @@ def parse_time2(img, digits, digits_value):
 def parse_time(img, library):
     # Shape should be (480, 640, 4) in BGRA mode
     a = get_time_screen(img)
-    return parse_time2(
-        get_time_screen(img), library.digits_stack, library.digits_value_stack
-    )
+    return parse_time2(get_time_screen(img), library.digits_stack, library.digits_value_stack)
 
 
 def binarise_screen_numbers(img):
-    return cv2.bitwise_not(
-        cv2.inRange(img, (255, 251, 255, 0), (255, 251, 255, 255))
-    )  # Writing_Color = (255,251,255)
+    return cv2.bitwise_not(cv2.inRange(img, (255, 251, 255, 0), (255, 251, 255, 255)))  # Writing_Color = (255,251,255)
 
 
 @numba.njit(fastmath=True)

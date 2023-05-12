@@ -56,9 +56,7 @@ class MainClient(Client):
         """
 
         if current == target:
-            self.raw_position_list.append(
-                np.array(iface.get_simulation_state().position)
-            )
+            self.raw_position_list.append(np.array(iface.get_simulation_state().position))
             self.race_finished = True
             self.extract_cp_distance_interval()
 
@@ -72,25 +70,17 @@ class MainClient(Client):
 
     def extract_cp_distance_interval(self):
         a = np.array(self.raw_position_list)
-        b = np.linalg.norm(
-            a[:-1] - a[1:], axis=1
-        )  # b[i] : distance traveled between point i and point i+1, for i > 0
-        c = np.pad(
-            b.cumsum(), (1, 0)
-        )  # c[i] : distance traveled between point 0 and point i
-        number_zones = (
-            round(c[-1] / self.target_distance_between_cp_m - 0.5) + 0.5
-        )  # half a zone for the end
+        b = np.linalg.norm(a[:-1] - a[1:], axis=1)  # b[i] : distance traveled between point i and point i+1, for i > 0
+        c = np.pad(b.cumsum(), (1, 0))  # c[i] : distance traveled between point 0 and point i
+        number_zones = round(c[-1] / self.target_distance_between_cp_m - 0.5) + 0.5  # half a zone for the end
         zone_length = c[-1] / number_zones
-        index_first_pos_in_new_zone = np.unique(c // zone_length, return_index=True)[1][
-            1:
-        ]
+        index_first_pos_in_new_zone = np.unique(c // zone_length, return_index=True)[1][1:]
         index_last_pos_in_current_zone = index_first_pos_in_new_zone - 1
         w1 = 1 - (c[index_last_pos_in_current_zone] % zone_length) / zone_length
         w2 = (c[index_first_pos_in_new_zone] % zone_length) / zone_length
-        self.zone_centers = a[index_last_pos_in_current_zone] + (
-            a[index_first_pos_in_new_zone] - a[index_last_pos_in_current_zone]
-        ) * (w1 / (1e-4 + w1 + w2)).reshape((-1, 1))
+        self.zone_centers = a[index_last_pos_in_current_zone] + (a[index_first_pos_in_new_zone] - a[index_last_pos_in_current_zone]) * (
+            w1 / (1e-4 + w1 + w2)
+        ).reshape((-1, 1))
         self.zone_centers = np.vstack(
             (
                 client.raw_position_list[0][None, :],
