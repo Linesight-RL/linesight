@@ -85,7 +85,7 @@ memory_size = 300_000
 memory_size_start_learn = 10000
 virtual_memory_size_start_learn = 1000
 number_memories_generated_high_exploration = 100000
-high_exploration_ratio = 23
+high_exploration_ratio = 5
 batch_size = 1024
 learning_rate = 5e-5
 
