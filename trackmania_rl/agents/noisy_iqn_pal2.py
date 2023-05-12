@@ -333,7 +333,7 @@ class Trainer:
             )
         else:
             return (
-                np.argmax(q_values + self.q_values_randomization_amplitude * np.random.randn(*q_values.shape)),
+                np.argmax(q_values + (self.epsilon > 0) * self.q_values_randomization_amplitude * np.random.randn(*q_values.shape)),
                 True,
                 np.max(q_values),
                 q_values,

@@ -17,7 +17,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "37"
+run_name = "38"
 map_name = "map3"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -308,7 +308,7 @@ while True:
     )
     tensorboard_writer.add_scalar(
         tag="mean_action_gap",
-        scalar_value=(
+        scalar_value=-(
             np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
         ).mean(),
         global_step=cumul_number_frames_played,
@@ -519,15 +519,15 @@ while True:
                 tag="eval_race_time_finished",
                 scalar_value=eval_stats_tracker["race_time"][-1] / 1000,
                 global_step=cumul_number_frames_played,
-                walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+                walltime=float(cumul_training_hours * 3600) + time.time() - time_next_save,
             )
         tensorboard_writer.add_scalar(
             tag="mean_action_gap",
-            scalar_value=(
+            scalar_value=-(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
             global_step=cumul_number_frames_played,
-            walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+            walltime=float(cumul_training_hours * 3600) + time.time() - time_next_save - misc.statistics_save_period_seconds,
         )
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
