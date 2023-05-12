@@ -17,7 +17,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "36"
+run_name = "37"
 map_name = "map3"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -26,7 +26,7 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
 
 layout = {
-    "96": {
+    "95": {
         "eval_race_time": [
             "Multiline",
             [
@@ -97,6 +97,12 @@ layout = {
             "Multiline",
             [
                 "single_zone_reached",
+            ],
+        ],
+        "mean_action_gap": [
+            "Multiline",
+            [
+                "mean_action_gap",
             ],
         ],
     },
@@ -297,6 +303,14 @@ while True:
     tensorboard_writer.add_scalar(
         tag="explo_race_time",
         scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
+        global_step=cumul_number_frames_played,
+        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+    )
+    tensorboard_writer.add_scalar(
+        tag="mean_action_gap",
+        scalar_value=(
+            np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
+        ).mean(),
         global_step=cumul_number_frames_played,
         walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
     )
@@ -507,6 +521,14 @@ while True:
                 global_step=cumul_number_frames_played,
                 walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
             )
+        tensorboard_writer.add_scalar(
+            tag="mean_action_gap",
+            scalar_value=(
+                np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
+            ).mean(),
+            global_step=cumul_number_frames_played,
+            walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+        )
 
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
@@ -640,8 +662,8 @@ while True:
         # ===============================================
         importlib.reload(misc)
 
-        # if cumul_training_hours > 2:
-        #     misc.reward_per_ms_press_forward = 0
+        if cumul_training_hours > 2:
+            misc.reward_per_ms_press_forward = 0
 
         time_next_save += misc.statistics_save_period_seconds
 
