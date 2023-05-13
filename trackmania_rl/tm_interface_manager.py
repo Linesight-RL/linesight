@@ -790,12 +790,13 @@ def remove_fps_cap():
 #             img_bnw[0, i, j] = np.uint8(round(np.sum(img[i, j, :3], dtype=np.float32) / 3))
 #     return img_bnw
 
-@numba.njit(fastmath=True,parallel=True)
+
+@numba.njit(fastmath=True, parallel=True)
 def rgb2gray(img):
-    img_bnw = np.empty(shape=(480,640,1),dtype=np.uint8)
+    img_bnw = np.empty(shape=(1, 480, 640), dtype=np.uint8)
     for i in numba.prange(480):
         for j in numba.prange(640):
-            img_bnw[i,j,0] = np.uint8(round((np.float32(img[i,j,0])+np.float32(img[i,j,1])+np.float32(img[i,j,2]))/3))
+            img_bnw[0, i, j] = np.uint8(round((np.float32(img[i, j, 0]) + np.float32(img[i, j, 1]) + np.float32(img[i, j, 2])) / 3))
     return img_bnw
 
 
