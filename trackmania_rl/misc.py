@@ -18,6 +18,7 @@ epsilon_boltzmann = 0.01
 tau_epsilon_boltzmann = 0.01
 tau_greedy_boltzmann = 0.002
 discard_non_greedy_actions_in_nsteps = True
+buffer_test_ratio = 0.05
 
 anneal_step = 1
 n_steps = [

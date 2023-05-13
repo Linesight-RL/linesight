@@ -169,7 +169,7 @@ class Trainer:
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
 
-    def train_on_batch(self, buffer: ExperienceReplayInterface):
+    def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool):
         batch, idxs, is_weights = buffer.sample(self.batch_size)
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
@@ -287,8 +287,6 @@ class Trainer:
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
 
-            mean_q_value = torch.mean(q__st__model__quantiles_tau3, dim=0).detach().cpu()
-
             outputs_tau3 = (
                 q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
@@ -309,11 +307,12 @@ class Trainer:
 
             total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
 
-        self.scaler.scale(total_loss).backward()
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-        buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
-        return mean_q_value, total_loss.detach().cpu()
+        if do_learn:
+            self.scaler.scale(total_loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
+        return total_loss.detach().cpu()
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
