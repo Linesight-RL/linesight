@@ -130,9 +130,11 @@ class Trainer:
         "iqn_n",
         "iqn_kappa",
         "epsilon",
+        "epsilon_boltzmann",
         "gamma",
         "AL_alpha",
-        "q_values_randomization_amplitude",
+        "tau_epsilon_boltzmann",
+        "tau_greedy_boltzmann",
     )
 
     def __init__(
@@ -146,9 +148,11 @@ class Trainer:
         iqn_n: int,
         iqn_kappa: float,
         epsilon: float,
+        epsilon_boltzmann: float,
         gamma: float,
         AL_alpha: float,
-        q_values_randomization_amplitude: float,
+        tau_epsilon_boltzmann: float,
+        tau_greedy_boltzmann: float,
     ):
         self.model = model
         self.model2 = model2
@@ -159,9 +163,11 @@ class Trainer:
         self.iqn_n = iqn_n
         self.iqn_kappa = iqn_kappa
         self.epsilon = epsilon
+        self.epsilon_boltzmann = epsilon_boltzmann
         self.gamma = gamma
         self.AL_alpha = AL_alpha
-        self.q_values_randomization_amplitude = q_values_randomization_amplitude
+        self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
+        self.tau_greedy_boltzmann = tau_greedy_boltzmann
 
     def train_on_batch(self, buffer: ExperienceReplayInterface):
         batch, idxs, is_weights = buffer.sample(self.batch_size)
@@ -323,18 +329,24 @@ class Trainer:
                     self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
                 )
 
-        if random.random() < self.epsilon:
+        r = random.random()
+
+        if r < self.epsilon:
             # Choose a random action
-            return (
-                random.randrange(0, self.model.n_actions),
-                False,
-                np.max(q_values),
-                q_values,
-            )
+            get_argmax_on = np.random.randn(*q_values.shape)
+        elif r < self.epsilon + self.epsilon_boltzmann:
+            get_argmax_on = q_values + self.tau_epsilon_boltzmann * np.random.randn(*q_values.shape)
         else:
-            return (
-                np.argmax(q_values + (self.epsilon > 0) * self.q_values_randomization_amplitude * np.random.randn(*q_values.shape)),
-                True,
-                np.max(q_values),
-                q_values,
+            get_argmax_on = q_values + ((self.epsilon + self.epsilon_boltzmann) > 0) * self.tau_greedy_boltzmann * np.random.randn(
+                *q_values.shape
             )
+
+        action_chosen_idx = np.argmax(get_argmax_on)
+        greedy_action_dx = np.argmax(q_values)
+
+        return (
+            action_chosen_idx,
+            action_chosen_idx == greedy_action_idx,
+            np.max(q_values),
+            q_values,
+        )

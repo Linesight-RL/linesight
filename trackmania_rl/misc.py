@@ -14,7 +14,9 @@ max_overall_duration_ms = 180_000
 max_minirace_duration_ms = 25_000
 
 epsilon = 0.01
-q_values_randomization_amplitude = 0.002
+epsilon_boltzmann = 0.01
+tau_epsilon_boltzmann = 0.01
+tau_greedy_boltzmann = 0.002
 discard_non_greedy_actions_in_nsteps = True
 
 anneal_step = 1
