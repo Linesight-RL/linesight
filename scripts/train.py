@@ -11,8 +11,10 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import trackmania_rl.agents.iqn as iqn
-from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
-from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
+from trackmania_rl import (buffer_management, misc, nn_utilities,
+                           tm_interface_manager)
+from trackmania_rl.experience_replay.basic_experience_replay import \
+    BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -151,8 +153,8 @@ model2 = torch.jit.script(
 ).to("cuda")
 print(model1)
 
-optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.9)
+# optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
+optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
 buffer = BasicExperienceReplay(capacity=misc.memory_size)
 buffer_test = BasicExperienceReplay(capacity=int(misc.memory_size * misc.buffer_test_ratio))
