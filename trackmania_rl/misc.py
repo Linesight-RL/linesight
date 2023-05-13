@@ -75,7 +75,7 @@ reward_per_ms_press_forward = [
 
 statistics_save_period_seconds = 60 * 10
 
-float_input_dim = [5, 19][0] + 4 * n_zone_centers_in_inputs
+float_input_dim = [5, 19][1] + 4 * n_zone_centers_in_inputs
 float_hidden_dim = 256
 conv_head_output_dim = 1152
 dense_hidden_dimension = 1024
@@ -102,9 +102,11 @@ soft_update_tau = 0.2  # [1.0, 0.5, 0.2, 0.1][anneal_step]
 float_inputs_mean = np.array(
     [
         2400,
-        # 0.5, 0.5, 0.5, 0.5,  # Previous action
-        # 0.5, 0.5, 0.5, 0.5, 0.5, 2.5, 7000,  # Car gear and wheels
-        # 0, 0, 0,  # Angular velocity
+        #######
+        0.5, 0.5, 0.5, 0.5,  # Previous action
+        0.5, 0.5, 0.5, 0.5, 0.5, 2.5, 7000,  # Car gear and wheels
+        0, 0, 0,  # Angular velocity
+        #######
         0,
         0,
         55,
@@ -224,9 +226,11 @@ float_inputs_mean = np.array(
 float_inputs_std = np.array(
     [
         1500,
-        # 1, 1, 1, 1,  # Previous action
-        # 1, 1, 1, 1, 1, 3, 10000,  # Car gear and wheels
-        # 2, 2, 2,  # Angular velocity
+        #######
+        1, 1, 1, 1,  # Previous action
+        1, 1, 1, 1, 1, 3, 10000,  # Car gear and wheels
+        2, 2, 2,  # Angular velocity
+        #######
         10,
         10,
         15,

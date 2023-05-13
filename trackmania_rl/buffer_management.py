@@ -117,13 +117,13 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             state_y_map_vector_in_car_reference_system = car_orientation.T.dot(np.array([0, 1, 0]))
             state_car_velocity_in_car_reference_system = car_orientation.T.dot(car_velocity)
             # FIXME RUN13
-            # car_angular_speed = rollout_results["car_angular_speed"][i]
-            # previous_action = misc.inputs[
-            #     rollout_results["actions"][misc.action_forward_idx if i == 0 else i - 1]
-            # ]
-            # state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(
-            #     car_angular_speed
-            # )
+            car_angular_speed = rollout_results["car_angular_speed"][i]
+            previous_action = misc.inputs[
+                rollout_results["actions"][misc.action_forward_idx if i == 0 else i - 1]
+            ]
+            state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(
+                car_angular_speed
+            )
             assert state_zone_center_coordinates_in_car_reference_system.shape == (
                 n_zone_centers_in_inputs,
                 3,
@@ -135,10 +135,10 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             state_float = np.hstack(
                 (
                     mini_race_duration_ms,
-                    # np.array([previous_action['accelerate'], previous_action['brake'], previous_action['left'],
-                    #           previous_action['right']]),  # NEW
-                    # rollout_results["car_gear_and_wheels"][i].ravel(),  # NEW
-                    # state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
+                    np.array([previous_action['accelerate'], previous_action['brake'], previous_action['left'],
+                              previous_action['right']]),  # NEW
+                    rollout_results["car_gear_and_wheels"][i].ravel(),  # NEW
+                    state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
                     state_car_velocity_in_car_reference_system.ravel(),
                     state_y_map_vector_in_car_reference_system.ravel(),
                     state_zone_center_coordinates_in_car_reference_system.ravel(),
@@ -164,24 +164,24 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_y_map_vector_in_car_reference_system = next_car_orientation.T.dot(np.array([0, 1, 0]))
                 next_state_car_velocity_in_car_reference_system = next_car_orientation.T.dot(next_car_velocity)
                 # FIXME RUN13
-                # next_car_angular_speed = rollout_results["car_angular_speed"][
-                #     i + n_steps
-                # ]
-                # next_previous_action = misc.inputs[
-                #     rollout_results["actions"][i + n_steps - 1]
-                # ]
-                # next_state_car_angular_velocity_in_car_reference_system = (
-                #     next_car_orientation.T.dot(next_car_angular_speed)
-                # )
+                next_car_angular_speed = rollout_results["car_angular_speed"][
+                    i + n_steps
+                ]
+                next_previous_action = misc.inputs[
+                    rollout_results["actions"][i + n_steps - 1]
+                ]
+                next_state_car_angular_velocity_in_car_reference_system = (
+                    next_car_orientation.T.dot(next_car_angular_speed)
+                )
                 next_state_img = rollout_results["frames"][i + n_steps]
                 next_state_float = np.hstack(
                     (
                         mini_race_duration_ms + n_steps * misc.ms_per_action,
-                        # np.array([next_previous_action['accelerate'], next_previous_action['brake'],
-                        #           next_previous_action['left'],
-                        #           next_previous_action['right']]),  # NEW
-                        # rollout_results["car_gear_and_wheels"][i + n_steps].ravel(),  # NEW
-                        # next_state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
+                        np.array([next_previous_action['accelerate'], next_previous_action['brake'],
+                                  next_previous_action['left'],
+                                  next_previous_action['right']]),  # NEW
+                        rollout_results["car_gear_and_wheels"][i + n_steps].ravel(),  # NEW
+                        next_state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
                         next_state_car_velocity_in_car_reference_system.ravel(),
                         next_state_y_map_vector_in_car_reference_system.ravel(),
                         next_state_zone_center_coordinates_in_car_reference_system.ravel(),

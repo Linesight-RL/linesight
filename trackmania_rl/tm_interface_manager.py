@@ -354,11 +354,11 @@ class TMInterfaceManager:
                             floats = np.hstack(
                                 (
                                     mini_race_duration_ms,
-                                    # np.array([previous_action['accelerate'], previous_action['brake'],
-                                    #           previous_action['left'],
-                                    #           previous_action['right']]),  # NEW
-                                    # sim_state_car_gear_and_wheels.ravel(),  # NEW
-                                    # state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
+                                    np.array([previous_action['accelerate'], previous_action['brake'],
+                                              previous_action['left'],
+                                              previous_action['right']]),  # NEW
+                                    sim_state_car_gear_and_wheels.ravel(),  # NEW
+                                    state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
                                     state_car_velocity_in_car_reference_system.ravel(),
                                     state_y_map_vector_in_car_reference_system.ravel(),
                                     state_zone_center_coordinates_in_car_reference_system.ravel(),

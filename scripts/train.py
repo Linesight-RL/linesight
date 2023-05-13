@@ -16,7 +16,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "42"
+run_name = "43"
 map_name = "map3"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -151,8 +151,8 @@ model2 = torch.jit.script(
 ).to("cuda")
 print(model1)
 
-# optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
-optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.0)
+optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
 buffer = BasicExperienceReplay(capacity=misc.memory_size)
 buffer_test = BasicExperienceReplay(capacity=int(misc.memory_size * misc.buffer_test_ratio))
@@ -491,7 +491,7 @@ while True:
             step_stats[f"last100_q_value_{i}_starting_frame"] = np.mean(fast_stats_tracker[f"q_value_{i}_starting_frame"][-100:])
 
         for name, param in model1.named_parameters():
-            step_stats[f"layer_{name}_L2"] = np.sqrt((param**2).sum().detach().cpu().item())
+            step_stats[f"layer_{name}_L2"] = np.sqrt((param**2).mean().detach().cpu().item())
 
         # TODO : add more recent loss than last400, that's too slow
 
@@ -604,9 +604,9 @@ while True:
                 np.hstack(
                     (
                         0,
-                        # np.array([True, False, False, False]),  # NEW
-                        # rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
-                        # rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
+                        np.array([True, False, False, False]),  # NEW
+                        rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
+                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
                         rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
                         rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
                         rollout_results["car_orientation"][0]
