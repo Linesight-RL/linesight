@@ -6,18 +6,17 @@ from datetime import datetime
 from pathlib import Path
 
 import joblib
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-import trackmania_rl.agents.noisy_iqn_pal2 as noisy_iqn_pal2
+import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "38"
+run_name = "39"
 map_name = "map3"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -120,7 +119,7 @@ np.random.seed(random_seed)
 # ========================================================
 # Create new stuff
 # ========================================================
-model1 = noisy_iqn_pal2.Agent(
+model1 = torch.jit.script(iqn.Agent(
     float_inputs_dim=misc.float_input_dim,
     float_hidden_dim=misc.float_hidden_dim,
     conv_head_output_dim=misc.conv_head_output_dim,
@@ -129,8 +128,8 @@ model1 = noisy_iqn_pal2.Agent(
     n_actions=len(misc.inputs),
     float_inputs_mean=misc.float_inputs_mean,
     float_inputs_std=misc.float_inputs_std,
-).to("cuda")
-model2 = noisy_iqn_pal2.Agent(
+)).to("cuda")
+model2 = torch.jit.script(iqn.Agent(
     float_inputs_dim=misc.float_input_dim,
     float_hidden_dim=misc.float_hidden_dim,
     conv_head_output_dim=misc.conv_head_output_dim,
@@ -139,7 +138,7 @@ model2 = noisy_iqn_pal2.Agent(
     n_actions=len(misc.inputs),
     float_inputs_mean=misc.float_inputs_mean,
     float_inputs_std=misc.float_inputs_std,
-).to("cuda")
+)).to("cuda")
 print(model1)
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.9)
@@ -207,7 +206,7 @@ number_memories_generated = 0
 # ========================================================
 # Make the trainer
 # ========================================================
-trainer = noisy_iqn_pal2.Trainer(
+trainer = iqn.Trainer(
     model=model1,
     model2=model2,
     optimizer=optimizer1,
@@ -228,8 +227,6 @@ trainer = noisy_iqn_pal2.Trainer(
 # Training loop
 # ========================================================
 model1.train()
-model1.V_head.eval()
-model2.V_head.eval()
 time_next_save = time.time() + misc.statistics_save_period_seconds
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
@@ -487,7 +484,6 @@ while True:
         # ===============================================
         #   EVAL RACE
         # ===============================================
-        model1.reset_noise()
         model1.eval()
         trainer.epsilon = 0
         trainer.epsilon_boltzmann = 0
@@ -501,7 +497,6 @@ while True:
         trainer.epsilon = misc.epsilon
         trainer.epsilon_boltzmann = misc.epsilon_boltzmann
         model1.train()
-        model1.V_head.eval()
         if random.random() < misc.buffer_test_ratio:
             (
                 buffer_test,
@@ -609,15 +604,6 @@ while True:
                 axis=0,
             )
         ).to("cuda", non_blocking=True)
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                list_of_q_values = []
-                for i in range(400):
-                    model1.reset_noise()
-                    list_of_q_values.append(model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0].cpu().numpy().mean(axis=0))
-
-        for i, std in enumerate(list(np.array(list_of_q_values).astype(np.float32).std(axis=0))):
-            step_stats[f"std_due_to_noisy_for_action{i}"] = std
 
         # Désactiver noisy, tirer des tau équitablement répartis
         model1.eval()
@@ -628,7 +614,7 @@ while True:
         for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
             step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
         model1.train()
-        model1.V_head.eval()
+
 
         # tensorboard_writer.add_scalars(
         #     main_tag="",
@@ -718,8 +704,6 @@ while True:
         time_next_save += misc.statistics_save_period_seconds
 
 # %%
-#
-# model.reset_noise()
 #
 # dxcam.__factory._camera_instances = weakref.WeakValueDictionary()
 # tmi = rollout.TMInterfaceManager(

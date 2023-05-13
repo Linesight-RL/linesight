@@ -1,10 +1,11 @@
 import math
 import random
+from typing import Optional
 
 import numpy as np
 import torch
 
-from .. import nn_utilities, noisy_linear
+from .. import nn_utilities
 from ..experience_replay.experience_replay_interface import ExperienceReplayInterface
 
 
@@ -75,7 +76,7 @@ class Agent(torch.nn.Module):
         nn_utilities.init_kaiming(self.iqn_fc)
         # A_head and V_head are NoisyLinear, already initialized
 
-    def forward(self, img, float_inputs, num_quantiles, tau):
+    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None):
         batch_size = img.shape[0]
         img_outputs = self.img_head((img.to(torch.float16) - 128) / 128)  # PERF
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
@@ -104,16 +105,9 @@ class Agent(torch.nn.Module):
         A = self.A_head(concat)  # (batch_size*num_quantiles, n_actions)
         V = self.V_head(concat)  # (batch_size*num_quantiles, 1) #need to check this
 
-        Q = V + A - A.mean(dim=-1, keepdim=True)
+        Q = V + A - A.mean(dim=-1).unsqueeze(-1)
 
         return Q, tau
-
-    def reset_noise(self):
-        pass
-        # self.A_head[0].reset_noise()
-        # self.A_head[2].reset_noise()
-        # self.V_head[0].reset_noise()
-        # self.V_head[2].reset_noise()
 
 
 # ==========================================================================================================================
@@ -205,7 +199,6 @@ class Trainer:
                 #   Use model to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
-                self.model.reset_noise()
                 a__tpo__model__reduced_repeated = (
                     self.model(
                         next_state_img_tensor,
@@ -222,7 +215,6 @@ class Trainer:
                 #
                 #   Use model2 to evaluate the action chosen, per quantile.
                 #
-                self.model2.reset_noise()
                 q__stpo__model2__quantiles_tau2, tau2 = self.model2(
                     next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
                 )  # (batch_size*iqn_n,n_actions)
@@ -282,7 +274,6 @@ class Trainer:
                     0, 1
                 )  # (batch_size, iqn_n, 1)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            self.model.reset_noise()
             q__st__model__quantiles_tau3, tau3 = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
@@ -321,9 +312,6 @@ class Trainer:
                     "cuda", memory_format=torch.channels_last, non_blocking=True
                 )
                 state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
-                if self.epsilon > 0:
-                    # We are not evaluating
-                    self.model.reset_noise()
                 q_values = (
                     self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
                 )
