@@ -25,7 +25,7 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
 
 layout = {
-    "93": {
+    "92": {
         "eval_race_time": [
             "Multiline",
             [
@@ -104,6 +104,12 @@ layout = {
                 "mean_action_gap",
             ],
         ],
+        "layer_L2": [
+            "Multiline",
+            [
+                "layer_.*_L2",
+            ],
+        ],
     },
 }
 tensorboard_writer.add_custom_scalars(layout)
@@ -119,27 +125,32 @@ np.random.seed(random_seed)
 # ========================================================
 # Create new stuff
 # ========================================================
-model1 = torch.jit.script(iqn.Agent(
-    float_inputs_dim=misc.float_input_dim,
-    float_hidden_dim=misc.float_hidden_dim,
-    conv_head_output_dim=misc.conv_head_output_dim,
-    dense_hidden_dimension=misc.dense_hidden_dimension,
-    iqn_embedding_dimension=misc.iqn_embedding_dimension,
-    n_actions=len(misc.inputs),
-    float_inputs_mean=misc.float_inputs_mean,
-    float_inputs_std=misc.float_inputs_std,
-)).to("cuda")
-model2 = torch.jit.script(iqn.Agent(
-    float_inputs_dim=misc.float_input_dim,
-    float_hidden_dim=misc.float_hidden_dim,
-    conv_head_output_dim=misc.conv_head_output_dim,
-    dense_hidden_dimension=misc.dense_hidden_dimension,
-    iqn_embedding_dimension=misc.iqn_embedding_dimension,
-    n_actions=len(misc.inputs),
-    float_inputs_mean=misc.float_inputs_mean,
-    float_inputs_std=misc.float_inputs_std,
-)).to("cuda")
+model1 = torch.jit.script(
+    iqn.Agent(
+        float_inputs_dim=misc.float_input_dim,
+        float_hidden_dim=misc.float_hidden_dim,
+        conv_head_output_dim=misc.conv_head_output_dim,
+        dense_hidden_dimension=misc.dense_hidden_dimension,
+        iqn_embedding_dimension=misc.iqn_embedding_dimension,
+        n_actions=len(misc.inputs),
+        float_inputs_mean=misc.float_inputs_mean,
+        float_inputs_std=misc.float_inputs_std,
+    )
+).to("cuda")
+model2 = torch.jit.script(
+    iqn.Agent(
+        float_inputs_dim=misc.float_input_dim,
+        float_hidden_dim=misc.float_hidden_dim,
+        conv_head_output_dim=misc.conv_head_output_dim,
+        dense_hidden_dimension=misc.dense_hidden_dimension,
+        iqn_embedding_dimension=misc.iqn_embedding_dimension,
+        n_actions=len(misc.inputs),
+        float_inputs_mean=misc.float_inputs_mean,
+        float_inputs_std=misc.float_inputs_std,
+    )
+).to("cuda")
 print(model1)
+
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.9)
 scaler = torch.cuda.amp.GradScaler()
@@ -479,6 +490,9 @@ while True:
         for i in range(len(misc.inputs)):
             step_stats[f"last100_q_value_{i}_starting_frame"] = np.mean(fast_stats_tracker[f"q_value_{i}_starting_frame"][-100:])
 
+        for name, param in model1.named_parameters():
+            step_stats[f"layer_{name}_L2"] = np.sqrt((param**2).sum().detach().cpu().item())
+
         # TODO : add more recent loss than last400, that's too slow
 
         # ===============================================
@@ -615,13 +629,6 @@ while True:
             step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
         model1.train()
 
-
-        # tensorboard_writer.add_scalars(
-        #     main_tag="",
-        #     tag_scalar_dict=step_stats,
-        #     global_step=step_stats["cumul_number_memories_generated"],
-        #     walltime=float(step_stats["cumul_training_hours"] * 3600),
-        # )
         for k, v in step_stats.items():
             tensorboard_writer.add_scalar(
                 tag=k,
