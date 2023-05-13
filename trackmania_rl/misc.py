@@ -103,9 +103,20 @@ float_inputs_mean = np.array(
     [
         2400,
         #######
-        0.5, 0.5, 0.5, 0.5,  # Previous action
-        0.5, 0.5, 0.5, 0.5, 0.5, 2.5, 7000,  # Car gear and wheels
-        0, 0, 0,  # Angular velocity
+        0.5,
+        0.5,
+        0.5,
+        0.5,  # Previous action
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        2.5,
+        7000,  # Car gear and wheels
+        0,
+        0,
+        0,  # Angular velocity
         #######
         0,
         0,
@@ -227,9 +238,20 @@ float_inputs_std = np.array(
     [
         1500,
         #######
-        1, 1, 1, 1,  # Previous action
-        1, 1, 1, 1, 1, 3, 10000,  # Car gear and wheels
-        2, 2, 2,  # Angular velocity
+        1,
+        1,
+        1,
+        1,  # Previous action
+        1,
+        1,
+        1,
+        1,
+        1,
+        3,
+        10000,  # Car gear and wheels
+        2,
+        2,
+        2,  # Angular velocity
         #######
         10,
         10,
