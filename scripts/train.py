@@ -11,10 +11,8 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import trackmania_rl.agents.iqn as iqn
-from trackmania_rl import (buffer_management, misc, nn_utilities,
-                           tm_interface_manager)
-from trackmania_rl.experience_replay.basic_experience_replay import \
-    BasicExperienceReplay
+from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
+from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
 
 base_dir = Path(__file__).resolve().parents[1]
 
