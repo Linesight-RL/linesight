@@ -341,7 +341,7 @@ class Trainer:
             )
 
         action_chosen_idx = np.argmax(get_argmax_on)
-        greedy_action_dx = np.argmax(q_values)
+        greedy_action_idx = np.argmax(q_values)
 
         return (
             action_chosen_idx,
