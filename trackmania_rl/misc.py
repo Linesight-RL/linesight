@@ -10,7 +10,7 @@ tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 16
-max_overall_duration_ms = 180_000
+max_overall_duration_ms = 300_000
 max_minirace_duration_ms = 25_000
 
 epsilon = 0.02

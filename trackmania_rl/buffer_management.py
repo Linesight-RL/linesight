@@ -26,10 +26,12 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_frames = len(rollout_results["frames"])
 
     number_memories_added = 0
+    buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
+
     for i in range(n_frames - 1):
         # Loop over all frames that were generated
-
-        buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
+        if random.random() < 0.1:
+            buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
 
         current_zone_idx = rollout_results["current_zone_idx"][i]
         assert current_zone_idx < len(zone_centers) - 1 - n_zone_centers_in_inputs
