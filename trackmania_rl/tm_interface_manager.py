@@ -327,7 +327,7 @@ class TMInterfaceManager:
                             # ==== Construct features
                             first_zone_idx_in_input = min(
                                 current_zone_idx,
-                                len(zone_centers) - 2*misc.n_zone_centers_in_inputs,
+                                len(zone_centers) - 2 * misc.n_zone_centers_in_inputs,
                             )
                             time_mini_race_start_ms = rv["zone_entrance_time_ms"][first_zone_idx_in_input]
                             current_overall_time_ms = sim_state_race_time  # TODO CHECK IF OFF BY ONE

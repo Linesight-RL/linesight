@@ -16,8 +16,6 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_zone_centers_in_inputs: int,
     zone_centers,
 ):
-
-
     assert n_zone_centers_in_inputs >= 2
 
     for k, v in rollout_results.items():
