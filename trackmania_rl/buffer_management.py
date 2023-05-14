@@ -8,6 +8,7 @@ from .experience_replay.experience_replay_interface import Experience, Experienc
 
 def fill_buffer_from_rollout_with_n_steps_rule(
     buffer: ExperienceReplayInterface,
+    buffer_test: ExperienceReplayInterface,
     rollout_results: dict,
     n_steps_max: int,
     gamma: float,
@@ -15,6 +16,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_zone_centers_in_inputs: int,
     zone_centers,
 ):
+
+
     assert n_zone_centers_in_inputs >= 2
 
     for k, v in rollout_results.items():
@@ -28,12 +31,14 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     for i in range(n_frames - 1):
         # Loop over all frames that were generated
 
+        buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
+
         current_zone_idx = rollout_results["current_zone_idx"][i]
-        assert current_zone_idx < len(zone_centers) - 1
+        assert current_zone_idx < len(zone_centers) - 1 - n_zone_centers_in_inputs
 
         mini_race_range = range(
             max(0, current_zone_idx + 2 - n_zone_centers_in_inputs),
-            1 + min(current_zone_idx, len(zone_centers) - n_zone_centers_in_inputs),
+            1 + min(current_zone_idx, len(zone_centers) - 2 * n_zone_centers_in_inputs),
         )
 
         for first_zone_idx_in_input in random.sample(mini_race_range, min(len(mini_race_range), misc.subsample_n_mini_races)):
@@ -42,7 +47,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             # Given a frame, we define multiple mini-races simultaneously: one where the car has just started, one where the car is close to finish, etc...
 
             last_zone_idx_in_input = first_zone_idx_in_input + n_zone_centers_in_inputs - 1  # included
-            assert last_zone_idx_in_input < len(zone_centers)
+            assert last_zone_idx_in_input < len(zone_centers) - n_zone_centers_in_inputs
 
             time_mini_race_start_ms = rollout_results["zone_entrance_time_ms"][first_zone_idx_in_input]
             current_overall_time_ms = i * misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action
@@ -112,7 +117,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             car_orientation = rollout_results["car_orientation"][i]
             car_velocity = rollout_results["car_velocity"][i]
             state_zone_center_coordinates_in_car_reference_system = car_orientation.T.dot(
-                (zone_centers[first_zone_idx_in_input : last_zone_idx_in_input + 1, :] - car_position).T
+                (zone_centers[current_zone_idx : current_zone_idx + n_zone_centers_in_inputs, :] - car_position).T
             ).T  # (n_zone_centers_in_inputs, 3)
             state_y_map_vector_in_car_reference_system = car_orientation.T.dot(np.array([0, 1, 0]))
             state_car_velocity_in_car_reference_system = car_orientation.T.dot(car_velocity)
@@ -139,7 +144,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                     state_car_velocity_in_car_reference_system.ravel(),
                     state_y_map_vector_in_car_reference_system.ravel(),
                     state_zone_center_coordinates_in_car_reference_system.ravel(),
-                    current_zone_idx >= np.arange(first_zone_idx_in_input + 1, last_zone_idx_in_input),
+                    current_zone_idx - first_zone_idx_in_input,
                 )
             ).astype(
                 np.float32
@@ -152,11 +157,12 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             #     print(i, mini_race_duration_ms, n_steps, mini_race_finished, mini_race_timeout)
 
             if not done:
+                next_current_zone_idx = rollout_results["current_zone_idx"][i + n_steps]
                 next_car_position = rollout_results["car_position"][i + n_steps]
                 next_car_orientation = rollout_results["car_orientation"][i + n_steps]
                 next_car_velocity = rollout_results["car_velocity"][i + n_steps]
                 next_state_zone_center_coordinates_in_car_reference_system = next_car_orientation.T.dot(
-                    (zone_centers[first_zone_idx_in_input : last_zone_idx_in_input + 1, :] - next_car_position).T
+                    (zone_centers[next_current_zone_idx : next_current_zone_idx + n_zone_centers_in_inputs, :] - next_car_position).T
                 ).T  # (n_zone_centers_in_inputs, 3)
                 next_state_y_map_vector_in_car_reference_system = next_car_orientation.T.dot(np.array([0, 1, 0]))
                 next_state_car_velocity_in_car_reference_system = next_car_orientation.T.dot(next_car_velocity)
@@ -181,14 +187,14 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                         next_state_car_velocity_in_car_reference_system.ravel(),
                         next_state_y_map_vector_in_car_reference_system.ravel(),
                         next_state_zone_center_coordinates_in_car_reference_system.ravel(),
-                        rollout_results["current_zone_idx"][i + n_steps] >= np.arange(first_zone_idx_in_input + 1, last_zone_idx_in_input),
+                        next_current_zone_idx - first_zone_idx_in_input,
                     )
                 ).astype(np.float32)
             else:
                 next_state_img = state_img
                 next_state_float = state_float
 
-            buffer.add(
+            buffer_to_fill.add(
                 Experience(
                     state_img,
                     state_float,
@@ -203,4 +209,4 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
             number_memories_added += 1
 
-    return buffer, number_memories_added
+    return buffer, buffer_test, number_memories_added

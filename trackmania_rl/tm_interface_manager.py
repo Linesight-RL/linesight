@@ -198,7 +198,7 @@ class TMInterfaceManager:
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
 
-                    if current_zone_idx == len(zone_centers) - 1:
+                    if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                         # This might happen if the car enters my last virtual zone, but has not finished the race yet.
                         # Just press forward and do not record any experience
                         self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
@@ -272,7 +272,7 @@ class TMInterfaceManager:
 
                         rv["current_zone_idx"].append(current_zone_idx)
 
-                        if current_zone_idx == len(zone_centers) - 1:
+                        if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                             rv["frames"].append(np.nan)
                             rv["display_speed"].append(sim_state_display_speed)
                             rv["input_w"].append(np.nan)
@@ -327,7 +327,7 @@ class TMInterfaceManager:
                             # ==== Construct features
                             first_zone_idx_in_input = min(
                                 current_zone_idx,
-                                len(zone_centers) - misc.n_zone_centers_in_inputs,
+                                len(zone_centers) - 2*misc.n_zone_centers_in_inputs,
                             )
                             time_mini_race_start_ms = rv["zone_entrance_time_ms"][first_zone_idx_in_input]
                             current_overall_time_ms = sim_state_race_time  # TODO CHECK IF OFF BY ONE
@@ -336,7 +336,7 @@ class TMInterfaceManager:
                             state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.T.dot(
                                 (
                                     zone_centers[
-                                        first_zone_idx_in_input : first_zone_idx_in_input + misc.n_zone_centers_in_inputs,
+                                        current_zone_idx : current_zone_idx + misc.n_zone_centers_in_inputs,
                                         :,
                                     ]
                                     - sim_state_position
@@ -367,11 +367,7 @@ class TMInterfaceManager:
                                     state_car_velocity_in_car_reference_system.ravel(),
                                     state_y_map_vector_in_car_reference_system.ravel(),
                                     state_zone_center_coordinates_in_car_reference_system.ravel(),
-                                    current_zone_idx
-                                    >= np.arange(
-                                        first_zone_idx_in_input + 1,
-                                        first_zone_idx_in_input + misc.n_zone_centers_in_inputs - 1,
-                                    ),
+                                    current_zone_idx - first_zone_idx_in_input,
                                 )
                             ).astype(np.float32)
 
@@ -667,11 +663,11 @@ class TMInterfaceManager:
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
                         print(f"+++    {simulation_state.race_time:>6} ", end="")
 
-                        if rv["current_zone_idx"][-1] != len(zone_centers) - 1:
+                        if rv["current_zone_idx"][-1] != len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                             # We have not captured a frame where the car has entered our final virtual zone
                             # Let's put one in, artificially
-                            assert rv["current_zone_idx"][-1] == len(zone_centers) - 2
-                            rv["current_zone_idx"].append(len(zone_centers) - 1)
+                            assert rv["current_zone_idx"][-1] == len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
+                            rv["current_zone_idx"].append(len(zone_centers) - 1 - misc.n_zone_centers_in_inputs)
                             rv["frames"].append(np.nan)
                             rv["zone_entrance_time_ms"].append(simulation_state.race_time)
                             rv["display_speed"].append(simulation_state.display_speed)
