@@ -18,6 +18,7 @@ base_dir = Path(__file__).resolve().parents[1]
 
 run_name = "46"
 map_name = "map5"
+good_time_save_all_ms = 129000
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
 for i in range(misc.n_zone_centers_in_inputs):
@@ -325,6 +326,46 @@ while True:
             save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "optimizer1.torch",
         )
 
+    if fast_stats_tracker["race_time"][-1] < good_time_save_all_ms:
+        (save_dir / "good_runs" / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}").mkdir(
+            parents=True, exist_ok=True
+        )
+        joblib.dump(
+            rollout_results["actions"],
+            save_dir
+            / "good_runs"
+            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / f"actions.joblib",
+        )
+        joblib.dump(
+            rollout_results["q_values"],
+            save_dir
+            / "good_runs"
+            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / f"q_values.joblib",
+        )
+        torch.save(
+            model1.state_dict(),
+            save_dir
+            / "good_runs"
+            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / "weights1.torch",
+        )
+        torch.save(
+            model2.state_dict(),
+            save_dir
+            / "good_runs"
+            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / "weights2.torch",
+        )
+        torch.save(
+            optimizer1.state_dict(),
+            save_dir
+            / "good_runs"
+            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / "optimizer1.torch",
+        )
+
     tensorboard_writer.add_scalar(
         tag="explo_race_time",
         scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
@@ -555,6 +596,46 @@ while True:
             torch.save(
                 optimizer1.state_dict(),
                 save_dir / "best_runs" / f"{eval_stats_tracker['race_time'][-1]}" / "optimizer1.torch",
+            )
+
+        if eval_stats_tracker["race_time"][-1] < good_time_save_all_ms:
+            (save_dir / "good_runs" / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}").mkdir(
+                parents=True, exist_ok=True
+            )
+            joblib.dump(
+                rollout_results["actions"],
+                save_dir
+                / "good_runs"
+                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / f"actions.joblib",
+            )
+            joblib.dump(
+                rollout_results["q_values"],
+                save_dir
+                / "good_runs"
+                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / f"q_values.joblib",
+            )
+            torch.save(
+                model1.state_dict(),
+                save_dir
+                / "good_runs"
+                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / "weights1.torch",
+            )
+            torch.save(
+                model2.state_dict(),
+                save_dir
+                / "good_runs"
+                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / "weights2.torch",
+            )
+            torch.save(
+                optimizer1.state_dict(),
+                save_dir
+                / "good_runs"
+                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / "optimizer1.torch",
             )
 
         if eval_stats_tracker["race_finished"][-1]:

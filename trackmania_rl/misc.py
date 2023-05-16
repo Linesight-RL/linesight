@@ -91,7 +91,7 @@ virtual_memory_size_start_learn = 1000
 number_memories_generated_high_exploration = 100000
 high_exploration_ratio = 10
 batch_size = 1024
-learning_rate = 5e-5
+learning_rate = 0.5e-5
 
 number_times_single_memory_is_used_before_discard = 32 // 4
 number_memories_trained_on_between_target_network_updates = 10000

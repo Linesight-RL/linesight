@@ -128,15 +128,6 @@ class TMInterfaceManager:
         compute_action_asap = False
         trackmania_window_region = _get_window_position(self.trackmania_window)
 
-        #
-        # trackmania_window_region = (
-        #     trackmania_window_region[0] - 2560,
-        #     trackmania_window_region[1],
-        #     trackmania_window_region[2] - 2560,
-        #     trackmania_window_region[3]
-        #                             )
-
-        # This code is extracted nearly as-is from TMInterfacePythonClient and modified to run on a single thread
         _time = -3000
         cpcount = 0
         current_zone_idx = 0
@@ -253,7 +244,12 @@ class TMInterfaceManager:
                         )
                         d1 = np.linalg.norm(next_zone_center - sim_state_position)
                         d2 = np.linalg.norm(current_zone_center - sim_state_position)
-                        if d1 <= d2 and d1 <= misc.max_allowable_distance_to_checkpoint:
+                        if (
+                            d1 <= d2
+                            and d1 <= misc.max_allowable_distance_to_checkpoint
+                            and current_zone_idx
+                            < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs  # We can never enter the final virtual zone
+                        ):
                             # Move from one virtual zone to another
                             rv["fraction_time_in_previous_zone"].append(
                                 fraction_time_spent_in_current_zone(
@@ -273,30 +269,32 @@ class TMInterfaceManager:
                         rv["current_zone_idx"].append(current_zone_idx)
 
                         if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
-                            rv["frames"].append(np.nan)
-                            rv["display_speed"].append(sim_state_display_speed)
-                            rv["input_w"].append(np.nan)
-                            rv["actions"].append(np.nan)
-                            rv["action_was_greedy"].append(np.nan)
-                            rv["car_position"].append(np.nan)
-                            rv["car_orientation"].append(np.nan)
-                            rv["car_velocity"].append(np.nan)
-                            rv["car_angular_speed"].append(np.nan)
-                            rv["car_gear_and_wheels"].append(np.nan)
+                            assert False  # We can never enter the final virtual zone
 
-                            assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
-
-                            stats_tracker["race_finished"].append(True)
-                            stats_tracker["race_time"].append(sim_state_race_time)
-                            stats_tracker["race_time_for_ratio"].append(sim_state_race_time)
-                            stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
-                            stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
-                            stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
-
-                            this_rollout_is_finished = True
-                            assert self.latest_tm_engine_speed_requested == 0
-                            do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
-                            print(f"+V+    {sim_state_race_time:>6} ", end="")
+                            # rv["frames"].append(np.nan)
+                            # rv["display_speed"].append(sim_state_display_speed)
+                            # rv["input_w"].append(np.nan)
+                            # rv["actions"].append(np.nan)
+                            # rv["action_was_greedy"].append(np.nan)
+                            # rv["car_position"].append(np.nan)
+                            # rv["car_orientation"].append(np.nan)
+                            # rv["car_velocity"].append(np.nan)
+                            # rv["car_angular_speed"].append(np.nan)
+                            # rv["car_gear_and_wheels"].append(np.nan)
+                            #
+                            # assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
+                            #
+                            # stats_tracker["race_finished"].append(True)
+                            # stats_tracker["race_time"].append(sim_state_race_time)
+                            # stats_tracker["race_time_for_ratio"].append(sim_state_race_time)
+                            # stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
+                            # stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
+                            # stats_tracker["n_frames_tmi_protection_triggered"].append(n_frames_tmi_protection_triggered)
+                            #
+                            # this_rollout_is_finished = True
+                            # assert self.latest_tm_engine_speed_requested == 0
+                            # do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
+                            # print(f"+V+    {sim_state_race_time:>6} ", end="")
                         else:
                             next_zone_center = zone_centers[1 + current_zone_idx]
                             # ===================================================================================================
@@ -468,11 +466,6 @@ class TMInterfaceManager:
                     simulation_state = self.iface.get_simulation_state()
                     print(f"      --- {simulation_state.race_time:>6} ", end="")
 
-                    # has_lateral_contact = (
-                    #     simulation_state.time - (1 + misc.run_steps_per_action * 10)
-                    #     <= simulation_state.scene_mobil.last_has_any_lateral_contact_time
-                    # )
-
                     # FAILED TO FINISH
                     stats_tracker["race_finished"].append(False)
                     stats_tracker["race_time"].append(misc.max_overall_duration_ms)
@@ -566,58 +559,6 @@ class TMInterfaceManager:
                     end="",
                 )
                 if current == target:  # Finished the race !!
-                    #         S
-                    #         L
-                    #         CP
-                    #         CTNF = (1, 11, True, False)
-                    #         CP
-                    #         CTNF = (2, 11, True, False)
-                    #         CP
-                    #         CTNF = (3, 11, True, False)
-                    #         CP
-                    #         CTNF = (4, 11, True, False)
-                    #         CP
-                    #         CTNF = (5, 11, True, False)
-                    #         CP
-                    #         CTNF = (6, 11, True, False)
-                    #         CP
-                    #         CTNF = (7, 11, True, False)
-                    #         CP
-                    #         CTNF = (8, 11, True, False)
-                    #         CP
-                    #         CTNF = (9, 11, True, False)
-                    #         CP
-                    #         CTNF = (10, 11, True, False)
-                    #         CP
-                    #         CTNF = (11, 11, True, False)
-                    #         Traceback(most
-                    #         recent
-                    #         call
-                    #         last):
-                    #         File
-                    #         "C:\Users\chopi\projects\trackmania_rl\scripts\train.py", line
-                    #         218, in < module >
-                    #         rollout_results = tmi.rollout(
-                    #             File
-                    #         "c:\users\chopi\projects\trackmania_rl\trackmania_rl\tm_interface_manager.py", line
-                    #         426, in rollout
-                    #         simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
-                    #         File
-                    #         "C:\Users\chopi\tools\mambaforge\envs\tm309\lib\site-packages\bytefield\array_proxy.py", line
-                    #         95, in __getitem__
-                    #         index = self._validate_index(index)
-                    #         File
-                    #         "C:\Users\chopi\tools\mambaforge\envs\tm309\lib\site-packages\bytefield\array_proxy.py", line
-                    #         127, in _validate_index
-                    #         raise IndexError(f'index {user_index} is out of bounds for shape {self.shape}')
-                    # IndexError: index(-1, ) is out
-                    # of
-                    # bounds
-                    # for shape(0, )
-                    #
-                    # (tm309)
-                    # C:\Users\chopi\projects\trackmania_rl\scripts >
-
                     # # BEGIN AGADE TRICK
                     # msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
                     # simulation_state = self.iface.get_simulation_state()

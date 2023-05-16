@@ -123,7 +123,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             state_car_velocity_in_car_reference_system = car_orientation.T.dot(car_velocity)
             # FIXME RUN13
             car_angular_speed = rollout_results["car_angular_speed"][i]
-            previous_action = misc.inputs[rollout_results["actions"][misc.action_forward_idx if i == 0 else i - 1]]
+            previous_action = misc.inputs[misc.action_forward_idx if i == 0 else rollout_results["actions"][i - 1]]
             state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(car_angular_speed)
             assert state_zone_center_coordinates_in_car_reference_system.shape == (
                 n_zone_centers_in_inputs,
@@ -194,19 +194,19 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_img = state_img
                 next_state_float = state_float
 
-            buffer_to_fill.add(
-                Experience(
-                    state_img,
-                    state_float,
-                    action,
-                    reward,
-                    done,
-                    next_state_img,
-                    next_state_float,
-                    gamma**n_steps,
-                ),
-            )
-
-            number_memories_added += 1
+            for j in range((n_zone_centers_in_inputs - 1) // len(mini_race_range)):
+                buffer_to_fill.add(
+                    Experience(
+                        state_img,
+                        state_float,
+                        action,
+                        reward,
+                        done,
+                        next_state_img,
+                        next_state_float,
+                        gamma**n_steps,
+                    ),
+                )
+                number_memories_added += 1
 
     return buffer, buffer_test, number_memories_added
