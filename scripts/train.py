@@ -16,7 +16,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "46"
+run_name = "47"
 map_name = "map5"
 good_time_save_all_ms = 129000
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
@@ -289,6 +289,7 @@ while True:
     rollout_results = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         stats_tracker=fast_stats_tracker,
+        is_eval=False,
     )
     number_frames_played += len(rollout_results["frames"])
     cumul_number_frames_played += len(rollout_results["frames"])
@@ -328,43 +329,26 @@ while True:
 
     if fast_stats_tracker["race_time"][-1] < good_time_save_all_ms:
         sub_folder_name = f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        (save_dir / "good_runs" / sub_folder_name).mkdir(
-            parents=True, exist_ok=True
-        )
+        (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
         joblib.dump(
             rollout_results["actions"],
-            save_dir
-            / "good_runs"
-            / sub_folder_name
-            / f"actions.joblib",
+            save_dir / "good_runs" / sub_folder_name / f"actions.joblib",
         )
         joblib.dump(
             rollout_results["q_values"],
-            save_dir
-            / "good_runs"
-            / sub_folder_name
-            / f"q_values.joblib",
+            save_dir / "good_runs" / sub_folder_name / f"q_values.joblib",
         )
         torch.save(
             model1.state_dict(),
-            save_dir
-            / "good_runs"
-            / sub_folder_name
-            / "weights1.torch",
+            save_dir / "good_runs" / sub_folder_name / "weights1.torch",
         )
         torch.save(
             model2.state_dict(),
-            save_dir
-            / "good_runs"
-            / sub_folder_name
-            / "weights2.torch",
+            save_dir / "good_runs" / sub_folder_name / "weights2.torch",
         )
         torch.save(
             optimizer1.state_dict(),
-            save_dir
-            / "good_runs"
-            / sub_folder_name
-            / "optimizer1.torch",
+            save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
         )
 
     tensorboard_writer.add_scalar(
@@ -544,6 +528,7 @@ while True:
         rollout_results = tmi.rollout(
             exploration_policy=trainer.get_exploration_action,
             stats_tracker=eval_stats_tracker,
+            is_eval=True,
         )
         number_frames_played += len(rollout_results["frames"])
         cumul_number_frames_played += len(rollout_results["frames"])
@@ -601,43 +586,26 @@ while True:
 
         if eval_stats_tracker["race_time"][-1] < good_time_save_all_ms:
             sub_folder_name = f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-            (save_dir / "good_runs" / sub_folder_name).mkdir(
-                parents=True, exist_ok=True
-            )
+            (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
             joblib.dump(
                 rollout_results["actions"],
-                save_dir
-                / "good_runs"
-                / sub_folder_name
-                / f"actions.joblib",
+                save_dir / "good_runs" / sub_folder_name / f"actions.joblib",
             )
             joblib.dump(
                 rollout_results["q_values"],
-                save_dir
-                / "good_runs"
-                / sub_folder_name
-                / f"q_values.joblib",
+                save_dir / "good_runs" / sub_folder_name / f"q_values.joblib",
             )
             torch.save(
                 model1.state_dict(),
-                save_dir
-                / "good_runs"
-                / sub_folder_name
-                / "weights1.torch",
+                save_dir / "good_runs" / sub_folder_name / "weights1.torch",
             )
             torch.save(
                 model2.state_dict(),
-                save_dir
-                / "good_runs"
-                / sub_folder_name
-                / "weights2.torch",
+                save_dir / "good_runs" / sub_folder_name / "weights2.torch",
             )
             torch.save(
                 optimizer1.state_dict(),
-                save_dir
-                / "good_runs"
-                / sub_folder_name
-                / "optimizer1.torch",
+                save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
             )
 
         if eval_stats_tracker["race_finished"][-1]:

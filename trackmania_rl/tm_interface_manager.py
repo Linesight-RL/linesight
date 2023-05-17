@@ -58,11 +58,11 @@ class TMInterfaceManager:
 
         self.zone_centers = zone_centers
 
-    def rollout(self, exploration_policy, stats_tracker):
+    def rollout(self, exploration_policy, stats_tracker, is_eval):
         zone_centers_delta = (np.random.rand(*self.zone_centers.shape) - 0.5) * misc.zone_centers_jitter
-        zone_centers_delta[:, 1] = 0  # Don't change the elevation
-        zone_centers_delta[-3:, :] = 0  # Don't change the final zones
-        if True:  # TODO : zero jitter during eval round
+        zone_centers_delta[:, 1] *= 0.1  # Don't change the elevation
+        zone_centers_delta[-(3 + misc.n_zone_centers_in_inputs) :, :] = 0  # Don't change the final zones
+        if is_eval:  # TODO : zero jitter during eval round
             zone_centers_delta *= 0
         zone_centers = self.zone_centers + zone_centers_delta
 
