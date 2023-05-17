@@ -327,42 +327,43 @@ while True:
         )
 
     if fast_stats_tracker["race_time"][-1] < good_time_save_all_ms:
-        (save_dir / "good_runs" / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}").mkdir(
+        sub_folder_name = f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        (save_dir / "good_runs" / sub_folder_name).mkdir(
             parents=True, exist_ok=True
         )
         joblib.dump(
             rollout_results["actions"],
             save_dir
             / "good_runs"
-            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / sub_folder_name
             / f"actions.joblib",
         )
         joblib.dump(
             rollout_results["q_values"],
             save_dir
             / "good_runs"
-            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / sub_folder_name
             / f"q_values.joblib",
         )
         torch.save(
             model1.state_dict(),
             save_dir
             / "good_runs"
-            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / sub_folder_name
             / "weights1.torch",
         )
         torch.save(
             model2.state_dict(),
             save_dir
             / "good_runs"
-            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / sub_folder_name
             / "weights2.torch",
         )
         torch.save(
             optimizer1.state_dict(),
             save_dir
             / "good_runs"
-            / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            / sub_folder_name
             / "optimizer1.torch",
         )
 
@@ -599,42 +600,43 @@ while True:
             )
 
         if eval_stats_tracker["race_time"][-1] < good_time_save_all_ms:
-            (save_dir / "good_runs" / f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}").mkdir(
+            sub_folder_name = f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            (save_dir / "good_runs" / sub_folder_name).mkdir(
                 parents=True, exist_ok=True
             )
             joblib.dump(
                 rollout_results["actions"],
                 save_dir
                 / "good_runs"
-                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / sub_folder_name
                 / f"actions.joblib",
             )
             joblib.dump(
                 rollout_results["q_values"],
                 save_dir
                 / "good_runs"
-                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / sub_folder_name
                 / f"q_values.joblib",
             )
             torch.save(
                 model1.state_dict(),
                 save_dir
                 / "good_runs"
-                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / sub_folder_name
                 / "weights1.torch",
             )
             torch.save(
                 model2.state_dict(),
                 save_dir
                 / "good_runs"
-                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / sub_folder_name
                 / "weights2.torch",
             )
             torch.save(
                 optimizer1.state_dict(),
                 save_dir
                 / "good_runs"
-                / f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                / sub_folder_name
                 / "optimizer1.torch",
             )
 
