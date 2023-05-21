@@ -5,7 +5,7 @@ H = 480
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
-running_speed = 20
+running_speed = 50
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
@@ -73,7 +73,7 @@ reward_per_ms_press_forward = [
     0,
 ][anneal_step]
 
-statistics_save_period_seconds = 60 * 10
+statistics_save_period_seconds = 60 * 1
 
 float_input_dim = 22 + 3 * n_zone_centers_in_inputs
 float_hidden_dim = 256
@@ -93,7 +93,7 @@ high_exploration_ratio = 10
 batch_size = 1024
 learning_rate = 0.5e-5
 
-number_times_single_memory_is_used_before_discard = 3 #32 // 4
+number_times_single_memory_is_used_before_discard = 3  # 32 // 4
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 4000000000
 
