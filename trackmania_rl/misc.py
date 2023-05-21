@@ -20,7 +20,7 @@ tau_greedy_boltzmann = 0.0005
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
-anneal_step = 1
+anneal_step = 3
 n_steps = [
     1,
     3,
@@ -85,15 +85,15 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
-memory_size = 300_000
+memory_size = 1_800_000
 memory_size_start_learn = 10000
 virtual_memory_size_start_learn = 1000
 number_memories_generated_high_exploration = 100000
 high_exploration_ratio = 10
 batch_size = 1024
-learning_rate = 5e-5
+learning_rate = 0.5e-5
 
-number_times_single_memory_is_used_before_discard = 32 // 4
+number_times_single_memory_is_used_before_discard = 3 #32 // 4
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 4000000000
 

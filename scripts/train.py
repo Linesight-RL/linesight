@@ -16,7 +16,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "47"
+run_name = "48"
 map_name = "map5"
 good_time_save_all_ms = 129000
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
