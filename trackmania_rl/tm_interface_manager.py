@@ -1,21 +1,68 @@
 import math
 import time
 
+import cv2
 import numba
 import numpy as np
 import psutil
 import win32com.client
-import win32con
 
 # noinspection PyPackageRequirements
 import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-# from . import dxcam
 from . import dxshot as dxcam  # https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 from . import misc, time_parsing
 from .geometry import fraction_time_spent_in_current_zone
+
+# import dxcam
+
+
+def _get_window_position(trackmania_window):
+    rect = win32gui.GetWindowRect(trackmania_window)
+    clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
+    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
+    rect = (
+        rect[0] + windowOffset,
+        rect[1] + titleOffset,
+        rect[2] - windowOffset,
+        rect[3] - windowOffset,
+    )
+    top = rect[1] + round(((rect[3] - rect[1]) - misc.H) / 2)
+    left = rect[0] + round(((rect[2] - rect[0]) - misc.W) / 2)  # Could there be a 1 pixel error with these roundings?
+    right = left + misc.W
+    bottom = top + misc.H
+    return left, top, right, bottom
+
+
+def recreate_dxcam():
+    global camera
+    print("RECREATE")
+    del camera
+    create_dxcam()
+
+
+def create_dxcam():
+    global camera
+    print("CREATE")
+    camera = dxcam.create(
+        output_idx=0, output_color="BGRA", region=_get_window_position(win32gui.FindWindow("TmForever", None)), max_buffer_len=1
+    )
+
+
+def grab_screen():
+    global camera
+    try:
+        return camera.grab()
+    except:
+        pass
+    recreate_dxcam()
+    return grab_screen()
+
+
+create_dxcam()
 
 
 class TMInterfaceManager:
@@ -40,22 +87,10 @@ class TMInterfaceManager:
         self.max_minirace_duration_ms = max_minirace_duration_ms
         self.timeout_has_been_set = False
         self.interface_name = interface_name
-        # int(interface_name[-1])
-        self.camera = dxcam.create(output_idx=0, output_color="BGRA")
-        remove_fps_cap()
-        self.trackmania_window = win32gui.FindWindow("TmForever", None)
-        _set_window_focus(self.trackmania_window)
+        # self.trackmania_window = win32gui.FindWindow("TmForever", None)
+        _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
-
-        # if interface_name == "TMInterface0":
-        #     self.zou = (1854, 37, 2494, 517)
-        # elif interface_name == "TMInterface1":
-        #     self.zou = (1854, 725, 2494, 1205)
-        # elif interface_name == "TMInterface2":
-        #     self.zou = (1174, 37, 1814, 517)
-        # else:
-        #     self.zou = (1174, 725, 1814, 1205)
-
+        remove_fps_cap()
         self.zone_centers = zone_centers
 
     def rollout(self, exploration_policy, stats_tracker, is_eval):
@@ -126,7 +161,6 @@ class TMInterfaceManager:
             self.latest_tm_engine_speed_requested = self.running_speed
 
         compute_action_asap = False
-        trackmania_window_region = _get_window_position(self.trackmania_window)
 
         _time = -3000
         cpcount = 0
@@ -202,7 +236,8 @@ class TMInterfaceManager:
                         iterations = 0
                         frame = None
                         while frame is None:
-                            frame = self.camera.grab(region=trackmania_window_region)
+                            # frame = self.camera.grab(region=trackmania_window_region)#,frame_timeout=2000)
+                            frame = grab_screen()
                         parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
                         time_to_grab_frame += time.perf_counter_ns() - pc2
@@ -247,8 +282,8 @@ class TMInterfaceManager:
                         if (
                             d1 <= d2
                             and d1 <= misc.max_allowable_distance_to_checkpoint
-                            and current_zone_idx
-                            < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs  # We can never enter the final virtual zone
+                            and current_zone_idx < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
+                            # We can never enter the final virtual zone
                         ):
                             # Move from one virtual zone to another
                             rv["fraction_time_in_previous_zone"].append(
@@ -306,16 +341,19 @@ class TMInterfaceManager:
                                 frame = None
                                 iterations += 1
                                 while frame is None:
-                                    frame = self.camera.grab(region=trackmania_window_region)
+                                    # frame = self.camera.grab(region=trackmania_window_region)#, frame_timeout=2000)
+                                    frame = grab_screen()
                                 parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
                                 if iterations > 10:
                                     print(f"warning capturing {iterations=}, {parsed_time=}, {sim_state_race_time=}")
+                                    recreate_dxcam()
 
                             time_to_grab_frame += time.perf_counter_ns() - pc2
                             pc2 = time.perf_counter_ns()
 
-                            rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
+                            rv["frames"].append(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0))
+                            # rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
 
                             time_A_rgb2gray += time.perf_counter_ns() - pc2
                             pc2 = time.perf_counter_ns()
@@ -513,6 +551,7 @@ class TMInterfaceManager:
                         # END AGADE TRICK
 
                         self.iface.set_speed(0)
+                        # self.camera._duplicator.update_frame()  # Dump existing frames
                         self.latest_tm_engine_speed_requested = 0
                         compute_action_asap = True
                         do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
@@ -663,17 +702,17 @@ class TMInterfaceManager:
         return rv
 
 
-def _set_window_position(trackmania_window):
-    # Currently unused, might be used in the future for parallel environments
-    win32gui.SetWindowPos(
-        trackmania_window,
-        win32con.HWND_TOPMOST,
-        2560 - 654,
-        120,
-        misc.W + misc.wind32gui_margins["left"] + misc.wind32gui_margins["right"],
-        misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
-        0,
-    )
+# def _set_window_position(trackmania_window):
+#     # Currently unused, might be used in the future for parallel environments
+#     win32gui.SetWindowPos(
+#         trackmania_window,
+#         win32con.HWND_TOPMOST,
+#         2560 - 654,
+#         120,
+#         misc.W + misc.wind32gui_margins["left"] + misc.wind32gui_margins["right"],
+#         misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
+#         0,
+#     )
 
 
 def _set_window_focus(trackmania_window):
@@ -682,31 +721,13 @@ def _set_window_focus(trackmania_window):
     win32gui.SetForegroundWindow(trackmania_window)
 
 
-def pb__get_window_position(trackmania_window):
-    rect = win32gui.GetWindowRect(trackmania_window)
-    left = rect[0] + misc.wind32gui_margins["left"]
-    top = rect[1] + misc.wind32gui_margins["top"]
-    right = rect[2] - misc.wind32gui_margins["right"]
-    bottom = rect[3] - misc.wind32gui_margins["bottom"]
-    return left, top, right, bottom
-
-
-def _get_window_position(trackmania_window):
-    rect = win32gui.GetWindowRect(trackmania_window)
-    clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
-    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
-    rect = (
-        rect[0] + windowOffset,
-        rect[1] + titleOffset,
-        rect[2] - windowOffset,
-        rect[3] - windowOffset,
-    )
-    top = rect[1] + round(((rect[3] - rect[1]) - misc.H) / 2)
-    left = rect[0] + round(((rect[2] - rect[0]) - misc.W) / 2)  # Could there be a 1 pixel error with these roundings?
-    right = left + misc.W
-    bottom = top + misc.H
-    return left, top, right, bottom
+# def pb__get_window_position(trackmania_window):
+#     rect = win32gui.GetWindowRect(trackmania_window)
+#     left = rect[0] + misc.wind32gui_margins["left"]
+#     top = rect[1] + misc.wind32gui_margins["top"]
+#     right = rect[2] - misc.wind32gui_margins["right"]
+#     bottom = rect[3] - misc.wind32gui_margins["bottom"]
+#     return left, top, right, bottom
 
 
 def remove_fps_cap():

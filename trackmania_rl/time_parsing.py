@@ -35,20 +35,17 @@ class DigitsLibrary:
 
 @numba.njit(fastmath=True)
 def parse_time2(img, digits, digits_value):
-    # import pdb; pdb.set_trace()
     time = 0
     for i in range(5):
-        # digit = get_digit(img, five_digits_center[i])
-        # diffs = np.array([np.sum(np.abs(d.astype(np.float32) - digit.astype(np.float32))) for d in digits])
-        # diffs_argmin = np.argmin(diffs)
-        # best_match = digits_value[diffs_argmin]
-        # time += best_match * (60000, 10000, 1000, 100, 10)[i]
-
         digit = get_digit(img, five_digits_center[i]).astype(np.float32)
         lowest_diff = np.inf
         diffs_argmin = -1
         for j, d in enumerate(digits):
-            diff = np.sum(np.abs(d - digit))
+            diff = 0
+            for y in range(24):  # img.shape[0]
+                for x in range(12):  # 2*digits_radius
+                    diff += abs(d[y, x] - digit[y, x])
+            # diff = np.sum(np.abs(d - digit))
             if diff < lowest_diff:
                 lowest_diff = diff
                 diffs_argmin = j
@@ -61,7 +58,7 @@ def parse_time2(img, digits, digits_value):
 
 def parse_time(img, library):
     # Shape should be (480, 640, 4) in BGRA mode
-    a = get_time_screen(img)
+    # a = get_time_screen(img)
     return parse_time2(get_time_screen(img), library.digits_stack, library.digits_value_stack)
 
 

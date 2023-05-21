@@ -4,7 +4,6 @@ isort
 black
 numpy~=1.23.5
 tminterface~=1.0.2
-dxcam~=0.0.5
 matplotlib~=3.7.1
 pydirectinput
 joblib~=1.2.0

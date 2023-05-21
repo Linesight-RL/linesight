@@ -16,7 +16,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "49"
+run_name = "51"
 map_name = "map5"
 good_time_save_all_ms = 129000
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
@@ -259,8 +259,7 @@ tmi = tm_interface_manager.TMInterfaceManager(
 )
 
 for kk in range(5):
-
-
+    cumul_number_frames_played += 1
     # ===============================================
     #   PLAY ONE ROUND
     # ===============================================
@@ -279,40 +278,34 @@ for kk in range(5):
         is_eval=True,
     )
     number_frames_played += len(rollout_results["frames"])
-    cumul_number_frames_played += len(rollout_results["frames"])
     fast_stats_tracker["race_time_ratio"].append(
         fast_stats_tracker["race_time_for_ratio"][-1] / ((time.time() - rollout_start_time) * 1000)
     )
     fast_stats_tracker["zone_reached"].append(len(rollout_results["zone_entrance_time_ms"]) - 1)
 
-
     tensorboard_writer.add_scalar(
         tag="explo_race_time",
         scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
-        global_step=cumul_number_frames_played,
-        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+        walltime=time.time(),
     )
     tensorboard_writer.add_scalar(
         tag="mean_action_gap",
         scalar_value=-(
             np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
         ).mean(),
-        global_step=cumul_number_frames_played,
-        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+        walltime=time.time(),
     )
     if fast_stats_tracker["race_finished"][-1]:
         tensorboard_writer.add_scalar(
             tag="explo_race_time_finished",
             scalar_value=fast_stats_tracker["race_time"][-1] / 1000,
-            global_step=cumul_number_frames_played,
-            walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+            walltime=time.time(),
         )
 
     tensorboard_writer.add_scalar(
         tag="single_zone_reached",
         scalar_value=fast_stats_tracker["zone_reached"][-1],
-        global_step=cumul_number_frames_played,
-        walltime=float(cumul_training_hours * 3600) + time.time() - (time_next_save - misc.statistics_save_period_seconds),
+        walltime=time.time(),
     )
     print("race time ratio  ", np.median(np.array(fast_stats_tracker["race_time_ratio"])))
 
@@ -422,8 +415,7 @@ for kk in range(5):
         tensorboard_writer.add_scalar(
             tag=k,
             scalar_value=v,
-            global_step=step_stats["cumul_number_frames_played"],
-            walltime=float(step_stats["cumul_training_hours"] * 3600),
+            walltime=time.time(),
         )
 
     step_stats_history.append(step_stats)
