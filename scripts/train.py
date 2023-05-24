@@ -18,7 +18,7 @@ base_dir = Path(__file__).resolve().parents[1]
 
 run_name = "48"
 map_name = "map5"
-good_time_save_all_ms = 129000
+good_time_save_all_ms = 128500
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
 for i in range(misc.n_zone_centers_in_inputs):
@@ -160,7 +160,8 @@ model2 = torch.jit.script(
 ).to("cuda")
 print(model1)
 
-optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
+optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)
+# optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
 buffer = BasicExperienceReplay(capacity=misc.memory_size)
@@ -174,7 +175,7 @@ step_stats_history = []
 try:
     model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
     model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
-    # optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
     # FIXME UNDO FOR RUN 13
