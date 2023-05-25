@@ -145,7 +145,7 @@ model1 = torch.jit.script(
         float_inputs_mean=misc.float_inputs_mean,
         float_inputs_std=misc.float_inputs_std,
     )
-).to("cuda")
+).to("cuda",memory_format=torch.channels_last)
 model2 = torch.jit.script(
     iqn.Agent(
         float_inputs_dim=misc.float_input_dim,
@@ -157,7 +157,7 @@ model2 = torch.jit.script(
         float_inputs_mean=misc.float_inputs_mean,
         float_inputs_std=misc.float_inputs_std,
     )
-).to("cuda")
+).to("cuda",memory_format=torch.channels_last)
 print(model1)
 
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)

@@ -6,6 +6,7 @@ import numba
 import numpy as np
 import psutil
 import win32com.client
+import ctypes
 
 # noinspection PyPackageRequirements
 import win32gui
@@ -20,22 +21,27 @@ from .geometry import fraction_time_spent_in_current_zone
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
 
-def _get_window_position(trackmania_window):
+def _get_window_position():
+    Monitor_Width = ctypes.windll.user32.GetSystemMetrics(0)
+    trackmania_window = win32gui.FindWindow('TmForever',None)
     rect = win32gui.GetWindowRect(trackmania_window)
-    clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
-    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
-    rect = (
-        rect[0] + windowOffset,
-        rect[1] + titleOffset,
-        rect[2] - windowOffset,
-        rect[3] - windowOffset,
-    )
-    top = rect[1] + round(((rect[3] - rect[1]) - misc.H) / 2)
-    left = rect[0] + round(((rect[2] - rect[0]) - misc.W) / 2)  # Could there be a 1 pixel error with these roundings?
-    right = left + misc.W
-    bottom = top + misc.H
-    return left, top, right, bottom
+    clientRect = win32gui.GetClientRect(trackmania_window) #https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+    windowOffset = math.floor(((rect[2]-rect[0])-clientRect[2])/2)
+    titleOffset = ((rect[3]-rect[1])-clientRect[3]) - windowOffset
+    rect = (rect[0]+windowOffset, rect[1]+titleOffset, rect[2]-windowOffset, rect[3]-windowOffset)
+    top = rect[1]+round(((rect[3] - rect[1])-misc.H)/2)
+    left = rect[0]+round(((rect[2] - rect[0])-misc.W)/2)#Could there be a 1 pixel error with these roundings?
+    output_idx = 0
+    if left>=Monitor_Width:
+        left-=Monitor_Width
+        output_idx += 1
+    if left<0:
+        Secondary_Width = ctypes.windll.user32.GetSystemMetrics(78)-Monitor_Width
+        left = Secondary_Width + left
+        output_idx += 1
+    right = left+misc.W
+    bottom = top+misc.H
+    return (left, top ,right, bottom), output_idx
 
 
 def recreate_dxcam():
@@ -48,8 +54,9 @@ def recreate_dxcam():
 def create_dxcam():
     global camera
     print("CREATE")
+    region, output_idx = _get_window_position()
     camera = dxcam.create(
-        output_idx=0, output_color="BGRA", region=_get_window_position(win32gui.FindWindow("TmForever", None)), max_buffer_len=1
+        output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1
     )
 
 
@@ -93,6 +100,12 @@ class TMInterfaceManager:
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
         self.zone_centers = zone_centers
+
+    def Rewind(self, state):
+        msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
+        msg.write_buffer(state.data)
+        self.iface._send_message(msg)
+        self.iface._wait_for_server_response()
 
     def rollout(self, exploration_policy, stats_tracker, is_eval):
         zone_centers_delta = (np.random.rand(*self.zone_centers.shape) - 0.5) * misc.zone_centers_jitter
@@ -532,6 +545,7 @@ class TMInterfaceManager:
 
                     this_rollout_is_finished = True
 
+                    self.Rewind(simulation_state)
                     self.iface.set_speed(0)
                     self.latest_tm_engine_speed_requested = 0
                     do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
@@ -543,13 +557,8 @@ class TMInterfaceManager:
                         # Press forward before the race starts
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
                     elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
-                        # BEGIN AGADE TRICK
-                        msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
                         last_known_simulation_state = self.iface.get_simulation_state()
-                        msg.write_buffer(last_known_simulation_state.data)
-                        self.iface._send_message(msg)
-                        self.iface._wait_for_server_response()
-                        # END AGADE TRICK
+                        self.Rewind(last_known_simulation_state)
 
                         self.iface.set_speed(0)
                         # self.camera._duplicator.update_frame()  # Dump existing frames
@@ -599,22 +608,17 @@ class TMInterfaceManager:
                     end="",
                 )
                 if current == target:  # Finished the race !!
-                    # # BEGIN AGADE TRICK
-                    # msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
-                    # simulation_state = self.iface.get_simulation_state()
-                    # simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
-                    # msg.write_buffer(simulation_state.data)
-                    # self.iface._send_message(msg)
-                    # self.iface._wait_for_server_response()
-                    # # END AGADE TRICK
+                    simulation_state = self.iface.get_simulation_state()
+                    simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
+                    self.Rewind(simulation_state)
 
-                    self.iface.prevent_simulation_finish()  # Agade claims his trick above is better. Don't poke Agade.
+                    #self.iface.prevent_simulation_finish()  # Agade claims his trick above is better. Don't poke Agade.
 
                     if (
                         this_rollout_has_seen_t_negative and not this_rollout_is_finished
                     ):  # We shouldn't take into account a race finished after we ended the rollout
                         print(f"Z=({rv['current_zone_idx'][-1]})", end="")
-                        simulation_state = self.iface.get_simulation_state()
+                        #simulation_state = self.iface.get_simulation_state()
                         stats_tracker["race_finished"].append(True)
                         stats_tracker["race_time"].append(simulation_state.race_time)
                         stats_tracker["race_time_for_ratio"].append(simulation_state.race_time)
