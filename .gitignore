@@ -13,3 +13,8 @@
 /misc_crap
 /maps
 /trackmania_rl/dxcam
+*.txt
+*.mov
+*.mp4
+/temp
+/dxcam*

@@ -16,11 +16,11 @@ from trackmania_rl.experience_replay.basic_experience_replay import BasicExperie
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "48"
+run_name = "52"
 map_name = "map5"
-good_time_save_all_ms = 128500
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
+# Add more zone centers after the finish line.
 for i in range(misc.n_zone_centers_in_inputs):
     zone_centers = np.vstack(
         (
@@ -328,7 +328,7 @@ while True:
             save_dir / "best_runs" / f"{fast_stats_tracker['race_time'][-1]}" / "optimizer1.torch",
         )
 
-    if fast_stats_tracker["race_time"][-1] < good_time_save_all_ms:
+    if fast_stats_tracker["race_time"][-1] < misc.good_time_save_all_ms:
         sub_folder_name = f"{fast_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
         (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
         joblib.dump(
@@ -467,9 +467,9 @@ while True:
             #
             r"last100_%race finished": np.array(fast_stats_tracker["race_finished"][-100:]).mean(),
             r"last100_%light_desynchro": np.array(fast_stats_tracker["n_ors_light_desynchro"][-100:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_action)),
             r"last100_%consecutive_frames_equal": np.array(fast_stats_tracker["n_two_consecutive_frames_equal"][-100:]).sum()
-            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action)),
+            / (np.array(fast_stats_tracker["race_time"][-100:]).sum() / (misc.ms_per_action)),
             #
             "laststep_mean_loss": np.array(fast_stats_tracker["loss"]).mean(),
             "laststep_mean_loss_test": np.array(fast_stats_tracker["loss_test"]).mean(),
@@ -585,7 +585,7 @@ while True:
                 save_dir / "best_runs" / f"{eval_stats_tracker['race_time'][-1]}" / "optimizer1.torch",
             )
 
-        if eval_stats_tracker["race_time"][-1] < good_time_save_all_ms:
+        if eval_stats_tracker["race_time"][-1] < misc.good_time_save_all_ms:
             sub_folder_name = f"{eval_stats_tracker['race_time'][-1]}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
             (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
             joblib.dump(
@@ -746,21 +746,3 @@ while True:
             misc.reward_per_ms_press_forward = 0
 
         time_next_save += misc.statistics_save_period_seconds
-
-# %%
-#
-# dxcam.__factory._camera_instances = weakref.WeakValueDictionary()
-# tmi = rollout.TMInterfaceManager(
-#     running_speed=misc.running_speed, run_steps_per_action=misc.run_steps_per_action, max_time=misc.max_rollout_time_ms
-# )
-# model.eval()
-# rollout_results = tmi.rollout(
-#     exploration_policy=partial(learning_algorithm.get_exploration_action, model, 0),
-# )
-# model.train()
-#
-# # %%
-# for i in range(40):
-#     plt.imshow(rollout_results["frames"][i][0, :, :], cmap="gray")
-#     plt.gcf().suptitle(f"{(i * 5) // 100} {(i * 5) % 100}")
-#     plt.show()

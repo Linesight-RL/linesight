@@ -50,7 +50,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             assert last_zone_idx_in_input < len(zone_centers) - n_zone_centers_in_inputs
 
             time_mini_race_start_ms = rollout_results["zone_entrance_time_ms"][first_zone_idx_in_input]
-            current_overall_time_ms = i * misc.ms_per_tm_engine_step * misc.tm_engine_step_per_action
+            current_overall_time_ms = i * misc.ms_per_action
             mini_race_duration_ms = current_overall_time_ms - time_mini_race_start_ms
 
             # Find the longest n-step transition we can use.

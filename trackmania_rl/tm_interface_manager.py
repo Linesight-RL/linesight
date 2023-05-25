@@ -12,11 +12,12 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-from . import dxshot as dxcam  # https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
+# from . import dxcam   # UNCOMMENT HERE TO USE DXCAM
+from . import dxshot as dxcam  # UNCOMMENT HERE TO USE DXSHOT
 from . import misc, time_parsing
 from .geometry import fraction_time_spent_in_current_zone
 
-# import dxcam
+# DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
 
 def _get_window_position(trackmania_window):
