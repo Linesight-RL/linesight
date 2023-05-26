@@ -1,6 +1,8 @@
 import importlib
 import random
 import time
+import os
+from multiprocessing.pool import ThreadPool
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -168,6 +170,8 @@ buffer = BasicExperienceReplay(capacity=misc.memory_size)
 buffer_test = BasicExperienceReplay(capacity=int(misc.memory_size * misc.buffer_test_ratio))
 fast_stats_tracker = defaultdict(list)
 step_stats_history = []
+if __name__ == '__main__':
+    Multithreading_Pool = ThreadPool(os.cpu_count())
 # ========================================================
 # Load existing stuff
 # ========================================================
@@ -413,12 +417,12 @@ while True:
         <= cumul_number_single_memories_should_have_been_used
     ):
         if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-            loss = trainer.train_on_batch(buffer_test, False)
+            loss = trainer.train_on_batch(buffer_test, False, Multithreading_Pool)
             fast_stats_tracker["loss_test"].append(loss)
             print(f"BT   {loss=:<8.2e}")
         else:
             train_start_time = time.time()
-            loss = trainer.train_on_batch(buffer, True)
+            loss = trainer.train_on_batch(buffer, True, Multithreading_Pool)
             cumul_number_single_memories_used += misc.batch_size
             fast_stats_tracker["train_on_batch_duration"].append(time.time() - train_start_time)
             fast_stats_tracker["loss"].append(loss)

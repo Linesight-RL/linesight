@@ -93,10 +93,10 @@ offset_cumul_number_single_memories_used = 0
 # Negative : The first memories we generate will be used for more batches.
 number_memories_generated_high_exploration = 500_000
 high_exploration_ratio = 5
-batch_size = 1024
+batch_size = 2048
 learning_rate = 5e-5
 
-number_times_single_memory_is_used_before_discard = 1  # 32 // 4
+number_times_single_memory_is_used_before_discard = 3  # 32 // 4
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 100000000000  # disable
 
