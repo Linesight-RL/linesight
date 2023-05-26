@@ -87,7 +87,10 @@ AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
 memory_size = 1_200_000
 memory_size_start_learn = 200_000
-virtual_memory_size_start_learn = 200_000
+offset_cumul_number_single_memories_used   = 0
+# Sign and effet of offset_cumul_number_single_memories_used:
+# Positive : We need to generate more memories before we start learning.
+# Negative : The first memories we generate will be used for more batches.
 number_memories_generated_high_exploration = 500_000
 high_exploration_ratio = 5
 batch_size = 1024
