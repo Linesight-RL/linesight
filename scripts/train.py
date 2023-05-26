@@ -200,31 +200,28 @@ try:
 except:
     print(" Could not load stats")
 
+
 # ========================================================
 # Bring back relevant training history
 # ========================================================
-if len(step_stats_history) == 0:
-    # No history, start from scratch
-    cumul_number_frames_played = 0
-    cumul_number_memories_generated = 0
-    cumul_training_hours = 0
-    cumul_number_batches_done = 0
-    cumul_number_target_network_updates = 0
-    cumul_number_single_memories_used = 0
-    cumul_number_single_memories_should_have_been_used = 0
-    cumul_number_single_memories_used_next_target_network_update = 0
-else:
-    # Use previous known cumulative counters
-    cumul_number_frames_played = step_stats_history[-1]["cumul_number_frames_played"]
-    cumul_number_memories_generated = step_stats_history[-1]["cumul_number_memories_generated"]
-    cumul_training_hours = step_stats_history[-1]["cumul_training_hours"]
-    cumul_number_batches_done = step_stats_history[-1]["cumul_number_batches_done"]
-    cumul_number_target_network_updates = step_stats_history[-1]["cumul_number_target_network_updates"]
-    cumul_number_single_memories_used = step_stats_history[-1]["cumul_number_single_memories_used"]
-    cumul_number_single_memories_should_have_been_used = step_stats_history[-1]["cumul_number_single_memories_should_have_been_used"]
-    cumul_number_single_memories_used_next_target_network_update = step_stats_history[-1][
-        "cumul_number_single_memories_used_next_target_network_update"
-    ]
+def last_available(name):
+    if len(step_stats_history) > 0 and name in step_stats_history[-1]:
+        return step_stats_history[-1][name]
+    else:
+        return 0
+
+
+cumul_number_frames_played = last_available("cumul_number_frames_played")
+cumul_number_memories_generated = last_available("cumul_number_memories_generated")
+cumul_training_hours = last_available("cumul_training_hours")
+cumul_number_batches_done = last_available("cumul_number_batches_done")
+cumul_number_target_network_updates = last_available("cumul_number_target_network_updates")
+cumul_number_single_memories_used = last_available("cumul_number_single_memories_used")
+cumul_number_single_memories_should_have_been_used = last_available("cumul_number_single_memories_should_have_been_used")
+cumul_number_single_memories_used_next_target_network_update = last_available(
+    "cumul_number_single_memories_used_next_target_network_update"
+)
+
 number_frames_played = 0
 number_memories_generated = 0
 
