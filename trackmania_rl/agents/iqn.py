@@ -173,7 +173,7 @@ class Trainer:
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = buffer.sample(self.batch_size)
-                is_weights = torch.ones((misc.batch_size,)).cuda() #dtype=np.float32
+                is_weights = torch.ones((misc.batch_size,)) #dtype=np.float32
                 actions = actions.to(dtype=torch.int64)
                 is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
                 rewards = rewards.reshape(-1, 1).repeat(
