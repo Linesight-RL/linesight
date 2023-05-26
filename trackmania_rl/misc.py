@@ -86,8 +86,8 @@ iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
 memory_size = 1_200_000
-memory_size_start_learn = 200_000
-offset_cumul_number_single_memories_used   = 0
+memory_size_start_learn = 0
+offset_cumul_number_single_memories_used = 0
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
@@ -96,7 +96,7 @@ high_exploration_ratio = 5
 batch_size = 1024
 learning_rate = 5e-5
 
-number_times_single_memory_is_used_before_discard = 3  # 32 // 4
+number_times_single_memory_is_used_before_discard = 1  # 32 // 4
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 100000000000  # disable
 
@@ -590,5 +590,5 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 good_time_save_all_ms = 128500
 
-timeout_during_run_ms = 2_000
-timeout_between_runs_ms = 20_000
+timeout_during_run_ms = 2_100
+timeout_between_runs_ms = 10 * 60 * 1000  # 10 minutes

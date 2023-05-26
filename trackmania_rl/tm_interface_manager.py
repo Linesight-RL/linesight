@@ -107,10 +107,6 @@ class TMInterfaceManager:
         self.iface._wait_for_server_response()
 
     def rollout(self, exploration_policy, stats_tracker, is_eval):
-
-
-
-
         zone_centers_delta = (np.random.rand(*self.zone_centers.shape) - 0.5) * misc.zone_centers_jitter
         zone_centers_delta[:, 1] *= 0.1  # Don't change the elevation
         zone_centers_delta[-(3 + misc.n_zone_centers_in_inputs) :, :] = 0  # Don't change the final zones
@@ -173,7 +169,6 @@ class TMInterfaceManager:
 
             self.iface.set_speed(self.running_speed)
             self.latest_tm_engine_speed_requested = self.running_speed
-            self.iface.set_timeout(misc.timeout_during_run_ms)
             self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
             self.msgtype_response_to_wakeup_TMI = None
 
@@ -520,7 +515,7 @@ class TMInterfaceManager:
                     stats_tracker["time_to_iface_set_set"].append(time_to_iface_set_set / simulation_state.race_time * 50)
                     stats_tracker["time_after_iface_set_set"].append(time_after_iface_set_set / simulation_state.race_time * 50)
 
-                    this_rollout_is_finished = True # FAILED TO FINISH IN TIME
+                    this_rollout_is_finished = True  # FAILED TO FINISH IN TIME
                     self.msgtype_response_to_wakeup_TMI = msgtype
 
                     self.iface.set_timeout(misc.timeout_between_runs_ms)
@@ -535,6 +530,7 @@ class TMInterfaceManager:
 
                     if _time == -1000:
                         # Press forward before the race starts
+                        self.iface.set_timeout(misc.timeout_during_run_ms)
                         self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
                     elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                         last_known_simulation_state = self.iface.get_simulation_state()
@@ -620,7 +616,7 @@ class TMInterfaceManager:
                         stats_tracker["time_to_iface_set_set"].append(time_to_iface_set_set / simulation_state.race_time * 50)
                         stats_tracker["time_after_iface_set_set"].append(time_after_iface_set_set / simulation_state.race_time * 50)
 
-                        this_rollout_is_finished = True # SUCCESSFULLY FINISHED THE RACE
+                        this_rollout_is_finished = True  # SUCCESSFULLY FINISHED THE RACE
                         self.msgtype_response_to_wakeup_TMI = msgtype
 
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
