@@ -1,10 +1,10 @@
 import importlib
+import os
 import random
 import time
-import os
-from multiprocessing.pool import ThreadPool
 from collections import defaultdict
 from datetime import datetime
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 import joblib
@@ -170,8 +170,7 @@ buffer = BasicExperienceReplay(capacity=misc.memory_size)
 buffer_test = BasicExperienceReplay(capacity=int(misc.memory_size * misc.buffer_test_ratio))
 fast_stats_tracker = defaultdict(list)
 step_stats_history = []
-if __name__ == '__main__':
-    Multithreading_Pool = ThreadPool(os.cpu_count())
+multithreading_pool = ThreadPool(os.cpu_count() // 2)
 # ========================================================
 # Load existing stuff
 # ========================================================
@@ -182,18 +181,6 @@ try:
     optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
-    # FIXME UNDO FOR RUN 13
-    # with torch.no_grad():
-    #     model1.A_head[2].bias_mu *= 0
-    #     model2.A_head[2].bias_mu *= 0
-    #     # model1.A_head[2].bias_mu += torch.as_tensor([2.5, 2, 2, 1, 1, 1, 0, 0, 0, -1, -1, -1], device="cuda")
-    #     # model2.A_head[2].bias_mu += torch.as_tensor([2.5, 2, 2, 1, 1, 1, 0, 0, 0, -1, -1, -1], device="cuda")
-    #     model1.A_head[2].bias_mu += torch.as_tensor(
-    #         [-2, -2.5, -2.5, -3, -3, -3, -4, -4, -4], device="cuda"
-    #     )
-    #     model2.A_head[2].bias_mu += torch.as_tensor(
-    #         [-2, -2.5, -2.5, -3, -3, -3, -4, -4, -4], device="cuda"
-    #     )
     print(" Could not load weights")
 
 # noinspection PyBroadException
@@ -237,6 +224,7 @@ trainer = iqn.Trainer(
     model2=model2,
     optimizer=optimizer1,
     scaler=scaler,
+    multithreading_pool=multithreading_pool,
     batch_size=misc.batch_size,
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
@@ -417,12 +405,12 @@ while True:
         <= cumul_number_single_memories_should_have_been_used
     ):
         if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-            loss = trainer.train_on_batch(buffer_test, False, Multithreading_Pool)
+            loss = trainer.train_on_batch(buffer_test, do_learn=False)
             fast_stats_tracker["loss_test"].append(loss)
             print(f"BT   {loss=:<8.2e}")
         else:
             train_start_time = time.time()
-            loss = trainer.train_on_batch(buffer, True, Multithreading_Pool)
+            loss = trainer.train_on_batch(buffer, do_learn=True)
             cumul_number_single_memories_used += misc.batch_size
             fast_stats_tracker["train_on_batch_duration"].append(time.time() - train_start_time)
             fast_stats_tracker["loss"].append(loss)

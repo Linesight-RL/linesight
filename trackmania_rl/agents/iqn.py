@@ -1,4 +1,5 @@
 import math
+import multiprocessing
 import random
 from typing import Optional
 
@@ -119,6 +120,7 @@ class Trainer:
         "model2",
         "optimizer",
         "scaler",
+        "multithreading_pool",
         "batch_size",
         "iqn_k",
         "iqn_n",
@@ -137,6 +139,7 @@ class Trainer:
         model2: Agent,
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
+        multithreading_pool: multiprocessing.pool.ThreadPool,
         batch_size: int,
         iqn_k: int,
         iqn_n: int,
@@ -152,6 +155,7 @@ class Trainer:
         self.model2 = model2
         self.optimizer = optimizer
         self.scaler = scaler
+        self.multithreading_pool = (multithreading_pool,)
         self.batch_size = batch_size
         self.iqn_k = iqn_k
         self.iqn_n = iqn_n
@@ -163,27 +167,45 @@ class Trainer:
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
 
-    def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool, Multithreading_Pool):
+    def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool):
         batch, idxs, is_weights = buffer.sample(self.batch_size)
         self.optimizer.zero_grad(set_to_none=True)
-        state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = Multithreading_Pool.map(np.array,[[getattr(memory,attr_name) for memory in batch] for attr_name in ['state_img','state_float','action','reward','gamma_pow_nsteps','done','next_state_img','next_state_float']])
+        (
+            state_img_tensor,
+            state_float_tensor,
+            actions,
+            rewards,
+            gammas_pow_nsteps,
+            done,
+            next_state_img_tensor,
+            next_state_float_tensor,
+        ) = self.multithreading_pool.map(
+            np.array,
+            [
+                [getattr(memory, attr_name) for memory in batch]
+                for attr_name in [
+                    "state_img",
+                    "state_float",
+                    "action",
+                    "reward",
+                    "gamma_pow_nsteps",
+                    "done",
+                    "next_state_img",
+                    "next_state_float",
+                ]
+            ],
+        )
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            state_img_tensor = torch.as_tensor(state_img_tensor).to(
-                memory_format=torch.channels_last, non_blocking=True, device="cuda"
-            )
+            state_img_tensor = torch.as_tensor(state_img_tensor).to(memory_format=torch.channels_last, non_blocking=True, device="cuda")
             state_float_tensor = torch.as_tensor(state_float_tensor).to(non_blocking=True, device="cuda")
             actions = torch.as_tensor(actions, dtype=torch.int64).to(non_blocking=True, device="cuda")
             rewards = torch.as_tensor(rewards).to(non_blocking=True, device="cuda")
-            gammas_pow_nsteps = torch.as_tensor(gammas_pow_nsteps).to(
-                non_blocking=True, device="cuda"
-            )
+            gammas_pow_nsteps = torch.as_tensor(gammas_pow_nsteps).to(non_blocking=True, device="cuda")
             done = torch.as_tensor(done).to(non_blocking=True, device="cuda")
             next_state_img_tensor = torch.as_tensor(next_state_img_tensor).to(
                 memory_format=torch.channels_last, non_blocking=True, device="cuda"
             )
-            next_state_float_tensor = torch.as_tensor(next_state_float_tensor).to(
-                non_blocking=True, device="cuda"
-            )
+            next_state_float_tensor = torch.as_tensor(next_state_float_tensor).to(non_blocking=True, device="cuda")
             is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
 
             with torch.no_grad():
