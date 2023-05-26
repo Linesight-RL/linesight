@@ -182,7 +182,7 @@ class Trainer:
                     next_state_img_tensor,
                     next_state_float_tensor,
                 ) = self.multithreading_pool.map(
-                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda"),
+                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda", memory_format=torch.channels_last if 'img' in attr_name else torch.preserve_format),
                     [
                         "state_img",
                         "state_float",
@@ -194,9 +194,7 @@ class Trainer:
                         "next_state_float",
                     ],
                 )
-                state_img_tensor = state_img_tensor.to(memory_format=torch.channels_last)
                 actions = actions.to(dtype=torch.int64)
-                next_state_img_tensor = next_state_img_tensor.to(memory_format=torch.channels_last)
                 is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
                 rewards = rewards.reshape(-1, 1).repeat(
                     [self.iqn_n, 1]
