@@ -155,7 +155,7 @@ class Trainer:
         self.model2 = model2
         self.optimizer = optimizer
         self.scaler = scaler
-        self.multithreading_pool = (multithreading_pool,)
+        self.multithreading_pool = multithreading_pool
         self.batch_size = batch_size
         self.iqn_k = iqn_k
         self.iqn_n = iqn_n
