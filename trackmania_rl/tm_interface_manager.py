@@ -521,8 +521,8 @@ class TMInterfaceManager:
                     self.iface.set_timeout(misc.timeout_between_runs_ms)
 
                     self.rewind_to_state(simulation_state)
-                    self.iface.set_speed(0)
-                    self.latest_tm_engine_speed_requested = 0
+                    # self.iface.set_speed(0)
+                    # self.latest_tm_engine_speed_requested = 0
                     do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
 
                 if not this_rollout_is_finished:
@@ -621,8 +621,8 @@ class TMInterfaceManager:
 
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
 
-                        self.iface.set_speed(0)
-                        self.latest_tm_engine_speed_requested = 0
+                        # self.iface.set_speed(0)
+                        # self.latest_tm_engine_speed_requested = 0
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
                         print(f"+++    {simulation_state.race_time:>6} ", end="")
 
@@ -683,7 +683,7 @@ class TMInterfaceManager:
             prev_msgtype = msgtype
             time.sleep(0)
 
-        assert self.latest_tm_engine_speed_requested == 0
+        # assert self.latest_tm_engine_speed_requested == 0
 
         print("E", end="")
         return rv
