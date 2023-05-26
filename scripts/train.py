@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
-from trackmania_rl.experience_replay.basic_experience_replay import BasicExperienceReplay
+from torchrl.data import ReplayBuffer, ListStorage
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -162,15 +162,31 @@ model2 = torch.jit.script(
 ).to("cuda", memory_format=torch.channels_last)
 print(model1)
 
+multithreading_pool = ThreadPool(os.cpu_count() // 2)
+
+def Buffer_Collate_Function(batch):
+    return multithreading_pool.map(
+                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda", memory_format=torch.channels_last if 'img' in attr_name else torch.preserve_format),
+                    [
+                        "state_img",
+                        "state_float",
+                        "action",
+                        "reward",
+                        "gamma_pow_nsteps",
+                        "done",
+                        "next_state_img",
+                        "next_state_float",
+                    ],
+                )
+
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = BasicExperienceReplay(capacity=misc.memory_size)
-buffer_test = BasicExperienceReplay(capacity=int(misc.memory_size * misc.buffer_test_ratio))
+buffer = ReplayBuffer(storage=ListStorage(misc.memory_size),batch_size=misc.batch_size,prefetch=1,collate_fn=Buffer_Collate_Function)
+buffer_test = ReplayBuffer(storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),batch_size=misc.batch_size,prefetch=0,collate_fn=Buffer_Collate_Function)
 fast_stats_tracker = defaultdict(list)
 step_stats_history = []
-multithreading_pool = ThreadPool(os.cpu_count() // 2)
 # ========================================================
 # Load existing stuff
 # ========================================================

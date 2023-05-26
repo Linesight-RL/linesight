@@ -3,12 +3,13 @@ import random
 import numpy as np
 
 from . import misc
-from .experience_replay.experience_replay_interface import Experience, ExperienceReplayInterface
+from .experience_replay.experience_replay_interface import Experience
+from torchrl.data import ReplayBuffer
 
 
 def fill_buffer_from_rollout_with_n_steps_rule(
-    buffer: ExperienceReplayInterface,
-    buffer_test: ExperienceReplayInterface,
+    buffer: ReplayBuffer,
+    buffer_test: ReplayBuffer,
     rollout_results: dict,
     n_steps_max: int,
     gamma: float,

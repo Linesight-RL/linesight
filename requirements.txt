@@ -9,6 +9,7 @@ pydirectinput
 joblib~=1.2.0
 mypy
 pprofile
+torchrl
 
 psutil~=5.9.4
 readwritememory~=0.1.5

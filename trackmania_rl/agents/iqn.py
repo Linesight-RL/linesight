@@ -8,6 +8,7 @@ import torch
 
 from .. import nn_utilities
 from ..experience_replay.experience_replay_interface import ExperienceReplayInterface
+from trackmania_rl import misc
 
 
 class Agent(torch.nn.Module):
@@ -168,32 +169,11 @@ class Trainer:
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
 
     def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool):
-        batch, idxs, is_weights = buffer.sample(self.batch_size)
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
-                (
-                    state_img_tensor,
-                    state_float_tensor,
-                    actions,
-                    rewards,
-                    gammas_pow_nsteps,
-                    done,
-                    next_state_img_tensor,
-                    next_state_float_tensor,
-                ) = self.multithreading_pool.map(
-                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda", memory_format=torch.channels_last if 'img' in attr_name else torch.preserve_format),
-                    [
-                        "state_img",
-                        "state_float",
-                        "action",
-                        "reward",
-                        "gamma_pow_nsteps",
-                        "done",
-                        "next_state_img",
-                        "next_state_float",
-                    ],
-                )
+                state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = buffer.sample(self.batch_size)
+                is_weights = torch.ones((misc.batch_size,)).cuda() #dtype=np.float32
                 actions = actions.to(dtype=torch.int64)
                 is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
                 rewards = rewards.reshape(-1, 1).repeat(
@@ -312,7 +292,7 @@ class Trainer:
             self.scaler.scale(total_loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-            buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
+            #buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
         return total_loss.detach().cpu()
 
     def get_exploration_action(self, img_inputs, float_inputs):
