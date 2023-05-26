@@ -586,3 +586,6 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 good_time_save_all_ms = 128500
+
+timeout_during_run_ms = 2_000
+timeout_between_runs_ms = 20_000
