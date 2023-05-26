@@ -170,45 +170,34 @@ class Trainer:
     def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool):
         batch, idxs, is_weights = buffer.sample(self.batch_size)
         self.optimizer.zero_grad(set_to_none=True)
-        (
-            state_img_tensor,
-            state_float_tensor,
-            actions,
-            rewards,
-            gammas_pow_nsteps,
-            done,
-            next_state_img_tensor,
-            next_state_float_tensor,
-        ) = self.multithreading_pool.map(
-            np.array,
-            [
-                [getattr(memory, attr_name) for memory in batch]
-                for attr_name in [
-                    "state_img",
-                    "state_float",
-                    "action",
-                    "reward",
-                    "gamma_pow_nsteps",
-                    "done",
-                    "next_state_img",
-                    "next_state_float",
-                ]
-            ],
-        )
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            state_img_tensor = torch.as_tensor(state_img_tensor).to(memory_format=torch.channels_last, non_blocking=True, device="cuda")
-            state_float_tensor = torch.as_tensor(state_float_tensor).to(non_blocking=True, device="cuda")
-            actions = torch.as_tensor(actions, dtype=torch.int64).to(non_blocking=True, device="cuda")
-            rewards = torch.as_tensor(rewards).to(non_blocking=True, device="cuda")
-            gammas_pow_nsteps = torch.as_tensor(gammas_pow_nsteps).to(non_blocking=True, device="cuda")
-            done = torch.as_tensor(done).to(non_blocking=True, device="cuda")
-            next_state_img_tensor = torch.as_tensor(next_state_img_tensor).to(
-                memory_format=torch.channels_last, non_blocking=True, device="cuda"
-            )
-            next_state_float_tensor = torch.as_tensor(next_state_float_tensor).to(non_blocking=True, device="cuda")
-            is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
-
             with torch.no_grad():
+                (
+                    state_img_tensor,
+                    state_float_tensor,
+                    actions,
+                    rewards,
+                    gammas_pow_nsteps,
+                    done,
+                    next_state_img_tensor,
+                    next_state_float_tensor,
+                ) = self.multithreading_pool.map(
+                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda"),
+                    [
+                        "state_img",
+                        "state_float",
+                        "action",
+                        "reward",
+                        "gamma_pow_nsteps",
+                        "done",
+                        "next_state_img",
+                        "next_state_float",
+                    ],
+                )
+                state_img_tensor = state_img_tensor.to(memory_format=torch.channels_last)
+                actions = actions.to(dtype=torch.int64)
+                next_state_img_tensor = next_state_img_tensor.to(memory_format=torch.channels_last)
+                is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
                 rewards = rewards.reshape(-1, 1).repeat(
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
