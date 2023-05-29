@@ -4,7 +4,6 @@ import random
 import time
 from collections import defaultdict
 from datetime import datetime
-from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 import joblib
@@ -14,11 +13,11 @@ from torch.utils.tensorboard import SummaryWriter
 
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
-from torchrl.data import ReplayBuffer, ListStorage
+from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "54"
+run_name = "52"
 map_name = "map5"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -161,30 +160,45 @@ model2 = torch.jit.script(
     )
 ).to("cuda", memory_format=torch.channels_last)
 print(model1)
+sampling_stream = torch.cuda.Stream()
 
-multithreading_pool = ThreadPool(os.cpu_count() // 2)
+def fast_collate(batch,attr_name):
+    return torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda", memory_format=torch.channels_last if 'img' in attr_name else torch.preserve_format)
+
+def fast_collate2(batch,attr_name):
+    if 'img' in attr_name:
+        Images = torch.empty( (len(batch), 1, misc.H, misc.W), device='cuda', dtype=torch.uint8, memory_format=torch.channels_last)
+        for i, memory in enumerate(batch):
+            Images[i].copy_(getattr(memory, attr_name),non_blocking=True)
+        return Images
+    else:
+        return fast_collate(batch,attr_name)
 
 def Buffer_Collate_Function(batch):
-    return multithreading_pool.map(
-                    lambda attr_name:torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(non_blocking=True, device="cuda", memory_format=torch.channels_last if 'img' in attr_name else torch.preserve_format),
-                    [
-                        "state_img",
-                        "state_float",
-                        "action",
-                        "reward",
-                        "gamma_pow_nsteps",
-                        "done",
-                        "next_state_img",
-                        "next_state_float",
-                    ],
-                )
+    with torch.cuda.stream(sampling_stream):
+        batch = tuple(map(
+                        lambda attr_name:fast_collate2(batch,attr_name),
+                        [
+                            "state_img",
+                            "state_float",
+                            "action",
+                            "reward",
+                            "gamma_pow_nsteps",
+                            "done",
+                            "next_state_img",
+                            "next_state_float",
+                        ],
+                    ))
+    batch_done_event = sampling_stream.record_event()
+    #sampling_stream.synchronize()
+    return batch, batch_done_event
 
 optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(storage=ListStorage(misc.memory_size),batch_size=misc.batch_size,prefetch=1,collate_fn=Buffer_Collate_Function)
-buffer_test = ReplayBuffer(storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),batch_size=misc.batch_size,prefetch=0,collate_fn=Buffer_Collate_Function)
+buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=Buffer_Collate_Function, prefetch=4)
+buffer_test = ReplayBuffer(capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=Buffer_Collate_Function)
 fast_stats_tracker = defaultdict(list)
 step_stats_history = []
 # ========================================================
@@ -240,7 +254,6 @@ trainer = iqn.Trainer(
     model2=model2,
     optimizer=optimizer1,
     scaler=scaler,
-    multithreading_pool=multithreading_pool,
     batch_size=misc.batch_size,
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
@@ -702,8 +715,8 @@ while True:
         #   Buffer stats
         # ===============================================
 
-        mean_in_buffer = np.array([experience.state_float for experience in buffer.buffer]).mean(axis=0)
-        std_in_buffer = np.array([experience.state_float for experience in buffer.buffer]).std(axis=0)
+        mean_in_buffer = np.array([experience.state_float for experience in buffer._storage]).mean(axis=0)
+        std_in_buffer = np.array([experience.state_float for experience in buffer._storage]).std(axis=0)
 
         print("Raw mean in buffer  :", mean_in_buffer.round(1))
         print("Raw std in buffer   :", std_in_buffer.round(1))

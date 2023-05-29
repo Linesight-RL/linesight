@@ -6,7 +6,7 @@ import cv2
 import numba
 import numpy as np
 import psutil
-import win32com.client
+import torch
 
 # noinspection PyPackageRequirements
 import win32gui
@@ -94,7 +94,6 @@ class TMInterfaceManager:
         self.timeout_has_been_set = False
         self.interface_name = interface_name
         # self.trackmania_window = win32gui.FindWindow("TmForever", None)
-        _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
         self.zone_centers = zone_centers
@@ -339,7 +338,7 @@ class TMInterfaceManager:
                         time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        rv["frames"].append(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0))
+                        rv["frames"].append(torch.from_numpy(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)).pin_memory())
                         # rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
 
                         time_A_rgb2gray += time.perf_counter_ns() - pc2
@@ -700,12 +699,6 @@ class TMInterfaceManager:
 #         misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
 #         0,
 #     )
-
-
-def _set_window_focus(trackmania_window):
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shell.SendKeys("%")
-    win32gui.SetForegroundWindow(trackmania_window)
 
 
 # def pb__get_window_position(trackmania_window):

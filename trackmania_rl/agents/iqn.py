@@ -1,5 +1,4 @@
 import math
-import multiprocessing
 import random
 from typing import Optional
 
@@ -7,7 +6,7 @@ import numpy as np
 import torch
 
 from .. import nn_utilities
-from ..experience_replay.experience_replay_interface import ExperienceReplayInterface
+from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 from trackmania_rl import misc
 
 
@@ -121,7 +120,6 @@ class Trainer:
         "model2",
         "optimizer",
         "scaler",
-        "multithreading_pool",
         "batch_size",
         "iqn_k",
         "iqn_n",
@@ -132,6 +130,7 @@ class Trainer:
         "AL_alpha",
         "tau_epsilon_boltzmann",
         "tau_greedy_boltzmann",
+        "execution_stream",
     )
 
     def __init__(
@@ -140,7 +139,6 @@ class Trainer:
         model2: Agent,
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
-        multithreading_pool: multiprocessing.pool.ThreadPool,
         batch_size: int,
         iqn_k: int,
         iqn_n: int,
@@ -156,7 +154,6 @@ class Trainer:
         self.model2 = model2
         self.optimizer = optimizer
         self.scaler = scaler
-        self.multithreading_pool = multithreading_pool
         self.batch_size = batch_size
         self.iqn_k = iqn_k
         self.iqn_n = iqn_n
@@ -167,144 +164,145 @@ class Trainer:
         self.AL_alpha = AL_alpha
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
+        self.execution_stream = torch.cuda.Stream()
 
-    def train_on_batch(self, buffer: ExperienceReplayInterface, do_learn: bool):
+    def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = buffer.sample(self.batch_size)
-                is_weights = torch.ones((misc.batch_size,)) #dtype=np.float32
-                actions = actions.to(dtype=torch.int64)
-                is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
-                rewards = rewards.reshape(-1, 1).repeat(
-                    [self.iqn_n, 1]
-                )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
-                # (batch_size*iqn_n, 1)
-                gammas_pow_nsteps = gammas_pow_nsteps.reshape(-1, 1).repeat([self.iqn_n, 1])
-                done = done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
-                actions = actions[:, None]  # (batch_size, 1)
-                actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                with torch.no_grad():
+                    state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = buffer.sample(self.batch_size)
+        with torch.cuda.stream(self.execution_stream):
+            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                with torch.no_grad():
+                    actions = actions.to(dtype=torch.int64)
+                    #is_weights = torch.ones((misc.batch_size,)) #dtype=np.float32
+                    #is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
+                    rewards = rewards.reshape(-1, 1).repeat(
+                        [self.iqn_n, 1]
+                    )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+                    # (batch_size*iqn_n, 1)
+                    gammas_pow_nsteps = gammas_pow_nsteps.reshape(-1, 1).repeat([self.iqn_n, 1])
+                    done = done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                    actions = actions[:, None]  # (batch_size, 1)
+                    actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
 
-                #
-                #   Use model to choose an action for next state.
-                #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
-                #
-                a__tpo__model__reduced_repeated = (
-                    self.model(
-                        next_state_img_tensor,
-                        next_state_float_tensor,
-                        self.iqn_n,
-                        tau=None,
-                    )[0]
-                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                    .mean(dim=0)
-                    .argmax(dim=1, keepdim=True)
-                    .repeat([self.iqn_n, 1])
-                )  # (iqn_n * batch_size, 1)
+                    #
+                    #   Use model to choose an action for next state.
+                    #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
+                    #
+                    a__tpo__model__reduced_repeated = (
+                        self.model(
+                            next_state_img_tensor,
+                            next_state_float_tensor,
+                            self.iqn_n,
+                            tau=None,
+                        )[0]
+                        .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                        .mean(dim=0)
+                        .argmax(dim=1, keepdim=True)
+                        .repeat([self.iqn_n, 1])
+                    )  # (iqn_n * batch_size, 1)
 
-                #
-                #   Use model2 to evaluate the action chosen, per quantile.
-                #
-                q__stpo__model2__quantiles_tau2, tau2 = self.model2(
-                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
+                    #
+                    #   Use model2 to evaluate the action chosen, per quantile.
+                    #
+                    q__stpo__model2__quantiles_tau2, tau2 = self.model2(
+                        next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
+                    )  # (batch_size*iqn_n,n_actions)
+
+                    #
+                    #   Build IQN target on tau2 quantiles
+                    #
+                    outputs_target_tau2 = torch.where(
+                        done,
+                        rewards,
+                        rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated),
+                    )  # (batch_size*iqn_n, 1)
+
+                    # # =============== BEG PAL ==============
+                    # # V(x') dans PAL devient une distribution en IQN, on veux les quantiles de cette distribution. Il faut choisir une action, la meilleure action, et prendre les quantiles de cette action: notre V
+                    # # Parceque si tu max par quantile, tu melange des quantiles de distributions differentes
+                    # #
+                    # #   PAL Term
+                    # #
+                    # pal_term_tau2 = q__stpo__model2__quantiles_tau2.gather(
+                    #     1,
+                    #     q__stpo__model2__quantiles_tau2.reshape(
+                    #         [self.iqn_n, self.batch_size, self.model.n_actions]
+                    #     )
+                    #     .mean(dim=0)
+                    #     .argmax(dim=1, keepdim=True)
+                    #     .repeat([self.iqn_n, 1]),
+                    # ) - q__stpo__model2__quantiles_tau2.gather(1, actions_n)
+                    # # (batch_size*iqn_n, 1)
+                    #
+                    # #
+                    # #   AL Term
+                    # #
+                    # q__st__model2__quantiles_tau2, tau2 = self.model2(
+                    #     state_img_tensor, state_float_tensor, self.iqn_n, tau=tau2
+                    # )  # (batch_size*iqn_n,n_actions)
+                    # al_term_tau2 = q__st__model2__quantiles_tau2.gather(
+                    #     1,
+                    #     q__st__model2__quantiles_tau2.reshape(
+                    #         [self.iqn_n, self.batch_size, self.model.n_actions]
+                    #     )
+                    #     .mean(dim=0)
+                    #     .argmax(dim=1, keepdim=True)
+                    #     .repeat([self.iqn_n, 1]),
+                    # ) - q__st__model2__quantiles_tau2.gather(1, actions_n)
+                    # # (batch_size*iqn_n, 1)
+                    #
+                    # outputs_target_tau2 -= self.AL_alpha * torch.minimum(
+                    #     al_term_tau2, pal_term_tau2
+                    # )
+                    # # =============== END PAL ==============
+
+                    #
+                    #   This is our target
+                    #
+                    outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
+                        0, 1
+                    )  # (batch_size, iqn_n, 1)
+            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                q__st__model__quantiles_tau3, tau3 = self.model(
+                    state_img_tensor, state_float_tensor, self.iqn_n, tau=None
                 )  # (batch_size*iqn_n,n_actions)
 
-                #
-                #   Build IQN target on tau2 quantiles
-                #
-                outputs_target_tau2 = torch.where(
-                    done,
-                    rewards,
-                    rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated),
-                )  # (batch_size*iqn_n, 1)
-
-                # # =============== BEG PAL ==============
-                # # V(x') dans PAL devient une distribution en IQN, on veux les quantiles de cette distribution. Il faut choisir une action, la meilleure action, et prendre les quantiles de cette action: notre V
-                # # Parceque si tu max par quantile, tu melange des quantiles de distributions differentes
-                # #
-                # #   PAL Term
-                # #
-                # pal_term_tau2 = q__stpo__model2__quantiles_tau2.gather(
-                #     1,
-                #     q__stpo__model2__quantiles_tau2.reshape(
-                #         [self.iqn_n, self.batch_size, self.model.n_actions]
-                #     )
-                #     .mean(dim=0)
-                #     .argmax(dim=1, keepdim=True)
-                #     .repeat([self.iqn_n, 1]),
-                # ) - q__stpo__model2__quantiles_tau2.gather(1, actions_n)
-                # # (batch_size*iqn_n, 1)
-                #
-                # #
-                # #   AL Term
-                # #
-                # q__st__model2__quantiles_tau2, tau2 = self.model2(
-                #     state_img_tensor, state_float_tensor, self.iqn_n, tau=tau2
-                # )  # (batch_size*iqn_n,n_actions)
-                # al_term_tau2 = q__st__model2__quantiles_tau2.gather(
-                #     1,
-                #     q__st__model2__quantiles_tau2.reshape(
-                #         [self.iqn_n, self.batch_size, self.model.n_actions]
-                #     )
-                #     .mean(dim=0)
-                #     .argmax(dim=1, keepdim=True)
-                #     .repeat([self.iqn_n, 1]),
-                # ) - q__st__model2__quantiles_tau2.gather(1, actions_n)
-                # # (batch_size*iqn_n, 1)
-                #
-                # outputs_target_tau2 -= self.AL_alpha * torch.minimum(
-                #     al_term_tau2, pal_term_tau2
-                # )
-                # # =============== END PAL ==============
-
-                #
-                #   This is our target
-                #
-                outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
-                    0, 1
+                outputs_tau3 = (
+                    q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
                 )  # (batch_size, iqn_n, 1)
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            q__st__model__quantiles_tau3, tau3 = self.model(
-                state_img_tensor, state_float_tensor, self.iqn_n, tau=None
-            )  # (batch_size*iqn_n,n_actions)
+                loss = torch.nn.functional.huber_loss(outputs_tau3[:, None, :, :],outputs_target_tau2[:, :, None, :],delta=self.iqn_kappa,reduction='none')
+                tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+                tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+                TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
+                loss = (
+                    (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+                )  # pinball loss # (batch_size, )
 
-            outputs_tau3 = (
-                q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
-            )  # (batch_size, iqn_n, 1)
+                #loss = is_weights * loss
+                total_loss = torch.sum(loss)  # total_loss.shape=torch.Size([])
 
-            TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
-            # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
-            # Huber loss, my alternative
-            loss = torch.where(
-                torch.abs(TD_Error) <= self.iqn_kappa,
-                0.5 * TD_Error**2,
-                self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
-            )
-            tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
-            tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-            loss = (
-                (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
-            )  # pinball loss # (batch_size, )
-
-            total_loss = torch.sum(is_weights * loss)  # total_loss.shape=torch.Size([])
-
-        if do_learn:
-            self.scaler.scale(total_loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-            #buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
-        return total_loss.detach().cpu()
+            if do_learn:
+                self.scaler.scale(total_loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                #buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
+            total_loss = total_loss.detach().cpu()
+        self.execution_stream.synchronize()
+        return total_loss
 
     def get_exploration_action(self, img_inputs, float_inputs):
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                state_img_tensor = torch.as_tensor(np.expand_dims(img_inputs, axis=0)).to(
-                    "cuda", memory_format=torch.channels_last, non_blocking=True
-                )
-                state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
-                q_values = (
-                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
-                )
+        with torch.cuda.stream(self.execution_stream):
+            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                with torch.no_grad():
+                    state_img_tensor = torch.as_tensor(np.expand_dims(img_inputs, axis=0)).to(
+                        "cuda", memory_format=torch.channels_last, non_blocking=True
+                    )
+                    state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
+                    q_values = (
+                        self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                    )
 
         r = random.random()
 
