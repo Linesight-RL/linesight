@@ -665,6 +665,7 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                 self.iface.execute_command(f"set autologin pb4608")
                 self.iface.execute_command(f"set skip_map_load_screens true")
+                self.iface.execute_command(f"cam 1")
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
                 print("msg_on_custom_command")
