@@ -3,7 +3,6 @@ import math
 import time
 
 import cv2
-import numba
 import numpy as np
 import psutil
 import torch
@@ -683,32 +682,8 @@ class TMInterfaceManager:
             prev_msgtype = msgtype
             time.sleep(0)
 
-        # assert self.latest_tm_engine_speed_requested == 0
-
         print("E", end="")
         return rv
-
-
-# def _set_window_position(trackmania_window):
-#     # Currently unused, might be used in the future for parallel environments
-#     win32gui.SetWindowPos(
-#         trackmania_window,
-#         win32con.HWND_TOPMOST,
-#         2560 - 654,
-#         120,
-#         misc.W + misc.wind32gui_margins["left"] + misc.wind32gui_margins["right"],
-#         misc.H + misc.wind32gui_margins["top"] + misc.wind32gui_margins["bottom"],
-#         0,
-#     )
-
-
-# def pb__get_window_position(trackmania_window):
-#     rect = win32gui.GetWindowRect(trackmania_window)
-#     left = rect[0] + misc.wind32gui_margins["left"]
-#     top = rect[1] + misc.wind32gui_margins["top"]
-#     right = rect[2] - misc.wind32gui_margins["right"]
-#     bottom = rect[3] - misc.wind32gui_margins["bottom"]
-#     return left, top, right, bottom
 
 
 def remove_fps_cap():
@@ -724,26 +699,3 @@ def remove_fps_cap():
         process.write(0x005292F1 + 8, 2425393296)
         process.close()
         print(f"Disabled FPS cap of process {pid}")
-
-
-# @numba.njit(fastmath=True)
-# def rgb2gray(img):
-#     img_bnw = np.empty(shape=(1, misc.H, misc.W), dtype=np.uint8)
-#     for i in range(misc.H):
-#         for j in range(misc.W):
-#             img_bnw[0, i, j] = np.uint8(round(np.sum(img[i, j, :3], dtype=np.float32) / 3))
-#     return img_bnw
-
-
-@numba.njit(fastmath=True, parallel=True)
-def rgb2gray(img):
-    img_bnw = np.empty(shape=(1, 480, 640), dtype=np.uint8)
-    for i in numba.prange(480):
-        for j in numba.prange(640):
-            img_bnw[0, i, j] = np.uint8(round((np.float32(img[i, j, 0]) + np.float32(img[i, j, 1]) + np.float32(img[i, j, 2])) / 3))
-    return img_bnw
-
-
-@numba.njit(fastmath=True)
-def frames_equal(img1, img2):
-    return np.all(img1 == img2)

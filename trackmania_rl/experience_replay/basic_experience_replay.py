@@ -1,20 +1,16 @@
-import random
-from collections import deque
-from typing import Any, List, Tuple, Optional, Callable, Union, Sequence
-from concurrent.futures import ThreadPoolExecutor
 import threading
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
+
 import torch
-
-import numpy as np
-
-from .experience_replay_interface import Experience, ExperienceReplayInterface
-from torchrl.data.replay_buffers.writers import RoundRobinWriter
 from torchrl.data.replay_buffers.samplers import RandomSampler
 from torchrl.data.replay_buffers.storages import ListStorage
 from torchrl.data.replay_buffers.utils import INT_CLASSES
+from torchrl.data.replay_buffers.writers import RoundRobinWriter
 
-#Modified from https://pytorch.org/rl/_modules/torchrl/data/replay_buffers/replay_buffers.html#ReplayBuffer
 
+# Modified from https://pytorch.org/rl/_modules/torchrl/data/replay_buffers/replay_buffers.html#ReplayBuffer
 class ReplayBuffer:
     def __init__(
         self,
@@ -46,11 +42,7 @@ class ReplayBuffer:
                 "When using prefetch, the batch-size must be specified in "
                 "advance. "
             )
-        if (
-            batch_size is None
-            and hasattr(self._sampler, "drop_last")
-            and self._sampler.drop_last
-        ):
+        if batch_size is None and hasattr(self._sampler, "drop_last") and self._sampler.drop_last:
             raise ValueError(
                 "Samplers with drop_last=True must work with a predictible batch-size. "
                 "Please pass the batch-size to the ReplayBuffer constructor."
@@ -62,13 +54,7 @@ class ReplayBuffer:
             return len(self._storage)
 
     def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}("
-            f"storage={self._storage}, "
-            f"sampler={self._sampler}, "
-            f"writer={self._writer}"
-            ")"
-        )
+        return f"{type(self).__name__}(" f"storage={self._storage}, " f"sampler={self._sampler}, " f"writer={self._writer}" ")"
 
     def __getitem__(self, index: Union[int, torch.Tensor]) -> Any:
         index = _to_numpy(index)
@@ -87,7 +73,6 @@ class ReplayBuffer:
             self._sampler.add(index)
         return index
 
-
     def _extend(self, data: Sequence) -> torch.Tensor:
         with self._replay_lock:
             index = self._writer.extend(data)
@@ -96,7 +81,6 @@ class ReplayBuffer:
 
     def extend(self, data: Sequence) -> torch.Tensor:
         return self._extend(data)
-
 
     def update_priority(
         self,
@@ -116,14 +100,8 @@ class ReplayBuffer:
 
         return data, info, cuda_batch_event
 
-    def sample(
-        self, batch_size: Optional[int] = None, return_info: bool = False
-    ) -> Any:
-        if (
-            batch_size is not None
-            and self._batch_size is not None
-            and batch_size != self._batch_size
-        ):
+    def sample(self, batch_size: Optional[int] = None, return_info: bool = False) -> Any:
+        if batch_size is not None and self._batch_size is not None and batch_size != self._batch_size:
             warnings.warn(
                 f"Got conflicting batch_sizes in constructor ({self._batch_size}) "
                 f"and `sample` ({batch_size}). Refer to the ReplayBuffer documentation "
@@ -159,7 +137,6 @@ class ReplayBuffer:
             return ret[:2]
         return ret[0]
 
-
     def mark_update(self, index: Union[int, torch.Tensor]) -> None:
         self._sampler.mark_update(index)
 
@@ -168,8 +145,7 @@ class ReplayBuffer:
             self._sampler.ran_out = False
         if self._batch_size is None:
             raise RuntimeError(
-                "Cannot iterate over the replay buffer. "
-                "Batch_size was not specified during construction of the replay buffer."
+                "Cannot iterate over the replay buffer. " "Batch_size was not specified during construction of the replay buffer."
             )
         while not self._sampler.ran_out:
             data = self.sample()

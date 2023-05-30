@@ -1,13 +1,13 @@
 import math
 import random
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
 
-from .. import nn_utilities
 from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
-from trackmania_rl import misc
+
+from .. import nn_utilities
 
 
 class Agent(torch.nn.Module):
@@ -77,7 +77,7 @@ class Agent(torch.nn.Module):
         nn_utilities.init_kaiming(self.iqn_fc)
         # A_head and V_head are NoisyLinear, already initialized
 
-    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None):
+    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
         img_outputs = self.img_head((img.to(torch.float16) - 128) / 128)  # PERF
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
@@ -169,14 +169,21 @@ class Trainer:
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-                with torch.no_grad():
-                    state_img_tensor, state_float_tensor, actions, rewards, gammas_pow_nsteps, done, next_state_img_tensor, next_state_float_tensor = buffer.sample(self.batch_size)
+            with torch.no_grad():
+                (
+                    state_img_tensor,
+                    state_float_tensor,
+                    actions,
+                    rewards,
+                    gammas_pow_nsteps,
+                    done,
+                    next_state_img_tensor,
+                    next_state_float_tensor,
+                ) = buffer.sample(self.batch_size)
         with torch.cuda.stream(self.execution_stream):
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 with torch.no_grad():
                     actions = actions.to(dtype=torch.int64)
-                    #is_weights = torch.ones((misc.batch_size,)) #dtype=np.float32
-                    #is_weights = torch.as_tensor(is_weights).to(non_blocking=True, device="cuda")
                     rewards = rewards.reshape(-1, 1).repeat(
                         [self.iqn_n, 1]
                     )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
@@ -272,22 +279,27 @@ class Trainer:
                 outputs_tau3 = (
                     q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
                 )  # (batch_size, iqn_n, 1)
-                loss = torch.nn.functional.huber_loss(outputs_tau3[:, None, :, :],outputs_target_tau2[:, :, None, :],delta=self.iqn_kappa,reduction='none')
+
+                TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
+                # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
+                # Huber loss, my alternative
+                loss = torch.where(
+                    torch.abs(TD_Error) <= self.iqn_kappa,
+                    0.5 * TD_Error**2,
+                    self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
+                )
                 tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
                 tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-                TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
                 loss = (
                     (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
                 )  # pinball loss # (batch_size, )
 
-                #loss = is_weights * loss
                 total_loss = torch.sum(loss)  # total_loss.shape=torch.Size([])
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
-                #buffer.update(idxs, loss.detach().cpu().numpy().astype(np.float32))
             total_loss = total_loss.detach().cpu()
         self.execution_stream.synchronize()
         return total_loss
@@ -301,7 +313,11 @@ class Trainer:
                     )
                     state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
                     q_values = (
-                        self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                        self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0]
+                        .cpu()
+                        .numpy()
+                        .astype(np.float32)
+                        .mean(axis=0)
                     )
 
         r = random.random()
