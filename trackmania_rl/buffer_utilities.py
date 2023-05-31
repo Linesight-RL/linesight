@@ -3,8 +3,6 @@ import torch
 
 from . import misc
 
-sampling_stream = torch.cuda.Stream()
-
 
 def fast_collate(batch, attr_name):
     return torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(
@@ -22,7 +20,7 @@ def fast_collate2(batch, attr_name):
         return fast_collate(batch, attr_name)
 
 
-def buffer_collate_function(batch):
+def buffer_collate_function(batch, sampling_stream):
     with torch.cuda.stream(sampling_stream):
         batch = tuple(
             map(

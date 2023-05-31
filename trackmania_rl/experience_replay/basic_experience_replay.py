@@ -29,11 +29,6 @@ class ReplayBuffer:
         self._prefetch = bool(prefetch)
         self._prefetch_cap = prefetch or 0
         self._prefetch_queue = deque()
-        if self._prefetch_cap:
-            self._prefetch_executor = ThreadPoolExecutor(max_workers=1)
-
-        self._replay_lock = threading.RLock()
-        self._futures_lock = threading.RLock()
 
         if batch_size is None and prefetch:
             raise ValueError(
@@ -48,35 +43,32 @@ class ReplayBuffer:
                 "Please pass the batch-size to the ReplayBuffer constructor."
             )
         self._batch_size = batch_size
+        self.sampling_stream = torch.cuda.Stream()
 
     def __len__(self) -> int:
-        with self._replay_lock:
-            return len(self._storage)
+        return len(self._storage)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(" f"storage={self._storage}, " f"sampler={self._sampler}, " f"writer={self._writer}" ")"
 
     def __getitem__(self, index: Union[int, torch.Tensor]) -> Any:
         index = _to_numpy(index)
-        with self._replay_lock:
-            data = self._storage[index]
+        data = self._storage[index]
 
         if (not isinstance(index, INT_CLASSES)) and (self._collate_fn is not None):
-            data, cuda_batch_event = self._collate_fn(data)
+            data, cuda_batch_event = self._collate_fn(data, self.sampling_stream)
 
         cuda_batch_event.synchronize()
         return data
 
     def add(self, data: Any) -> int:
-        with self._replay_lock:
-            index = self._writer.add(data)
-            self._sampler.add(index)
+        index = self._writer.add(data)
+        self._sampler.add(index)
         return index
 
     def _extend(self, data: Sequence) -> torch.Tensor:
-        with self._replay_lock:
-            index = self._writer.extend(data)
-            self._sampler.extend(index)
+        index = self._writer.extend(data)
+        self._sampler.extend(index)
         return index
 
     def extend(self, data: Sequence) -> torch.Tensor:
@@ -87,17 +79,14 @@ class ReplayBuffer:
         index: Union[int, torch.Tensor],
         priority: Union[int, torch.Tensor],
     ) -> None:
-        with self._replay_lock:
-            self._sampler.update_priority(index, priority)
+        self._sampler.update_priority(index, priority)
 
     def _sample(self, batch_size: int) -> Tuple[Any, dict]:
-        with self._replay_lock:
-            index, info = self._sampler.sample(self._storage, batch_size)
-            info["index"] = index
-            data = self._storage[index]
+        index, info = self._sampler.sample(self._storage, batch_size)
+        info["index"] = index
+        data = self._storage[index]
         if not isinstance(index, INT_CLASSES) and self._collate_fn is not None:
-            data, cuda_batch_event = self._collate_fn(data)
-
+            data, cuda_batch_event = self._collate_fn(data, self.sampling_stream)
         return data, info, cuda_batch_event
 
     def sample(self, batch_size: Optional[int] = None, return_info: bool = False) -> Any:
@@ -121,16 +110,14 @@ class ReplayBuffer:
         if not self._prefetch:
             ret = self._sample(batch_size)
         else:
-            with self._futures_lock:
-                if len(self._prefetch_queue) == 0:
-                    ret = self._sample(batch_size)
-                else:
-                    ret = self._prefetch_queue.popleft().result()
+            if len(self._prefetch_queue) == 0:
+                ret = self._sample(batch_size)
+            else:
+                ret = self._prefetch_queue.popleft()
 
-            with self._futures_lock:
-                while len(self._prefetch_queue) < self._prefetch_cap:
-                    fut = self._prefetch_executor.submit(self._sample, batch_size)
-                    self._prefetch_queue.append(fut)
+            while len(self._prefetch_queue) < self._prefetch_cap:
+                fut = self._sample(batch_size)
+                self._prefetch_queue.append(fut)
 
         ret[2].synchronize()
         if return_info:

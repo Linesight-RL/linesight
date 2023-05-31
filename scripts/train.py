@@ -165,7 +165,7 @@ optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=4)
+buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1)
 buffer_test = ReplayBuffer(
     capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
 )
