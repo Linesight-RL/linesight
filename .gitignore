@@ -18,3 +18,4 @@
 *.mp4
 /temp
 /dxcam*
+/old_tensorboard

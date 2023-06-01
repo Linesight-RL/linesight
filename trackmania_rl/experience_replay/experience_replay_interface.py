@@ -1,34 +1,40 @@
+import numpy.typing as npt
+
+
 class Experience:
     __slots__ = (
         "state_img",
         "state_float",
         "action",
-        "reward",
-        "done",
+        "n_steps",
+        "rewards",
         "next_state_img",
         "next_state_float",
-        "gamma_pow_nsteps",
+        "gammas",
+        "minirace_min_time_actions",
     )
 
     def __init__(
         self,
-        state_img,
-        state_float,
-        action,
-        reward,
-        done,
-        next_state_img,
-        next_state_float,
-        gamma_pow_nsteps,
+        state_img: npt.NDArray,
+        state_float: npt.NDArray,
+        action: int,
+        n_steps: int,
+        rewards: npt.NDArray,
+        next_state_img: npt.NDArray,
+        next_state_float: npt.NDArray,
+        gammas: npt.NDArray,
+        minirace_min_time_actions: int,
     ):
         self.state_img = state_img
         self.state_float = state_float
         self.action = action
-        self.reward = reward
-        self.done = done
+        self.n_steps = n_steps
+        self.rewards = rewards
         self.next_state_img = next_state_img
         self.next_state_float = next_state_float
-        self.gamma_pow_nsteps = gamma_pow_nsteps
+        self.gammas = gammas
+        self.minirace_min_time_actions = minirace_min_time_actions
 
     def __repr__(self):
         return f"{self.state_img=}\n{self.state_float=}\n{self.action=}\n{self.reward=}\n{self.done=}\n{self.next_state_img=}\n{self.next_state_float=}\n{self.gamma_pow_nsteps=}\n"

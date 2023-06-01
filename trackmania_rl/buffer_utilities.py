@@ -31,11 +31,12 @@ def buffer_collate_function(batch):
                     "state_img",
                     "state_float",
                     "action",
-                    "reward",
-                    "gamma_pow_nsteps",
-                    "done",
+                    "n_steps",
+                    "rewards",
                     "next_state_img",
                     "next_state_float",
+                    "gammas",
+                    "minirace_min_time_actions",
                 ],
             )
         )

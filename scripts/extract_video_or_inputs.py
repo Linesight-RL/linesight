@@ -12,7 +12,9 @@ out_dir.mkdir(parents=True, exist_ok=True)
 
 for a in run_dir.iterdir():
     time_ms = a.name
-    run_to_video.write_actions_from_disk_in_TMI_format(infile_path=run_dir / time_ms / "actions.joblib", outfile_path=out_dir / f"{time_ms}.inputs")
+    run_to_video.write_actions_from_disk_in_TMI_format(
+        infile_path=run_dir / time_ms / "actions.joblib", outfile_path=out_dir / f"{time_ms}.inputs"
+    )
 
 
 # run_to_video.make_wdiget_video_from_q_values_on_disk(

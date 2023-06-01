@@ -142,6 +142,7 @@ class TMInterfaceManager:
             "car_gear_and_wheels": [],
             "q_values": [],
             "fraction_time_in_previous_zone": [],
+            "meters_advanced_along_centerline": [],
         }
 
         rv["zone_entrance_time_ms"].append(0)  # We start the race in zone zero, and assume we just entered that zone
@@ -193,6 +194,8 @@ class TMInterfaceManager:
         do_not_exit_main_loop_before_time = 0
         do_not_compute_action_before_time = 0
         last_known_simulation_state = None
+
+        prev_zones_cumulative_distance = 0
 
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
@@ -307,6 +310,18 @@ class TMInterfaceManager:
                                     sim_state_position,
                                 )
                             )
+
+                            ###############
+                            next_zone_center = zone_centers[1 + current_zone_idx]
+                            previous_zone_center = (
+                                zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
+                            )  # TODO : handle jitter
+                            # TODO : don't duplicate this code with 3 lines below
+                            pointA = 0.5 * (previous_zone_center + current_zone_center)
+                            pointB = 0.5 * (current_zone_center + next_zone_center)
+                            prev_zones_cumulative_distance += np.linalg.norm(pointB - pointA)
+                            ###############
+
                             current_zone_idx += 1
                             rv["zone_entrance_time_ms"].append(sim_state_race_time)
                             current_zone_center = zone_centers[current_zone_idx]
@@ -317,6 +332,18 @@ class TMInterfaceManager:
                         rv["current_zone_idx"].append(current_zone_idx)
 
                         next_zone_center = zone_centers[1 + current_zone_idx]
+                        previous_zone_center = (
+                            zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
+                        )  # TODO : handle jitter
+                        # TODO : make these calculations less often
+                        pointA = 0.5 * (previous_zone_center + current_zone_center)
+                        pointB = 0.5 * (current_zone_center + next_zone_center)
+
+                        dist_pointB_pointA = np.linalg.norm(pointB - pointA)
+                        meters_in_current_zone = np.clip(
+                            (sim_state_position - pointA).dot(pointB - pointA) / dist_pointB_pointA, 0, dist_pointB_pointA
+                        )
+
                         # ===================================================================================================
 
                         time_between_grab_frame += time.perf_counter_ns() - pc2
@@ -374,7 +401,7 @@ class TMInterfaceManager:
 
                         floats = np.hstack(
                             (
-                                mini_race_duration_ms,
+                                0,
                                 np.array(
                                     [
                                         previous_action["accelerate"],
@@ -388,7 +415,6 @@ class TMInterfaceManager:
                                 state_car_velocity_in_car_reference_system.ravel(),
                                 state_y_map_vector_in_car_reference_system.ravel(),
                                 state_zone_center_coordinates_in_car_reference_system.ravel(),
-                                current_zone_idx - first_zone_idx_in_input,
                             )
                         ).astype(np.float32)
 
@@ -405,10 +431,10 @@ class TMInterfaceManager:
                         time_exploration_policy += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        # action_idx = misc.action_forward_idx if _time < 100000000 else misc.action_backward_idx
+                        # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
                         # action_was_greedy = True
                         # q_value = 0
-                        # q_values = 0
+                        # q_values = np.zeros(len(misc.inputs))
 
                         # import random
                         # action_idx = random.randint(0, 8)
@@ -425,7 +451,7 @@ class TMInterfaceManager:
                             stats_tracker["value_starting_frame"].append(q_value)
                             for i, val in enumerate(np.nditer(q_values)):
                                 stats_tracker[f"q_value_{i}_starting_frame"].append(val)
-
+                        rv["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
                         rv["display_speed"].append(sim_state_display_speed)
                         rv["input_w"].append(misc.inputs[action_idx]["accelerate"])
                         rv["actions"].append(action_idx)
@@ -490,7 +516,7 @@ class TMInterfaceManager:
                     print(f"      --- {simulation_state.race_time:>6} ", end="")
 
                     stats_tracker["race_finished"].append(False)
-                    stats_tracker["race_time"].append(misc.max_overall_duration_ms)
+                    stats_tracker["race_time"].append(misc.cutoff_rollout_if_race_not_finished_within_duration_ms)
                     stats_tracker["race_time_for_ratio"].append(simulation_state.race_time)
                     stats_tracker["n_ors_light_desynchro"].append(n_ors_light_desynchro)
                     stats_tracker["n_two_consecutive_frames_equal"].append(n_two_consecutive_frames_equal)
@@ -631,6 +657,7 @@ class TMInterfaceManager:
                             rv["current_zone_idx"].append(len(zone_centers) - 1 - misc.n_zone_centers_in_inputs)
                             rv["frames"].append(np.nan)
                             rv["zone_entrance_time_ms"].append(simulation_state.race_time)
+
                             rv["display_speed"].append(simulation_state.display_speed)
                             rv["input_w"].append(np.nan)
                             rv["actions"].append(np.nan)
@@ -644,6 +671,24 @@ class TMInterfaceManager:
                                 (simulation_state.race_time - (len(rv["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action)
                                 / misc.ms_per_action
                             )
+
+                            temp_sim_state_position = np.array(
+                                last_known_simulation_state.dyna.current_state.position,
+                                dtype=np.float32,
+                            )  # (3,)
+                            temp_sim_state_velocity = np.array(
+                                last_known_simulation_state.dyna.current_state.linear_speed,
+                                dtype=np.float32,
+                            )
+                            meters_in_current_zone = (
+                                temp_sim_state_position + (1 - rv["fraction_time_in_previous_zone"][-1]) * temp_sim_state_velocity - pointA
+                            ).dot(
+                                pointB - pointA
+                            ) / dist_pointB_pointA  # TODO UGLYYY
+
+                            assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : silly 0.8
+                            rv["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
+
                             assert 0 <= rv["fraction_time_in_previous_zone"][-1] <= 1
 
                 # ============================

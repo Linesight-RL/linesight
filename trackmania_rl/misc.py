@@ -10,72 +10,31 @@ tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 40
-max_overall_duration_ms = 300_000
-max_minirace_duration_ms = 25_000
+cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
+cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
 
-epsilon = 0.02
-epsilon_boltzmann = 0.05
-tau_epsilon_boltzmann = 0.015
-tau_greedy_boltzmann = 0.0005
+temporal_mini_race_duration_ms = 7000
+temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action  # 120
+# If mini_race_time == mini_race_duration this is the end of the minirace
+
+epsilon = 0.03
+epsilon_boltzmann = 0.03
+tau_epsilon_boltzmann = 0.01
+tau_greedy_boltzmann = 0
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
 anneal_step = 1
-n_steps = [
-    1,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-][anneal_step]
+n_steps = 3
+constant_reward_per_ms = -3 / 5000
+reward_per_m_advanced_along_centerline = 5 / 500
 
-gamma = [
-    0.95,
-    0.99,
-    0.99,
-    1,
-    1,
-    1,
-    1,
-][anneal_step]
-reward_per_ms_in_race = [
-    -0.15 / ms_per_action,
-    -0.03 / ms_per_action,
-    -0.03 / ms_per_action,
-    -0.0003,
-    # With previous step, V(first_frame = -1.8). We want to maintain that, knowing that it takes 9 seconds to do the first 400 meters in race, that's 2.8/9000
-    -0.0003,
-][anneal_step]
-
-reward_on_finish = [
-    1,
-    1,
-    1,
-    1,
-    1,
-][anneal_step]
-reward_on_failed_to_finish = [0, -1, -1, -1, -1][anneal_step]
-reward_per_ms_velocity = [
-    0.15 / ms_per_action / 800,
-    0.03 / ms_per_action / 800,
-    0.03 / ms_per_action / 800,
-    0,
-    0,
-][anneal_step]
-reward_per_ms_press_forward = [
-    0.15 / ms_per_action / 4,
-    0.03 / ms_per_action / 8,
-    0,
-    0,
-    0,
-][anneal_step]
+gamma = 1
+reward_per_ms_press_forward = 0 * 1 / 7000
 
 statistics_save_period_seconds = 60 * 10
 
-float_input_dim = 22 + 3 * n_zone_centers_in_inputs
+float_input_dim = 21 + 3 * n_zone_centers_in_inputs
 float_hidden_dim = 256
 conv_head_output_dim = 1152
 dense_hidden_dimension = 1024
@@ -85,18 +44,19 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
-memory_size = 1_200_000
-memory_size_start_learn = 0
-offset_cumul_number_single_memories_used = 0
+memory_size = 80_000
+memory_size_start_learn = 0 * 40_000
+number_times_single_memory_is_used_before_discard = 64  # 32 // 4
+offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
-number_memories_generated_high_exploration = 500_000
-high_exploration_ratio = 5
+number_memories_generated_high_exploration = 100_000
+high_exploration_ratio = 1
 batch_size = 2048
-learning_rate = 5e-5
+learning_rate = 1e-5
 
-number_times_single_memory_is_used_before_discard = 3  # 32 // 4
+
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 100000000000  # disable
 
@@ -104,7 +64,7 @@ soft_update_tau = 0.1  # [1.0, 0.5, 0.2, 0.1][anneal_step]
 
 float_inputs_mean = np.array(
     [
-        2400,
+        temporal_mini_race_duration_actions / 2,
         #######
         0.8,
         0.2,
@@ -299,13 +259,12 @@ float_inputs_mean = np.array(
         # 1.17e01,
         # 1.01e02,
         # ==================== END 16 CP =====================
-        n_zone_centers_in_inputs / 2,
     ]
 )
 
 float_inputs_std = np.array(
     [
-        2000,
+        temporal_mini_race_duration_actions / 2,
         #######
         0.5,
         0.5,
@@ -500,7 +459,6 @@ float_inputs_std = np.array(
         # 1.89e02,
         # 1.57e02,
         # ==================== END   16 CP =====================
-        n_zone_centers_in_inputs / 2,
     ]
 )
 
@@ -591,4 +549,4 @@ zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 good_time_save_all_ms = 128500
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 10 * 60 * 1000  # 10 minutes
+timeout_between_runs_ms = 300_000  # 10 minutes

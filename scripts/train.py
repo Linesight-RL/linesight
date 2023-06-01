@@ -17,7 +17,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "52_fast"
+run_name = "60"
 map_name = "map5"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -195,9 +195,9 @@ except:
 # ========================================================
 # Bring back relevant training history
 # ========================================================
-def last_available(name):
-    if len(step_stats_history) > 0 and name in step_stats_history[-1]:
-        return step_stats_history[-1][name]
+def last_available(stat_name):
+    if len(step_stats_history) > 0 and stat_name in step_stats_history[-1]:
+        return step_stats_history[-1][stat_name]
     else:
         return 0
 
@@ -245,8 +245,8 @@ tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
     running_speed=misc.running_speed,
     run_steps_per_action=misc.tm_engine_step_per_action,
-    max_overall_duration_ms=misc.max_overall_duration_ms,
-    max_minirace_duration_ms=misc.max_minirace_duration_ms,
+    max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
+    max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
     interface_name="TMInterface0",
     zone_centers=zone_centers,
 )
@@ -459,7 +459,7 @@ while True:
             "AL_alpha": trainer.AL_alpha,
             "learning_rate": misc.learning_rate,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
-            "reward_per_ms_velocity": misc.reward_per_ms_velocity,
+            # "reward_per_ms_velocity": misc.reward_per_ms_velocity,
             "reward_per_ms_press_forward": misc.reward_per_ms_press_forward,
             # "reward_bogus_low_speed": misc.reward_bogus_low_speed,
             #
@@ -648,7 +648,6 @@ while True:
                         rollout_results["car_orientation"][0]
                         .T.dot((zone_centers[0 : misc.n_zone_centers_in_inputs, :] - rollout_results["car_position"][0]).T)
                         .T.ravel(),
-                        0,
                     )
                 ).astype(np.float32),
                 axis=0,
