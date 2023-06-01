@@ -65,11 +65,11 @@ def write_actions_in_TMI_format(action_idxs: List[int], outfile_path: Path):
 # ===============================================================
 
 
-def make_wdiget_video_from_q_values_on_disk(q_values_path: Path, video_path: Path):
-    make_widget_video_from_q_values(joblib.load(q_values_path), video_path)
+def make_widget_video_from_q_values_on_disk(q_values_path: Path, video_path: Path, q_value_gap):
+    make_widget_video_from_q_values(joblib.load(q_values_path), video_path, q_value_gap)
 
 
-def make_widget_video_from_q_values(q_values: List, video_path: Path):
+def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_gap):
     with tempfile.TemporaryDirectory() as zou_dir:
         temp_dir = Path(r"C:\Users\chopi\projects\trackmania_rl\temp")
         # Place the keys where they should be
@@ -211,8 +211,6 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path):
                     edgecolor="black",
                 )
 
-        q_value_gap = 0.015
-
         for frame_id in range(min(40000000, len(q_values))):
             print(f"{(1+frame_id) / len(q_values):.1%}", end="\r")
             fig, axes = plt.subplots(nrows=len(q_values[0]) // 3, ncols=3)
@@ -241,7 +239,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path):
                 "yuva420p",
                 "-vcodec",
                 "png",
-                "z.mov",
+                str(video_path),
             ]
         )
         print("Encoding done, script finished.")
