@@ -1,4 +1,5 @@
 import numpy as np
+import psutil
 
 W = 640
 H = 480
@@ -41,8 +42,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
-memory_size = 50_000
-memory_size_start_learn = 5000
+memory_size = int(50_000*(psutil.virtual_memory().total/34264514560))
+memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
