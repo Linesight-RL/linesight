@@ -399,9 +399,8 @@ while True:
     # ===============================================
 
     while (
-        cumul_number_memories_generated >= misc.memory_size_start_learn
-        and cumul_number_single_memories_used + misc.offset_cumul_number_single_memories_used
-        <= cumul_number_single_memories_should_have_been_used
+        number_memories_generated >= misc.memory_size_start_learn
+        and cumul_number_single_memories_used <= cumul_number_single_memories_should_have_been_used
     ):
         if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
             loss = trainer.train_on_batch(buffer_test, do_learn=False)
