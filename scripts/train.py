@@ -427,7 +427,7 @@ while True:
                 print("UPDATE")
                 nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
                 # model2.load_state_dict(model.state_dict())
-    buffer.sync_prefetching() #Finish all prefetching to avoid invalid prefetches during rollouts where the pinned image buffer will be overwritten
+    buffer.sync_prefetching()  # Finish all prefetching to avoid invalid prefetches during rollouts where the pinned image buffer will be overwritten
     print("")
 
     # ===============================================

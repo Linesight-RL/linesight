@@ -328,9 +328,7 @@ class Trainer:
         with torch.cuda.stream(self.execution_stream):
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 with torch.no_grad():
-                    state_img_tensor = img_inputs.unsqueeze(0).to(
-                        "cuda", memory_format=torch.channels_last, non_blocking=True
-                    )
+                    state_img_tensor = img_inputs.unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
                     state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
                     q_values = (
                         self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0]
