@@ -30,10 +30,7 @@ constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward = 0 * 1 / 7000
-
-statistics_save_period_seconds = 60 * 10
-
+reward_per_ms_press_forward = 1 / 7000
 float_input_dim = 21 + 3 * n_zone_centers_in_inputs
 float_hidden_dim = 256
 conv_head_output_dim = 1152
@@ -45,13 +42,13 @@ iqn_kappa = 1
 AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
 
 memory_size = 50_000
-memory_size_start_learn = memory_size
+memory_size_start_learn = 5000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
-number_memories_generated_high_exploration = 100_000
+number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 1
 batch_size = 2048
 learning_rate = 5e-5
@@ -546,7 +543,9 @@ road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
-good_time_save_all_ms = 128500
+good_time_save_all_ms = 127000
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 300_000  # 10 minutes
+timeout_between_runs_ms = 300_000
+
+explo_races_per_eval_race = 5
