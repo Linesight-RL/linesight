@@ -100,6 +100,10 @@ class TMInterfaceManager:
         remove_fps_cap()
         self.zone_centers = zone_centers
         self.msgtype_response_to_wakeup_TMI = None
+        self.pinned_buffer_size = misc.memory_size+100 #We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
+        self.pinned_buffer = torch.empty((self.pinned_buffer_size,1,misc.H,misc.W),dtype=torch.uint8)
+        torch.cuda.cudart().cudaHostRegister(self.pinned_buffer.data_ptr(),self.pinned_buffer_size*misc.H*misc.W,0)
+        self.pinned_buffer_index = 0
 
     def rewind_to_state(self, state):
         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
@@ -367,7 +371,17 @@ class TMInterfaceManager:
                         time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        rv["frames"].append(torch.from_numpy(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)).pin_memory())
+                        frame = torch.from_numpy(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0))
+                        self.pinned_buffer[self.pinned_buffer_index].copy_(frame)
+                        frame = self.pinned_buffer[self.pinned_buffer_index]
+                        self.pinned_buffer_index += 1
+                        if self.pinned_buffer_index>=self.pinned_buffer_size:
+                            self.pinned_buffer_index = 0
+                        #torch.cuda.cudart().cudaHostRegister(frame.data_ptr(),misc.H*misc.W,0)
+                        #frame_pinned = torch.empty((1,misc.H,misc.W),dtype=torch.uint8,pin_memory=True)
+                        #frame_pinned.copy_(frame)
+
+                        rv["frames"].append(frame)
                         # rv["frames"].append(rgb2gray(frame))  # shape = (1, 480, 640)
 
                         time_A_rgb2gray += time.perf_counter_ns() - pc2

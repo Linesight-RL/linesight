@@ -113,5 +113,8 @@ class ReplayBuffer:
             return ret[:2]
         return ret[0]
 
+    def sync_prefetching(self):
+        self.sampling_stream.synchronize()
+
     def mark_update(self, index: Union[int, torch.Tensor]) -> None:
         self._sampler.mark_update(index)
