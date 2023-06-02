@@ -20,8 +20,6 @@ class MainClient(Client):
         print(f"Registered to {iface.server_name}")
 
     def on_run_step(self, iface: TMInterface, _time: int):
-        global cps
-
         state = iface.get_simulation_state()
 
         if _time == 0:

@@ -1,6 +1,5 @@
-import threading
+import warnings
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import torch
@@ -51,16 +50,6 @@ class ReplayBuffer:
     def __repr__(self) -> str:
         return f"{type(self).__name__}(" f"storage={self._storage}, " f"sampler={self._sampler}, " f"writer={self._writer}" ")"
 
-    def __getitem__(self, index: Union[int, torch.Tensor]) -> Any:
-        index = _to_numpy(index)
-        data = self._storage[index]
-
-        if (not isinstance(index, INT_CLASSES)) and (self._collate_fn is not None):
-            data, cuda_batch_event = self._collate_fn(data, self.sampling_stream)
-
-        cuda_batch_event.synchronize()
-        return data
-
     def add(self, data: Any) -> int:
         index = self._writer.add(data)
         self._sampler.add(index)
@@ -81,7 +70,7 @@ class ReplayBuffer:
     ) -> None:
         self._sampler.update_priority(index, priority)
 
-    def _sample(self, batch_size: int) -> Tuple[Any, dict]:
+    def _sample(self, batch_size: int) -> Tuple[Any, dict, Any]:
         index, info = self._sampler.sample(self._storage, batch_size)
         info["index"] = index
         data = self._storage[index]
@@ -126,14 +115,3 @@ class ReplayBuffer:
 
     def mark_update(self, index: Union[int, torch.Tensor]) -> None:
         self._sampler.mark_update(index)
-
-    def __iter__(self):
-        if self._sampler.ran_out:
-            self._sampler.ran_out = False
-        if self._batch_size is None:
-            raise RuntimeError(
-                "Cannot iterate over the replay buffer. " "Batch_size was not specified during construction of the replay buffer."
-            )
-        while not self._sampler.ran_out:
-            data = self.sample()
-            yield data

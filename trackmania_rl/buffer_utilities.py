@@ -39,5 +39,4 @@ def buffer_collate_function(batch, sampling_stream):
             )
         )
     batch_done_event = sampling_stream.record_event()
-    # sampling_stream.synchronize()
     return batch, batch_done_event

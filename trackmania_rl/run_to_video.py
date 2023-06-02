@@ -13,15 +13,15 @@ from . import misc
 # ===============================================================
 #       Load run into TMI
 # ===============================================================
-def write_actions_from_disk_in_TMI_format(infile_path: Path, outfile_path: Path):
+def write_actions_from_disk_in_tmi_format(infile_path: Path, outfile_path: Path):
     """
     Input : path to a file on disk containing a list of action indices.
     Output: write a text file on disk containing the corresponding inputs, readable by TMI to load the replay
     """
-    write_actions_in_TMI_format(joblib.load(infile_path), outfile_path)
+    write_actions_in_tmi_format(joblib.load(infile_path), outfile_path)
 
 
-def write_actions_in_TMI_format(action_idxs: List[int], outfile_path: Path):
+def write_actions_in_tmi_format(action_idxs: List[int], outfile_path: Path):
     """
     Input : list of action indices.
     Output: write a text file on disk containing the corresponding inputs, readable by TMI to load the replay
@@ -75,14 +75,14 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
         # Place the keys where they should be
         key_reorder = [1, 0, 2, 4, 3, 5, 10, 9, 11, 7, 6, 8]
 
-        def plot_q_and_key(ax, q_values, key_number):
+        def plot_q_and_key(ax, q_values_one_frame, key_number_one_frame):
             ax.axis("off")
             ax.set_ylim([-0.05, 2.1])
             ax.set_xlim([-0.55, 2.55])
 
-            alpha = np.clip(1 + (q_values[key_number] - q_values.max()) / q_value_gap, 0, 1)
+            alpha = np.clip(1 + (q_values_one_frame[key_number_one_frame] - q_values_one_frame.max()) / q_value_gap, 0, 1)
 
-            if key_number == 3:
+            if key_number_one_frame == 3:
                 # Brake
                 ax.bar(
                     x=1, height=1, width=1.9, bottom=0, align="center", hatch="////", color=(1, 1, 1, 0.5), linewidth=0.5, edgecolor="black"
@@ -91,11 +91,16 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Brake
                 ax.bar(
                     x=1,
-                    height=alpha * ((key_number == 3) | misc.inputs[key_number]["brake"]),
+                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
                     width=1.9,
                     bottom=0,
                     align="center",
-                    color=(1 * (alpha < 1.0), 1 * (alpha >= 1.0), 0, alpha * ((key_number == 3) | misc.inputs[key_number]["brake"])),
+                    color=(
+                        1 * (alpha < 1.0),
+                        1 * (alpha >= 1.0),
+                        0,
+                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
+                    ),
                     linewidth=0.5,
                     edgecolor="black",
                 )
@@ -118,7 +123,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=0,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number]["left"] else "",
+                    hatch="////" if not misc.inputs[key_number_one_frame]["left"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -131,7 +136,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=0,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number]["brake"] else "",
+                    hatch="////" if not misc.inputs[key_number_one_frame]["brake"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -144,7 +149,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=0,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number]["right"] else "",
+                    hatch="////" if not misc.inputs[key_number_one_frame]["right"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -157,7 +162,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=1.1,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number]["accelerate"] else "",
+                    hatch="////" if not misc.inputs[key_number_one_frame]["accelerate"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -166,11 +171,16 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Left
                 ax.bar(
                     x=0,
-                    height=alpha * ((key_number == 3) | misc.inputs[key_number]["left"]),
+                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["left"]),
                     width=0.9,
                     bottom=0,
                     align="center",
-                    color=(1 * (alpha < 1.0), 1 * (alpha >= 1.0), 0, alpha * ((key_number == 3) | misc.inputs[key_number]["left"])),
+                    color=(
+                        1 * (alpha < 1.0),
+                        1 * (alpha >= 1.0),
+                        0,
+                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["left"]),
+                    ),
                     linewidth=0.5,
                     edgecolor="black",
                 )
@@ -178,11 +188,16 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Brake
                 ax.bar(
                     x=1,
-                    height=alpha * ((key_number == 3) | misc.inputs[key_number]["brake"]),
+                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
                     width=0.9,
                     bottom=0,
                     align="center",
-                    color=(1 * (alpha < 1.0), 1 * (alpha >= 1.0), 0, alpha * ((key_number == 3) | misc.inputs[key_number]["brake"])),
+                    color=(
+                        1 * (alpha < 1.0),
+                        1 * (alpha >= 1.0),
+                        0,
+                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
+                    ),
                     linewidth=0.5,
                     edgecolor="black",
                 )
@@ -190,11 +205,16 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Right
                 ax.bar(
                     x=2,
-                    height=alpha * ((key_number == 3) | misc.inputs[key_number]["right"]),
+                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["right"]),
                     width=0.9,
                     bottom=0,
                     align="center",
-                    color=(1 * (alpha < 1.0), 1 * (alpha >= 1.0), 0, alpha * ((key_number == 3) | misc.inputs[key_number]["right"])),
+                    color=(
+                        1 * (alpha < 1.0),
+                        1 * (alpha >= 1.0),
+                        0,
+                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["right"]),
+                    ),
                     linewidth=0.5,
                     edgecolor="black",
                 )
@@ -202,11 +222,16 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Accelerate
                 ax.bar(
                     x=1,
-                    height=alpha * ((key_number == 3) | misc.inputs[key_number]["accelerate"]),
+                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["accelerate"]),
                     width=0.9,
                     bottom=1.1,
                     align="center",
-                    color=(1 * (alpha < 1.0), 1 * (alpha >= 1.0), 0, alpha * ((key_number == 3) | misc.inputs[key_number]["accelerate"])),
+                    color=(
+                        1 * (alpha < 1.0),
+                        1 * (alpha >= 1.0),
+                        0,
+                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["accelerate"]),
+                    ),
                     linewidth=0.5,
                     edgecolor="black",
                 )

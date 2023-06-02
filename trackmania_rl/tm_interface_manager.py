@@ -43,6 +43,9 @@ def _get_window_position():
     return (left, top, right, bottom), output_idx
 
 
+camera = None
+
+
 def recreate_dxcam():
     global camera
     print("RECREATE")
@@ -373,14 +376,6 @@ class TMInterfaceManager:
                         prev_sim_state_position = sim_state_position
 
                         # ==== Construct features
-                        first_zone_idx_in_input = min(
-                            current_zone_idx,
-                            len(zone_centers) - 2 * misc.n_zone_centers_in_inputs,
-                        )
-                        time_mini_race_start_ms = rv["zone_entrance_time_ms"][first_zone_idx_in_input]
-                        current_overall_time_ms = sim_state_race_time
-                        mini_race_duration_ms = current_overall_time_ms - time_mini_race_start_ms
-
                         state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.T.dot(
                             (
                                 zone_centers[

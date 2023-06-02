@@ -37,4 +37,4 @@ class Experience:
         self.minirace_min_time_actions = minirace_min_time_actions
 
     def __repr__(self):
-        return f"{self.state_img=}\n{self.state_float=}\n{self.action=}\n{self.reward=}\n{self.done=}\n{self.next_state_img=}\n{self.next_state_float=}\n{self.gamma_pow_nsteps=}\n"
+        return f"{self.state_img=}\n{self.state_float=}\n{self.action=}\n{self.n_steps=}\n{self.rewards=}\n{self.next_state_img=}\n{self.next_state_float=}\n{self.gammas=}\n{self.minirace_min_time_actions=}\n"
