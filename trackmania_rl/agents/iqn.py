@@ -78,9 +78,9 @@ class Agent(torch.nn.Module):
         nn_utilities.init_kaiming(self.iqn_fc)
         # A_head and V_head are NoisyLinear, already initialized
 
-    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
-        img_outputs = self.img_head((img.to(torch.float16) - 128) / 128)  # PERF
+        img_outputs = self.img_head((img.to(torch.float32 if use_fp32 else torch.float16) - 128) / 128)  # PERF
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
         # (batch_size, dense_input_dimension) OK
         concat = torch.cat((img_outputs, float_outputs), 1)
@@ -326,18 +326,12 @@ class Trainer:
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.cuda.stream(self.execution_stream):
-            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-                with torch.no_grad():
-                    state_img_tensor = img_inputs.unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
-                    state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
-                    q_values = (
-                        self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None)[0]
-                        .cpu()
-                        .numpy()
-                        .astype(np.float32)
-                        .mean(axis=0)
-                    )
-
+            with torch.no_grad():
+                state_img_tensor = img_inputs.unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
+                state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
+                q_values = (
+                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None, use_fp32=True)[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                )
         r = random.random()
 
         if r < self.epsilon:
