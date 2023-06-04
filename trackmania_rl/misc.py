@@ -54,7 +54,7 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 5e-5
+learning_rate = 5e-4
 
 
 number_memories_trained_on_between_target_network_updates = 10000

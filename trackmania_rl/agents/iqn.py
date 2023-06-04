@@ -78,7 +78,9 @@ class Agent(torch.nn.Module):
         nn_utilities.init_kaiming(self.iqn_fc)
         # A_head and V_head are NoisyLinear, already initialized
 
-    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
         img_outputs = self.img_head((img.to(torch.float32 if use_fp32 else torch.float16) - 128) / 128)  # PERF
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
@@ -318,8 +320,14 @@ class Trainer:
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()
+
+                # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), 1.0)
+
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+
             total_loss = total_loss.detach().cpu()
         self.execution_stream.synchronize()
         return total_loss
@@ -330,7 +338,11 @@ class Trainer:
                 state_img_tensor = img_inputs.unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
                 state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
                 q_values = (
-                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None, use_fp32=True)[0].cpu().numpy().astype(np.float32).mean(axis=0)
+                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None, use_fp32=True)[0]
+                    .cpu()
+                    .numpy()
+                    .astype(np.float32)
+                    .mean(axis=0)
                 )
         r = random.random()
 
