@@ -717,7 +717,7 @@ class TMInterfaceManager:
                 print("REGISTERED ", end="")
                 self.iface.registered = True
                 self.iface.execute_command(f"set countdown_speed {self.running_speed}")
-                self.iface.execute_command(f"set autologin pb4608")
+                self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
                 self.iface._respond_to_call(msgtype)

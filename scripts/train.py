@@ -116,6 +116,7 @@ tensorboard_writer.add_custom_scalars(layout)
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
+torch.set_num_threads(1)
 random_seed = 444
 torch.cuda.manual_seed_all(random_seed)
 torch.manual_seed(random_seed)
