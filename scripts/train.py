@@ -18,7 +18,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "65"
+run_name = "66"
 map_name = "map5"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -38,7 +38,7 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
 
 layout = {
-    "91": {
+    "90": {
         "eval_race_time_finished": [
             "Multiline",
             [
@@ -78,6 +78,24 @@ layout = {
             "Multiline",
             [
                 "layer_.*_L2",
+            ],
+        ],
+        "lr_ratio_L2": [
+            "Multiline",
+            [
+                "lr_ratio_.*_L2",
+            ],
+        ],
+        "exp_avg_L2": [
+            "Multiline",
+            [
+                "exp_avg_.*_L2",
+            ],
+        ],
+        "exp_avg_sq_L2": [
+            "Multiline",
+            [
+                "exp_avg_sq_.*_L2",
             ],
         ],
         "eval_race_time": [
@@ -481,6 +499,33 @@ for loop_number in count(1):
                 global_step=accumulated_stats["cumul_number_frames_played"],
                 walltime=walltime_tb,
             )
+        assert len(optimizer1.param_groups) == 1
+        for p, (name, _) in zip(optimizer1.param_groups[0]['params'], model1.named_parameters()):
+            state = optimizer1.state[p]
+            exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+            mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
+            # print("exp_avg                : ", np.sqrt((exp_avg**2).mean().detach().cpu().item()))
+            # print("exp_avg_sq             : ", np.sqrt((exp_avg_sq ** 2).mean().detach().cpu().item()))
+            # print("modified_learning_rate            : ", f"{np.sqrt((mod_lr ** 2).mean().detach().cpu().item()):.2f}")
+            tensorboard_writer.add_scalar(
+                tag=f"lr_ratio_{name}_L2",
+                scalar_value=np.sqrt((mod_lr ** 2).mean().detach().cpu().item()),
+                global_step=accumulated_stats["cumul_number_frames_played"],
+                walltime=walltime_tb,
+            )
+            tensorboard_writer.add_scalar(
+                tag=f"exp_avg_{name}_L2",
+                scalar_value=np.sqrt((exp_avg**2).mean().detach().cpu().item()),
+                global_step=accumulated_stats["cumul_number_frames_played"],
+                walltime=walltime_tb,
+            )
+            tensorboard_writer.add_scalar(
+                tag=f"exp_avg_sq_{name}_L2",
+                scalar_value=np.sqrt((exp_avg_sq ** 2).mean().detach().cpu().item()),
+                global_step=accumulated_stats["cumul_number_frames_played"],
+                walltime=walltime_tb,
+            )
+
         for k, v in step_stats.items():
             tensorboard_writer.add_scalar(
                 tag=k,
