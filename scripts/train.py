@@ -500,31 +500,34 @@ for loop_number in count(1):
                 walltime=walltime_tb,
             )
         assert len(optimizer1.param_groups) == 1
-        for p, (name, _) in zip(optimizer1.param_groups[0]["params"], model1.named_parameters()):
-            state = optimizer1.state[p]
-            exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
-            mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
-            # print("exp_avg                : ", np.sqrt((exp_avg**2).mean().detach().cpu().item()))
-            # print("exp_avg_sq             : ", np.sqrt((exp_avg_sq ** 2).mean().detach().cpu().item()))
-            # print("modified_learning_rate            : ", f"{np.sqrt((mod_lr ** 2).mean().detach().cpu().item()):.2f}")
-            tensorboard_writer.add_scalar(
-                tag=f"lr_ratio_{name}_L2",
-                scalar_value=np.sqrt((mod_lr**2).mean().detach().cpu().item()),
-                global_step=accumulated_stats["cumul_number_frames_played"],
-                walltime=walltime_tb,
-            )
-            tensorboard_writer.add_scalar(
-                tag=f"exp_avg_{name}_L2",
-                scalar_value=np.sqrt((exp_avg**2).mean().detach().cpu().item()),
-                global_step=accumulated_stats["cumul_number_frames_played"],
-                walltime=walltime_tb,
-            )
-            tensorboard_writer.add_scalar(
-                tag=f"exp_avg_sq_{name}_L2",
-                scalar_value=np.sqrt((exp_avg_sq**2).mean().detach().cpu().item()),
-                global_step=accumulated_stats["cumul_number_frames_played"],
-                walltime=walltime_tb,
-            )
+        try:
+            for p, (name, _) in zip(optimizer1.param_groups[0]["params"], model1.named_parameters()):
+                state = optimizer1.state[p]
+                exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
+                mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
+                # print("exp_avg                : ", np.sqrt((exp_avg**2).mean().detach().cpu().item()))
+                # print("exp_avg_sq             : ", np.sqrt((exp_avg_sq ** 2).mean().detach().cpu().item()))
+                # print("modified_learning_rate            : ", f"{np.sqrt((mod_lr ** 2).mean().detach().cpu().item()):.2f}")
+                tensorboard_writer.add_scalar(
+                    tag=f"lr_ratio_{name}_L2",
+                    scalar_value=np.sqrt((mod_lr**2).mean().detach().cpu().item()),
+                    global_step=accumulated_stats["cumul_number_frames_played"],
+                    walltime=walltime_tb,
+                )
+                tensorboard_writer.add_scalar(
+                    tag=f"exp_avg_{name}_L2",
+                    scalar_value=np.sqrt((exp_avg**2).mean().detach().cpu().item()),
+                    global_step=accumulated_stats["cumul_number_frames_played"],
+                    walltime=walltime_tb,
+                )
+                tensorboard_writer.add_scalar(
+                    tag=f"exp_avg_sq_{name}_L2",
+                    scalar_value=np.sqrt((exp_avg_sq**2).mean().detach().cpu().item()),
+                    global_step=accumulated_stats["cumul_number_frames_played"],
+                    walltime=walltime_tb,
+                )
+        except:
+            pass
 
         for k, v in step_stats.items():
             tensorboard_writer.add_scalar(
