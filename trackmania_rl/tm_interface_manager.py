@@ -55,8 +55,8 @@ def recreate_dxcam():
 
 def create_dxcam():
     global camera
-    print("CREATE")
     region, output_idx = _get_window_position()
+    print(f"CREATE {region=}, {output_idx=}")
     camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
 
 

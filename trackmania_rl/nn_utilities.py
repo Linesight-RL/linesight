@@ -27,3 +27,8 @@ def soft_copy_param(target_link, source_link, tau):
             # Some modules such as BN has scalar value `num_batches_tracked`
             target_dict[k] = source_value
             assert False, "Soft scalar update should not happen"
+
+def custom_weight_decay(target_link, decay_factor):
+    target_dict = target_link.state_dict()
+    for k, target_value in target_dict.items():
+        target_value.mul_(decay_factor)

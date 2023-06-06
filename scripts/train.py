@@ -395,6 +395,8 @@ for loop_number in count(1):
             accumulated_stats["cumul_number_batches_done"] += 1
             print(f"B    {loss=:<8.2e}")
 
+            nn_utilities.custom_weight_decay(model1, 1-misc.weight_decay)
+
             # ===============================================
             #   UPDATE TARGET NETWORK
             # ===============================================
