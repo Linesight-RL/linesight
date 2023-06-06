@@ -28,8 +28,8 @@ def _get_window_position():
     windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
     titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
     rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
-    top = rect[1] + round(((rect[3] - rect[1]) - misc.H) / 2)
-    left = rect[0] + round(((rect[2] - rect[0]) - misc.W) / 2)  # Could there be a 1 pixel error with these roundings?
+    top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
+    left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
     output_idx = 0
     if left >= monitor_width:
         left -= monitor_width
@@ -38,8 +38,8 @@ def _get_window_position():
         Secondary_Width = ctypes.windll.user32.GetSystemMetrics(78) - monitor_width
         left = Secondary_Width + left
         output_idx += 1
-    right = left + misc.W
-    bottom = top + misc.H
+    right = left + misc.W_screen
+    bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
 
 
@@ -103,8 +103,10 @@ class TMInterfaceManager:
         self.pinned_buffer_size = (
             misc.memory_size + 100
         )  # We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
-        self.pinned_buffer = torch.empty((self.pinned_buffer_size, 1, misc.H, misc.W), dtype=torch.uint8)
-        torch.cuda.cudart().cudaHostRegister(self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H * misc.W, 0)
+        self.pinned_buffer = torch.empty((self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8)
+        torch.cuda.cudart().cudaHostRegister(
+            self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H_downsized * misc.W_downsized, 0
+        )
         self.pinned_buffer_index = 0
 
     def rewind_to_state(self, state):
@@ -374,7 +376,16 @@ class TMInterfaceManager:
                         time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        frame = torch.from_numpy(np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0))
+                        frame = torch.from_numpy(
+                            np.expand_dims(
+                                cv2.resize(
+                                    cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
+                                    (misc.W_downsized, misc.H_downsized),
+                                    interpolation=cv2.INTER_AREA,
+                                ),
+                                0,
+                            )
+                        )
                         self.pinned_buffer[self.pinned_buffer_index].copy_(frame)
                         frame = self.pinned_buffer[self.pinned_buffer_index]
                         self.pinned_buffer_index += 1

@@ -12,7 +12,9 @@ def fast_collate(batch, attr_name):
 
 def fast_collate2(batch, attr_name):
     if "img" in attr_name:
-        images = torch.empty((len(batch), 1, misc.H, misc.W), device="cuda", dtype=torch.uint8, memory_format=torch.channels_last)
+        images = torch.empty(
+            (len(batch), 1, misc.H_downsized, misc.W_downsized), device="cuda", dtype=torch.uint8, memory_format=torch.channels_last
+        )
         for i, memory in enumerate(batch):
             images[i].copy_(getattr(memory, attr_name), non_blocking=True)
         return images

@@ -18,7 +18,7 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "67"
+run_name = "68"
 map_name = "map5"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
@@ -395,7 +395,7 @@ for loop_number in count(1):
             accumulated_stats["cumul_number_batches_done"] += 1
             print(f"B    {loss=:<8.2e}")
 
-            nn_utilities.custom_weight_decay(model1, 1-misc.weight_decay)
+            nn_utilities.custom_weight_decay(model1, 1 - misc.weight_decay)
 
             # ===============================================
             #   UPDATE TARGET NETWORK
@@ -577,16 +577,22 @@ for loop_number in count(1):
         # ===============================================
         importlib.reload(misc)
 
+        # ===============================================
+        #   VERY BASIC TRAINING ANNEALING
+        # ===============================================
+
+        if accumulated_stats["cumul_number_batches_done"] > 10000:
+            misc.reward_per_ms_press_forward = 0
+        if accumulated_stats["cumul_number_batches_done"] < 50000:
+            misc.learning_rate *= 5
+
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+
         for param_group in optimizer1.param_groups:
             param_group["lr"] = misc.learning_rate
         trainer.gamma = misc.gamma
         trainer.AL_alpha = misc.AL_alpha
         trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
         trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
-
-        # ===============================================
-        #   VERY BASIC TRAINING ANNEALING
-        # ===============================================
-
-        if accumulated_stats["cumul_training_hours"] > 2:
-            misc.reward_per_ms_press_forward = 0

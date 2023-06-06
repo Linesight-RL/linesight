@@ -12,10 +12,10 @@ time_screen_width_percentage = 0.075
 time_screen_height_percentage = 0.025
 time_screen_height = 0.9725  # 0.975 before
 
-h_min_time = round((time_screen_height - time_screen_height_percentage) * misc.H)  # - 2 before
-h_max_time = round((time_screen_height + time_screen_height_percentage) * misc.H)  # - 2 before
-w_min_time = round((0.5 - time_screen_width_percentage) * misc.W)
-w_max_time = round((0.5 + time_screen_width_percentage) * misc.W)
+h_min_time = round((time_screen_height - time_screen_height_percentage) * misc.H_screen)  # - 2 before
+h_max_time = round((time_screen_height + time_screen_height_percentage) * misc.H_screen)  # - 2 before
+w_min_time = round((0.5 - time_screen_width_percentage) * misc.W_screen)
+w_max_time = round((0.5 + time_screen_width_percentage) * misc.W_screen)
 
 
 class DigitsLibrary:

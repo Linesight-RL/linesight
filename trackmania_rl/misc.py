@@ -3,8 +3,11 @@ import psutil
 
 is_pb_desktop = psutil.virtual_memory().total > 5e10
 
-W = 640
-H = 480
+W_screen = 640
+H_screen = 480
+
+W_downsized = 160
+H_downsized = 120
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
@@ -27,22 +30,21 @@ tau_greedy_boltzmann = 0
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
-anneal_step = 1
 n_steps = 3
 constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward = 1 / 7000
+reward_per_ms_press_forward = 0.5 / 5000
 float_input_dim = 21 + 3 * n_zone_centers_in_inputs
 float_hidden_dim = 256
-conv_head_output_dim = 1152
+conv_head_output_dim = 5632
 dense_hidden_dimension = 1024
 iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = [0, 0, 0, 0, 0.8][anneal_step]
+AL_alpha = 0
 
 memory_size = 50_000 if is_pb_desktop else 50_000
 memory_size_start_learn = 20_000
@@ -61,7 +63,7 @@ weight_decay = 1e-6
 number_memories_trained_on_between_target_network_updates = 10000
 subsample_n_mini_races = 100000000000  # disable
 
-soft_update_tau = 0.1  # [1.0, 0.5, 0.2, 0.1][anneal_step]
+soft_update_tau = 0.1
 
 float_inputs_mean = np.array(
     [
