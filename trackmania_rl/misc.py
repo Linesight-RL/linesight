@@ -46,9 +46,9 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 50_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 20_000
-number_times_single_memory_is_used_before_discard = 64  # 32 // 4
+memory_size = 750_000 if is_pb_desktop else 750_000
+memory_size_start_learn = 300_000
+number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
@@ -56,12 +56,12 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 5e-5
-weight_decay = 1e-6
+learning_rate = 0.2*5e-5
+weight_decay = 0.2*1e-6
 
 
 number_memories_trained_on_between_target_network_updates = 10000
-subsample_n_mini_races = 100000000000  # disable
+subsample_n_mini_races = 100000000000  # disable TODO REMOVE
 
 soft_update_tau = 0.1
 
@@ -549,7 +549,7 @@ road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
-good_time_save_all_ms = 127000
+good_time_save_all_ms = 0
 
 timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 300_000
