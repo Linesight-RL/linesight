@@ -27,5 +27,5 @@ Video: https://www.youtube.com/watch?v=p5pq2UNOEnY
 
 ### Disclaimer
 In this public repository, we changed *some* training hyperparameters in the file `./trackmania_rl/misc.py`compared to our private repository. This *probably* makes training less efficient. This is done such that a minimal understanding of the principles of reinforcement learning is necessary to reproduce our results.
-The actual training hyperparameters will be released when we stop working actively on the project. In the meantime, we will answer questions of interested individuals who want to contact us directly.
+The actual training hyperparameters may be released at a later date. In the meantime, we will answer questions of interested individuals who want to contact us directly.
 The code *should* run as-is, do not hesitate to contact us if it appears that necessary files are missing.
