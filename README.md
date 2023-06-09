@@ -3,6 +3,8 @@ This public repository contains a copy of the reinforcement learning training co
 This code is a Work-in-Progress, constantly evolving. Do not expect this repository to be clean/finalized/easily usable.
 *Updated on June 9th 2023, synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*
 
+This codebase requires the game Trackmania Nations Forever as well as [TMInterface](https://donadigo.com/tminterface/). 
+
 ### Installation
 The code is known to work with Python 3.10.
 - `pip install -r requirements.txt`
