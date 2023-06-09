@@ -12,7 +12,7 @@ The code is known to work with Python 3.10.
 - `pip install . -e`
 
 ### How to start a run
-#### Generate at "virtual checkpoints" file for your map
+#### Generate a "virtual checkpoints" file for your map
 1) Run `python ./scripts/observe_manual_run_to_extract_checkpoints.py`
 2) Play once through the map, staying near the centerline of the road. The script will save a file in `./maps/map.npy` containing the coordinates of "virtual checkpoints" on the map, spaced approximately 10 meters apart.
 
