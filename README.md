@@ -1,5 +1,5 @@
 # Trackmania AI with Reinforcement Learning
-This public repository contains a copy of the reinforcement learning training code we (pb4 and Agade09) are currently developing.
+This public repository contains a copy of the reinforcement learning training code we (pb4 and [Agade](https://github.com/Agade09)) are currently developing.
 This code is a Work-in-Progress, constantly evolving. Do not expect this repository to be clean/finalized/easily usable.
 *Updated on June 9th 2023, synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*
 
