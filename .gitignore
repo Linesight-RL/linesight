@@ -9,7 +9,6 @@
 *.pyd
 /old_runs
 /tensorboard
-/data
 /misc_crap
 /maps
 /trackmania_rl/dxcam
