@@ -288,20 +288,40 @@ class TMInterfaceManager:
                             last_known_simulation_state.dyna.current_state.angular_speed,
                             dtype=np.float32,
                         )  # (3,)
+
+                        gearbox_state = last_known_simulation_state.scene_mobil.gearbox_state
+                        counter_gearbox_state = 0
+                        if gearbox_state != 0 and len(rollout_results["car_gear_and_wheels"]) > 0:
+                            counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
+
+                        simulation_wheels = last_known_simulation_state.simulation_wheels
+
                         sim_state_car_gear_and_wheels = np.array(
                             [
-                                last_known_simulation_state.simulation_wheels[0].real_time_state.is_sliding,
+                                simulation_wheels[0].real_time_state.is_sliding,
                                 # Bool
-                                last_known_simulation_state.simulation_wheels[1].real_time_state.is_sliding,
+                                simulation_wheels[1].real_time_state.is_sliding,
                                 # Bool
-                                last_known_simulation_state.simulation_wheels[2].real_time_state.is_sliding,
+                                simulation_wheels[2].real_time_state.is_sliding,
                                 # Bool
-                                last_known_simulation_state.simulation_wheels[3].real_time_state.is_sliding,
+                                simulation_wheels[3].real_time_state.is_sliding,
                                 # Bool
-                                last_known_simulation_state.scene_mobil.gearbox_state,  # Bool
+                                simulation_wheels[0].real_time_state.has_ground_contact,
+                                # Bool
+                                simulation_wheels[1].real_time_state.has_ground_contact,
+                                # Bool
+                                simulation_wheels[2].real_time_state.has_ground_contact,
+                                # Bool
+                                simulation_wheels[3].real_time_state.has_ground_contact,
+                                # Bool
+                                simulation_wheels[0].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                simulation_wheels[1].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                simulation_wheels[2].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                simulation_wheels[3].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                gearbox_state,  # Bool, except 2 at startup
                                 last_known_simulation_state.scene_mobil.engine.gear,  # 0 -> 5 approx
-                                last_known_simulation_state.scene_mobil.engine.actual_rpm
-                                # 0-10000 aoorox
+                                last_known_simulation_state.scene_mobil.engine.actual_rpm,  # 0-10000 approx
+                                counter_gearbox_state,  # Up to typically 28 when changing gears
                             ],
                             dtype=np.float32,
                         )
@@ -413,7 +433,10 @@ class TMInterfaceManager:
                         state_car_velocity_in_car_reference_system = sim_state_orientation.T.dot(sim_state_velocity)
                         state_car_angular_velocity_in_car_reference_system = sim_state_orientation.T.dot(sim_state_angular_speed)
 
-                        previous_action = misc.inputs[0 if len(rollout_results["actions"]) == 0 else rollout_results["actions"][-1]]
+                        previous_actions = [
+                            misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
+                            for k in range(len(rollout_results["actions"]) - misc.n_prev_actions_in_inputs, len(rollout_results["actions"]))
+                        ]
 
                         time_A_geometry += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
@@ -421,12 +444,17 @@ class TMInterfaceManager:
                         floats = np.hstack(
                             (
                                 0,
-                                np.array(
+                                np.hstack(
                                     [
-                                        previous_action["accelerate"],
-                                        previous_action["brake"],
-                                        previous_action["left"],
-                                        previous_action["right"],
+                                        np.array(
+                                            [
+                                                previous_action["accelerate"],
+                                                previous_action["brake"],
+                                                previous_action["left"],
+                                                previous_action["right"],
+                                            ]
+                                        )
+                                        for previous_action in previous_actions
                                     ]
                                 ),  # NEW
                                 sim_state_car_gear_and_wheels.ravel(),  # NEW

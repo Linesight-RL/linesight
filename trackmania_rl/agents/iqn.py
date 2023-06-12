@@ -338,7 +338,13 @@ class Trainer:
                 state_img_tensor = img_inputs.unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
                 state_float_tensor = torch.as_tensor(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
                 q_values = (
-                    self.model(state_img_tensor, state_float_tensor, self.iqn_k, tau=None, use_fp32=True)[0]
+                    self.model(
+                        state_img_tensor,
+                        state_float_tensor,
+                        self.iqn_k,
+                        tau=torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
+                        use_fp32=True,
+                    )[0]
                     .cpu()
                     .numpy()
                     .astype(np.float32)

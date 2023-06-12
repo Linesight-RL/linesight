@@ -91,7 +91,10 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         state_y_map_vector_in_car_reference_system = car_orientation.T.dot(np.array([0, 1, 0]))
         state_car_velocity_in_car_reference_system = car_orientation.T.dot(car_velocity)
         car_angular_speed = rollout_results["car_angular_speed"][i]
-        previous_action = misc.inputs[misc.action_forward_idx if i == 0 else rollout_results["actions"][i - 1]]
+        previous_actions = [
+            misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
+            for k in range(i - misc.n_prev_actions_in_inputs, i)
+        ]
         state_car_angular_velocity_in_car_reference_system = car_orientation.T.dot(car_angular_speed)
         assert state_zone_center_coordinates_in_car_reference_system.shape == (
             n_zone_centers_in_inputs,
@@ -104,8 +107,13 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         state_float = np.hstack(
             (
                 0,  # Placeholder for mini_race_time_actions
-                np.array(
-                    [previous_action["accelerate"], previous_action["brake"], previous_action["left"], previous_action["right"]]
+                np.hstack(
+                    [
+                        np.array(
+                            [previous_action["accelerate"], previous_action["brake"], previous_action["left"], previous_action["right"]]
+                        )
+                        for previous_action in previous_actions
+                    ]
                 ),  # NEW
                 rollout_results["car_gear_and_wheels"][i].ravel(),  # NEW
                 state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
@@ -134,18 +142,26 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             next_state_car_velocity_in_car_reference_system = next_car_orientation.T.dot(next_car_velocity)
             # FIXME RUN13
             next_car_angular_speed = rollout_results["car_angular_speed"][i + n_steps]
-            next_previous_action = misc.inputs[rollout_results["actions"][i + n_steps - 1]]
+            next_previous_actions = [
+                misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
+                for k in range(i + n_steps - misc.n_prev_actions_in_inputs, i + n_steps)
+            ]
             next_state_car_angular_velocity_in_car_reference_system = next_car_orientation.T.dot(next_car_angular_speed)
             next_state_img = rollout_results["frames"][i + n_steps]
             next_state_float = np.hstack(
                 (
                     0,  # Placeholder for mini_race_time_actions
-                    np.array(
+                    np.hstack(
                         [
-                            next_previous_action["accelerate"],
-                            next_previous_action["brake"],
-                            next_previous_action["left"],
-                            next_previous_action["right"],
+                            np.array(
+                                [
+                                    next_previous_action["accelerate"],
+                                    next_previous_action["brake"],
+                                    next_previous_action["left"],
+                                    next_previous_action["right"],
+                                ]
+                            )
+                            for next_previous_action in next_previous_actions
                         ]
                     ),  # NEW
                     rollout_results["car_gear_and_wheels"][i + n_steps].ravel(),  # NEW

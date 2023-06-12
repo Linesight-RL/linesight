@@ -16,6 +16,7 @@ tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 40
+n_prev_actions_in_inputs = 5
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
 cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
 
@@ -36,7 +37,7 @@ reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
 reward_per_ms_press_forward = 0.5 / 5000
-float_input_dim = 21 + 3 * n_zone_centers_in_inputs
+float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs
 float_hidden_dim = 256
 conv_head_output_dim = 5632
 dense_hidden_dimension = 1024
@@ -56,8 +57,8 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 0.2 * 5e-5
-weight_decay = 0.2 * 1.5e-6
+learning_rate = 1 * 5e-5
+weight_decay = 1 * 1e-6
 
 
 number_memories_trained_on_between_target_network_updates = 10000
@@ -72,14 +73,40 @@ float_inputs_mean = np.array(
         0.8,
         0.2,
         0.3,
-        0.3,  # Previous action
+        0.3,
+        0.8,
+        0.2,
+        0.3,
+        0.3,
+        0.8,
+        0.2,
+        0.3,
+        0.3,
+        0.8,
+        0.2,
+        0.3,
+        0.3,
+        0.8,
+        0.2,
+        0.3,
+        0.3,
+        # Previous action
         0.1,
         0.1,
         0.1,
         0.1,
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.02,
+        0.02,
+        0.02,
+        0.02,
         0.3,
         2.5,
-        7000,  # Car gear and wheels
+        7000,
+        0.1,  # Car gear and wheels
         0,
         0,
         0,  # Angular velocity
@@ -272,14 +299,39 @@ float_inputs_std = np.array(
         0.5,
         0.5,
         0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
         0.5,  # Previous action
         0.5,
         0.5,
         0.5,
         0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.06,
+        0.06,
+        0.06,
+        0.06,
         1,
         2,
-        3000,  # Car gear and wheels
+        3000,
+        10,  # Car gear and wheels
         0.5,
         1,
         0.5,  # Angular velocity

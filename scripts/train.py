@@ -18,8 +18,8 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "70"
-map_name = "ESL-Hockolicious"
+run_name = "73"
+map_name = ["Map5", "ESL-Hockolicious"][0]
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
 # ========================================================
@@ -469,7 +469,7 @@ for loop_number in count(1):
                 np.hstack(
                     (
                         0,
-                        np.array([True, False, False, False]),  # NEW
+                        np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
                         rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
                         rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
                         rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
