@@ -58,7 +58,7 @@ def buffer_collate_function(batch, sampling_stream):
             floats_flipped[:,14] *= -1 #state_car_angular_velocity_in_car_reference_system.z
             floats_flipped[:,15] *= -1 #state_car_velocity_in_car_reference_system.x
             floats_flipped[:,18] *= -1 #state_y_map_vector_in_car_reference_system.x
-            floats_flipped[:,[21+i*3 for i in range(misc.n_zone_centers_in_inputs)]]#state_zone_center_coordinates_in_car_reference_system.x
+            floats_flipped[:,[21+i*3 for i in range(misc.n_zone_centers_in_inputs)]] *= -1#state_zone_center_coordinates_in_car_reference_system.x
             return floats_flipped
         state_float = torch.where(Use_Horizontal_Flip[:,None],Float_Inputs_Horizontal_Symmetry(state_float),state_float)
         next_state_float = torch.where(Use_Horizontal_Flip[:,None],Float_Inputs_Horizontal_Symmetry(next_state_float),next_state_float)
