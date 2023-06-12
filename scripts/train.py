@@ -18,8 +18,8 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "69"
-map_name = "map5"
+run_name = "70"
+map_name = "ESL-Hockolicious"
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
 # ========================================================
@@ -302,6 +302,8 @@ for loop_number in count(1):
         # This is a new alltime_minimum
 
         accumulated_stats["alltime_min_ms"] = end_race_stats["race_time"]
+
+        print("\a")
 
         sub_folder_name = f"{end_race_stats['race_time']}"
         (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)

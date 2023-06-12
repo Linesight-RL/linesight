@@ -47,7 +47,7 @@ iqn_kappa = 1
 AL_alpha = 0
 
 memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 300_000
+memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -56,8 +56,8 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 0.2*5e-5
-weight_decay = 0.2*1e-6
+learning_rate = 0.2 * 5e-5
+weight_decay = 0.2 * 1.5e-6
 
 
 number_memories_trained_on_between_target_network_updates = 10000
@@ -91,7 +91,7 @@ float_inputs_mean = np.array(
         1,
         0,
         # ==================== BEGIN 40 CP =====================
-        -1.30e00,
+        -1.30e00,  # 21
         -1.30e00,
         9.00e-01,
         -0.975,
@@ -291,13 +291,13 @@ float_inputs_std = np.array(
         0.5,
         0.5,
         # ==================== BEGIN 40 CP =====================
+        7.20e00,  # 21
         7.20e00,
-        7.20e00,
-        1.06e01,
+        1.06e01,  # 23 Z
+        11.74,  # 24 X
         11.74,
-        11.74,
-        14.2475,
-        16.28,
+        14.2475,  # 26 Z
+        16.28,  # 27 X
         16.28,
         17.895,
         20.82,
@@ -545,7 +545,7 @@ action_forward_idx = 0  # Accelerate forward, don't turn
 action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 10
-road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don't take risk there are curvy roads
+road_width = 50  ## a little bit of margin, could be closer to 24 probably ? Don't take risk there are curvy roads
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!

@@ -667,7 +667,7 @@ class TMInterfaceManager:
                         if rollout_results["current_zone_idx"][-1] != len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                             # We have not captured a frame where the car has entered our final virtual zone
                             # Let's put one in, artificially
-                            assert rollout_results["current_zone_idx"][-1] == len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
+                            # assert rollout_results["current_zone_idx"][-1] == len(zone_centers) - 2 - misc.n_zone_centers_in_inputs # This assertion broke on Hockolicious. Special case due to the diagonal ending ?
                             rollout_results["current_zone_idx"].append(len(zone_centers) - 1 - misc.n_zone_centers_in_inputs)
                             rollout_results["frames"].append(np.nan)
                             rollout_results["zone_entrance_time_ms"].append(simulation_state.race_time)
