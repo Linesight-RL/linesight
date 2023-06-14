@@ -18,8 +18,8 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "73"
-map_name = ["Map5", "ESL-Hockolicious"][0]
+run_name = "74"
+map_name = ["Map5", "ESL-Hockolicious"][1]
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m.npy"))
 
 # ========================================================

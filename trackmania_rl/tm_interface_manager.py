@@ -13,6 +13,7 @@ from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
 # from . import dxcam   # UNCOMMENT HERE TO USE DXCAM
+from . import contact_materials
 from . import dxshot as dxcam  # UNCOMMENT HERE TO USE DXSHOT
 from . import misc, time_parsing
 from .geometry import fraction_time_spent_in_current_zone
@@ -296,34 +297,62 @@ class TMInterfaceManager:
 
                         simulation_wheels = last_known_simulation_state.simulation_wheels
 
-                        sim_state_car_gear_and_wheels = np.array(
-                            [
-                                simulation_wheels[0].real_time_state.is_sliding,
-                                # Bool
-                                simulation_wheels[1].real_time_state.is_sliding,
-                                # Bool
-                                simulation_wheels[2].real_time_state.is_sliding,
-                                # Bool
-                                simulation_wheels[3].real_time_state.is_sliding,
-                                # Bool
-                                simulation_wheels[0].real_time_state.has_ground_contact,
-                                # Bool
-                                simulation_wheels[1].real_time_state.has_ground_contact,
-                                # Bool
-                                simulation_wheels[2].real_time_state.has_ground_contact,
-                                # Bool
-                                simulation_wheels[3].real_time_state.has_ground_contact,
-                                # Bool
-                                simulation_wheels[0].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                simulation_wheels[1].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                simulation_wheels[2].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                simulation_wheels[3].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                gearbox_state,  # Bool, except 2 at startup
-                                last_known_simulation_state.scene_mobil.engine.gear,  # 0 -> 5 approx
-                                last_known_simulation_state.scene_mobil.engine.actual_rpm,  # 0-10000 approx
-                                counter_gearbox_state,  # Up to typically 28 when changing gears
-                            ],
-                            dtype=np.float32,
+                        sim_state_car_gear_and_wheels = np.hstack(
+                            (
+                                np.array(
+                                    [
+                                        simulation_wheels[0].real_time_state.is_sliding,
+                                        # Bool
+                                        simulation_wheels[1].real_time_state.is_sliding,
+                                        # Bool
+                                        simulation_wheels[2].real_time_state.is_sliding,
+                                        # Bool
+                                        simulation_wheels[3].real_time_state.is_sliding,
+                                        # Bool
+                                        simulation_wheels[0].real_time_state.has_ground_contact,
+                                        # Bool
+                                        simulation_wheels[1].real_time_state.has_ground_contact,
+                                        # Bool
+                                        simulation_wheels[2].real_time_state.has_ground_contact,
+                                        # Bool
+                                        simulation_wheels[3].real_time_state.has_ground_contact,
+                                        # Bool
+                                        simulation_wheels[0].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        simulation_wheels[1].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        simulation_wheels[2].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        simulation_wheels[3].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        gearbox_state,  # Bool, except 2 at startup
+                                        last_known_simulation_state.scene_mobil.engine.gear,  # 0 -> 5 approx
+                                        last_known_simulation_state.scene_mobil.engine.actual_rpm,  # 0-10000 approx
+                                        counter_gearbox_state,  # Up to typically 28 when changing gears
+                                    ],
+                                    dtype=np.float32,
+                                ),
+                                (
+                                    np.arange(misc.n_contact_material_physics_behavior_types)
+                                    == contact_materials.physics_behavior_fromint[
+                                        simulation_wheels[0].real_time_state.contact_material_id & 0xFFFF
+                                    ]
+                                ).astype(np.float32),
+                                (
+                                    np.arange(misc.n_contact_material_physics_behavior_types)
+                                    == contact_materials.physics_behavior_fromint[
+                                        simulation_wheels[1].real_time_state.contact_material_id & 0xFFFF
+                                    ]
+                                ).astype(np.float32),
+                                (
+                                    np.arange(misc.n_contact_material_physics_behavior_types)
+                                    == contact_materials.physics_behavior_fromint[
+                                        simulation_wheels[2].real_time_state.contact_material_id & 0xFFFF
+                                    ]
+                                ).astype(np.float32),
+                                (
+                                    np.arange(misc.n_contact_material_physics_behavior_types)
+                                    == contact_materials.physics_behavior_fromint[
+                                        simulation_wheels[3].real_time_state.contact_material_id & 0xFFFF
+                                    ]
+                                ).astype(np.float32),
+                            )
                         )
                         d1 = np.linalg.norm(next_zone_center - sim_state_position)
                         d2 = np.linalg.norm(current_zone_center - sim_state_position)

@@ -17,6 +17,7 @@ ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 40
 n_prev_actions_in_inputs = 5
+n_contact_material_physics_behavior_types = 4  # See contact_materials.py
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
 cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
 
@@ -37,7 +38,7 @@ reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
 reward_per_ms_press_forward = 0.5 / 5000
-float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs
+float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
 dense_hidden_dimension = 1024
@@ -47,9 +48,9 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 20_000
-number_times_single_memory_is_used_before_discard = 32  # 32 // 4
+memory_size = 50_000 if is_pb_desktop else 750_000
+memory_size_start_learn = 5_000
+number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
@@ -57,8 +58,8 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 1 * 5e-5
-weight_decay = 1 * 1e-6
+learning_rate = 5e-5
+weight_decay = 1e-6
 
 
 number_memories_trained_on_between_target_network_updates = 10000
@@ -107,6 +108,22 @@ float_inputs_mean = np.array(
         2.5,
         7000,
         0.1,  # Car gear and wheels
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,  # Wheel contact material types
         0,
         0,
         0,  # Angular velocity
@@ -332,6 +349,22 @@ float_inputs_std = np.array(
         2,
         3000,
         10,  # Car gear and wheels
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,  # Wheel contact material types
         0.5,
         1,
         0.5,  # Angular velocity

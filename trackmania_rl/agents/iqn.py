@@ -342,7 +342,7 @@ class Trainer:
                         state_img_tensor,
                         state_float_tensor,
                         self.iqn_k,
-                        tau=torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
+                        tau=None,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
                         use_fp32=True,
                     )[0]
                     .cpu()
