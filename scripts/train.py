@@ -1,5 +1,6 @@
 import importlib
 import random
+import shutil
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -18,8 +19,8 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "78"
-map_name = ["Map5", "ESL-Hockolicious"][0]
+run_name = "80"
+map_name = ["Map5", "ESL-Hockolicious"][1]
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m_cl.npy"))
 
 # ========================================================
@@ -152,7 +153,7 @@ model2 = torch.jit.script(
 ).to("cuda", memory_format=torch.channels_last)
 print(model1)
 
-optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)
+optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=1e-4)  # TODO essayer un autre epsilon
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
@@ -223,8 +224,6 @@ tmi = tm_interface_manager.TMInterfaceManager(
     zone_centers=zone_centers,
 )
 
-accumulated_stats["cumul_number_memories_generated"] = 100000000
-
 for loop_number in count(1):
     is_explo = (loop_number % misc.explo_races_per_eval_race) > 0
 
@@ -238,9 +237,9 @@ for loop_number in count(1):
         #   VERY BASIC TRAINING ANNEALING
         # ===============================================
 
-        if accumulated_stats["cumul_number_batches_done"] > 10000:
+        if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
             misc.reward_per_ms_press_forward = 0
-        if accumulated_stats["cumul_number_batches_done"] < 50000:
+        if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] < 50000:
             misc.learning_rate *= 5
 
         # ===============================================
@@ -355,6 +354,8 @@ for loop_number in count(1):
             optimizer1.state_dict(),
             save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
         )
+        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py")
+
     if end_race_stats["race_time"] < misc.good_time_save_all_ms:
         sub_folder_name = f"{end_race_stats['race_time']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
         (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
@@ -378,7 +379,7 @@ for loop_number in count(1):
             optimizer1.state_dict(),
             save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
         )
-
+        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "good_runs" / sub_folder_name / "misc.py")
     # ===============================================
     #   FILL BUFFER WITH (S, A, R, S') transitions
     # ===============================================

@@ -22,7 +22,7 @@ cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
 cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
 
 temporal_mini_race_duration_ms = 7000
-temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action  # 120
+temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
 epsilon = 0.03
@@ -49,13 +49,66 @@ iqn_kappa = 1
 AL_alpha = 0
 
 memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 50_000
+memory_size_start_learn = 5_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
 number_memories_generated_high_exploration_early_training = 100_000
+apply_horizontal_flip_augmentation = True
+flip_indices_floats_before_swap = [
+    3,
+    4,  # previous action left/right
+    7,
+    8,  # previous**2 action left/right
+    11,
+    12,  # previous**3 action left/right
+    15,
+    16,  # previous**4 action left/right
+    19,
+    20,  # previous**5 action left/right
+    21,
+    22,  # front wheels sliding
+    23,
+    24,  # back wheels sliding
+    25,
+    26,  # front wheels has_ground_contact
+    27,
+    28,  # back wheels has_ground_contact
+    29,
+    30,  # front wheels damper_absorb
+    31,
+    32,  # back wheels damper_absorb
+    37,
+    41,  # front wheels physics behavior 0
+    38,
+    42,  # front wheels physics behavior 1
+    39,
+    43,  # front wheels physics behavior 2
+    40,
+    44,  # front wheels physics behavior 3
+    45,
+    49,  # back wheels physics behavior 0
+    46,
+    50,  # back wheels physics behavior 1
+    47,
+    51,  # back wheels physics behavior 2
+    48,
+    52,  # back wheels physics behavior 3
+]
+
+flip_indices_floats_after_swap = [
+    flip_indices_floats_before_swap[2 * (i // 2) + ((i + 1) % 2)] for i in range(len(flip_indices_floats_before_swap))
+]  # swap pairwise consecutive : [1,2,3,4,5,6] becomes [2,1,4,3,6,5]
+
+indices_floats_sign_inversion = [
+    54,  # state_car_angular_velocity_in_car_reference_system.y
+    55,  # state_car_angular_velocity_in_car_reference_system.z
+    56,  # state_car_velocity_in_car_reference_system.x
+    59,  # state_y_map_vector_in_car_reference_system.x
+] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
+
 high_exploration_ratio = 3
 batch_size = 2048
 f = 1
@@ -134,7 +187,7 @@ float_inputs_mean = np.array(
         1,
         0,
         # ==================== BEGIN 40 CP =====================
-        -1.30e00,  # 21
+        -1.30e00,
         -1.30e00,
         9.00e-01,
         -0.975,
@@ -375,13 +428,13 @@ float_inputs_std = np.array(
         0.5,
         0.5,
         # ==================== BEGIN 40 CP =====================
-        7.20e00,  # 21
         7.20e00,
-        1.06e01,  # 23 Z
-        11.74,  # 24 X
+        7.20e00,
+        1.06e01,
         11.74,
-        14.2475,  # 26 Z
-        16.28,  # 27 X
+        11.74,
+        14.2475,
+        16.28,
         16.28,
         17.895,
         20.82,
@@ -639,3 +692,4 @@ timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 300_000
 
 explo_races_per_eval_race = 5
+anneal_as_if_training_from_scratch = False
