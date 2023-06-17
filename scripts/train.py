@@ -18,8 +18,8 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "77"
-map_name = ["Map5", "ESL-Hockolicious"][1]
+run_name = "78"
+map_name = ["Map5", "ESL-Hockolicious"][0]
 zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m_cl.npy"))
 
 # ========================================================
@@ -223,13 +223,36 @@ tmi = tm_interface_manager.TMInterfaceManager(
     zone_centers=zone_centers,
 )
 
-for loop_number in count(1):
-    # ===============================================
-    #   PLAY ONE ROUND
-    # ===============================================
-    rollout_start_time = time.time()
+accumulated_stats["cumul_number_memories_generated"] = 100000000
 
+for loop_number in count(1):
     is_explo = (loop_number % misc.explo_races_per_eval_race) > 0
+
+    if not is_explo:
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+        importlib.reload(misc)
+
+        # ===============================================
+        #   VERY BASIC TRAINING ANNEALING
+        # ===============================================
+
+        if accumulated_stats["cumul_number_batches_done"] > 10000:
+            misc.reward_per_ms_press_forward = 0
+        if accumulated_stats["cumul_number_batches_done"] < 50000:
+            misc.learning_rate *= 5
+
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+
+        for param_group in optimizer1.param_groups:
+            param_group["lr"] = misc.learning_rate
+        trainer.gamma = misc.gamma
+        trainer.AL_alpha = misc.AL_alpha
+        trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+        trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
     if is_explo:
         trainer.epsilon = (
@@ -247,6 +270,11 @@ for loop_number in count(1):
         trainer.epsilon_boltzmann = 0
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
+    # ===============================================
+    #   PLAY ONE ROUND
+    # ===============================================
+
+    rollout_start_time = time.time()
     rollout_results, end_race_stats = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         is_eval=not is_explo,
@@ -573,28 +601,3 @@ for loop_number in count(1):
         torch.save(model2.state_dict(), save_dir / "weights2.torch")
         torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
         joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")
-
-        # ===============================================
-        #   RELOAD
-        # ===============================================
-        importlib.reload(misc)
-
-        # ===============================================
-        #   VERY BASIC TRAINING ANNEALING
-        # ===============================================
-
-        if accumulated_stats["cumul_number_batches_done"] > 10000:
-            misc.reward_per_ms_press_forward = 0
-        if accumulated_stats["cumul_number_batches_done"] < 50000:
-            misc.learning_rate *= 5
-
-        # ===============================================
-        #   RELOAD
-        # ===============================================
-
-        for param_group in optimizer1.param_groups:
-            param_group["lr"] = misc.learning_rate
-        trainer.gamma = misc.gamma
-        trainer.AL_alpha = misc.AL_alpha
-        trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-        trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
