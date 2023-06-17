@@ -762,7 +762,7 @@ class TMInterfaceManager:
                                 pointB - pointA
                             ) / dist_pointB_pointA  # TODO UGLYYY
 
-                            assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : silly 0.8
+                            # assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : this assertion has been false once on hockolicious
                             rollout_results["meters_advanced_along_centerline"].append(
                                 prev_zones_cumulative_distance + meters_in_current_zone
                             )

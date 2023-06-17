@@ -37,7 +37,7 @@ constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward = 0.5 / 5000
+reward_per_ms_press_forward = 0 * 0.5 / 5000
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -48,8 +48,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 50_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 5_000
+memory_size = 750_000 if is_pb_desktop else 750_000
+memory_size_start_learn = 250_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -58,14 +58,15 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 high_exploration_ratio = 3
 batch_size = 2048
-learning_rate = 5e-5
-weight_decay = 1e-6
+f = 0.3
+learning_rate = f * 5e-5
+weight_decay = f * 5e-6
 
 
-number_memories_trained_on_between_target_network_updates = 10000
+number_memories_trained_on_between_target_network_updates = 50_000
 subsample_n_mini_races = 100000000000  # disable TODO REMOVE
 
-soft_update_tau = 0.1
+soft_update_tau = 0.025
 
 float_inputs_mean = np.array(
     [
