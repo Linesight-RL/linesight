@@ -49,14 +49,15 @@ iqn_kappa = 1
 AL_alpha = 0
 
 memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 5_000
+memory_size_start_learn = 40_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
 number_memories_generated_high_exploration_early_training = 100_000
-apply_horizontal_flip_augmentation = True
+apply_horizontal_flip_augmentation = False
+flip_augmentation_ratio = 0.5
 flip_indices_floats_before_swap = [
     3,
     4,  # previous action left/right

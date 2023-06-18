@@ -42,7 +42,7 @@ def buffer_collate_function(batch, sampling_stream):
         )
         if misc.apply_horizontal_flip_augmentation:
             # Apply Horizontal Flipping
-            use_horizontal_flip = torch.rand(len(state_img), device="cuda") < 0.5
+            use_horizontal_flip = torch.rand(len(state_img), device="cuda") < misc.flip_augmentation_ratio
             state_img = torch.where(use_horizontal_flip[:, None, None, None], torch.flip(state_img, dims=(-1,)), state_img)  # state_img
             next_state_img = torch.where(
                 use_horizontal_flip[:, None, None, None], torch.flip(next_state_img, dims=(-1,)), next_state_img

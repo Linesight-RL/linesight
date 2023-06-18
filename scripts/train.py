@@ -354,7 +354,7 @@ for loop_number in count(1):
             optimizer1.state_dict(),
             save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
         )
-        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py")
+        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
     if end_race_stats["race_time"] < misc.good_time_save_all_ms:
         sub_folder_name = f"{end_race_stats['race_time']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
