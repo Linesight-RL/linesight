@@ -4,6 +4,7 @@ import time
 
 import cv2
 import numpy as np
+import numpy.typing as npt
 import psutil
 import torch
 
@@ -83,7 +84,6 @@ class TMInterfaceManager:
         max_overall_duration_ms=2000,
         max_minirace_duration_ms=2000,
         interface_name="TMInterface0",
-        zone_centers=None,
     ):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
@@ -99,7 +99,6 @@ class TMInterfaceManager:
         # self.trackmania_window = win32gui.FindWindow("TmForever", None)
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
-        self.zone_centers = zone_centers
         self.msgtype_response_to_wakeup_TMI = None
         self.pinned_buffer_size = (
             misc.memory_size + 100
@@ -109,6 +108,7 @@ class TMInterfaceManager:
             self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H_downsized * misc.W_downsized, 0
         )
         self.pinned_buffer_index = 0
+        self.latest_map_path_requested = None
 
     def rewind_to_state(self, state):
         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
@@ -116,14 +116,16 @@ class TMInterfaceManager:
         self.iface._send_message(msg)
         self.iface._wait_for_server_response()
 
-    def rollout(self, exploration_policy, is_eval):
+    def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         end_race_stats = {}
-        zone_centers_delta = (np.random.rand(*self.zone_centers.shape) - 0.5) * misc.zone_centers_jitter
-        zone_centers_delta[:, 1] *= 0.1  # Don't change the elevation
-        zone_centers_delta[-(3 + misc.n_zone_centers_in_inputs) :, :] = 0  # Don't change the final zones
-        if is_eval:  # TODO : zero jitter during eval round
-            zone_centers_delta *= 0
-        zone_centers = self.zone_centers + zone_centers_delta
+
+        # The 6 lines below are in the completely wrong place -_-
+        # zone_centers_delta = (np.random.rand(*map_zone_centers.shape) - 0.5) * misc.zone_centers_jitter
+        # zone_centers_delta[:, 1] *= 0.1  # Don't change the elevation
+        # zone_centers_delta[-(3 + misc.n_zone_centers_in_inputs) :, :] = 0  # Don't change the final zones
+        # if is_eval:  # TODO : zero jitter during eval round
+        #     zone_centers_delta *= 0
+        # zone_centers = map_zone_centers + zone_centers_delta
 
         time_to_answer_normal_step = 0
         time_to_answer_action_step = 0
@@ -574,6 +576,11 @@ class TMInterfaceManager:
                     self.timeout_has_been_set = True
 
                 if not give_up_signal_has_been_sent:
+                    if map_path != self.latest_map_path_requested:
+                        self.iface.execute_command(f"map {map_path}")
+                        # self.iface.execute_command("press delete")
+                        self.latest_map_path_requested = map_path
+
                     self.iface.give_up()
                     give_up_signal_has_been_sent = True
 

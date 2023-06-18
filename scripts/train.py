@@ -2,9 +2,10 @@ import importlib
 import random
 import shutil
 import time
+import typing
 from collections import defaultdict
 from datetime import datetime
-from itertools import count
+from itertools import count, cycle
 from pathlib import Path
 
 import joblib
@@ -16,30 +17,18 @@ import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
+from trackmania_rl.map_loader import load_next_map
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "80"
-map_name = ["Map5", "ESL-Hockolicious"][1]
-zone_centers = np.load(str(base_dir / "maps" / f"{map_name}_{misc.distance_between_checkpoints}m_cl.npy"))
-
-# ========================================================
-# ARTIFICIALLY ADD MORE ZONE CENTERS AFTER THE FINISH LINE
-# ========================================================
-for i in range(misc.n_zone_centers_in_inputs):
-    zone_centers = np.vstack(
-        (
-            zone_centers,
-            (2 * zone_centers[-1] - zone_centers[-2])[None, :],
-        )
-    )
+run_name = "83"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
 
 layout = {
-    "90": {
+    "89": {
         "eval_race_time_finished": [
             "Multiline",
             [
@@ -102,13 +91,13 @@ layout = {
         "eval_race_time": [
             "Multiline",
             [
-                "eval_race_time$",
+                "eval_race_time_[^_]*",
             ],
         ],
         "explo_race_time": [
             "Multiline",
             [
-                "explo_race_time$",
+                "explo_race_time_[^_]*",
             ],
         ],
     },
@@ -161,7 +150,9 @@ buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, col
 buffer_test = ReplayBuffer(
     capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
 )
-accumulated_stats = defaultdict(int)
+accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
+accumulated_stats["alltime_min_ms"] = {}
+
 # ========================================================
 # Load existing stuff
 # ========================================================
@@ -181,8 +172,6 @@ try:
 except:
     print(" Could not load stats")
 
-if accumulated_stats["alltime_min_ms"] == 0:
-    accumulated_stats["alltime_min_ms"] = 99999999999
 accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
 
 loss_history = []
@@ -221,8 +210,11 @@ tmi = tm_interface_manager.TMInterfaceManager(
     max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
     max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
     interface_name="TMInterface0",
-    zone_centers=zone_centers,
 )
+
+map_cycle_iter = cycle(misc.map_cycle)
+saved_misc_map_cycle = misc.map_cycle.copy()
+map_name, map_path, zone_centers = load_next_map(map_cycle_iter, base_dir)
 
 for loop_number in count(1):
     is_explo = (loop_number % misc.explo_races_per_eval_race) > 0
@@ -270,13 +262,26 @@ for loop_number in count(1):
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
     # ===============================================
+    #   CHANGE MAP ?
+    # ===============================================
+
+    if (loop_number % misc.map_cycle_frequency) == 0:
+        if misc.map_cycle != saved_misc_map_cycle:
+            print("CHANGE MAP CYCLE")
+            map_cycle_iter = cycle(misc.map_cycle)
+            saved_misc_map_cycle = misc.map_cycle.copy()
+
+        map_name, map_path, zone_centers = load_next_map(map_cycle_iter, base_dir)
+
+    # ===============================================
     #   PLAY ONE ROUND
     # ===============================================
 
     rollout_start_time = time.time()
     rollout_results, end_race_stats = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
-        is_eval=not is_explo,
+        map_path=map_path,
+        zone_centers=zone_centers,
     )
 
     accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
@@ -285,13 +290,13 @@ for loop_number in count(1):
     #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
     # ===============================================
     race_stats_to_write = {
-        "race_time_ratio": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
-        "explo_race_time" if is_explo else "eval_race_time": end_race_stats["race_time"] / 1000,
-        "explo_race_finished" if is_explo else "eval_race_finished": end_race_stats["race_finished"],
-        "mean_action_gap": -(
+        f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
+        f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
+        f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
+        f"mean_action_gap_{map_name}": -(
             np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
         ).mean(),
-        "single_zone_reached": len(rollout_results["zone_entrance_time_ms"]) - 1,
+        f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
         "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
         "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
         "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],
@@ -308,9 +313,9 @@ for loop_number in count(1):
     print("Race time ratio  ", race_stats_to_write["race_time_ratio"])
 
     if end_race_stats["race_finished"]:
-        race_stats_to_write["explo_race_time_finished" if is_explo else "eval_race_time_finished"] = end_race_stats["race_time"] / 1000
+        race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
     for i in range(len(misc.inputs)):
-        race_stats_to_write[f"q_value_{i}_starting_frame"] = end_race_stats[f"q_value_{i}_starting_frame"]
+        race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
 
     walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
     for tag, value in race_stats_to_write.items():
@@ -325,14 +330,12 @@ for loop_number in count(1):
     #   SAVE STUFF IF THIS WAS A GOOD RACE
     # ===============================================
 
-    if end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"]:
+    if end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999):
         # This is a new alltime_minimum
-
-        accumulated_stats["alltime_min_ms"] = end_race_stats["race_time"]
-
+        accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
         print("\a")
 
-        sub_folder_name = f"{end_race_stats['race_time']}"
+        sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
         (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
         joblib.dump(
             rollout_results["actions"],
@@ -356,30 +359,30 @@ for loop_number in count(1):
         )
         shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
-    if end_race_stats["race_time"] < misc.good_time_save_all_ms:
-        sub_folder_name = f"{end_race_stats['race_time']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-        joblib.dump(
-            rollout_results["actions"],
-            save_dir / "good_runs" / sub_folder_name / f"actions.joblib",
-        )
-        joblib.dump(
-            rollout_results["q_values"],
-            save_dir / "good_runs" / sub_folder_name / f"q_values.joblib",
-        )
-        torch.save(
-            model1.state_dict(),
-            save_dir / "good_runs" / sub_folder_name / "weights1.torch",
-        )
-        torch.save(
-            model2.state_dict(),
-            save_dir / "good_runs" / sub_folder_name / "weights2.torch",
-        )
-        torch.save(
-            optimizer1.state_dict(),
-            save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
-        )
-        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "good_runs" / sub_folder_name / "misc.py")
+    # if end_race_stats["race_time"] < misc.good_time_save_all_ms:
+    #     sub_folder_name = f"{end_race_stats['race_time']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    #     (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
+    #     joblib.dump(
+    #         rollout_results["actions"],
+    #         save_dir / "good_runs" / sub_folder_name / f"actions.joblib",
+    #     )
+    #     joblib.dump(
+    #         rollout_results["q_values"],
+    #         save_dir / "good_runs" / sub_folder_name / f"q_values.joblib",
+    #     )
+    #     torch.save(
+    #         model1.state_dict(),
+    #         save_dir / "good_runs" / sub_folder_name / "weights1.torch",
+    #     )
+    #     torch.save(
+    #         model2.state_dict(),
+    #         save_dir / "good_runs" / sub_folder_name / "weights2.torch",
+    #     )
+    #     torch.save(
+    #         optimizer1.state_dict(),
+    #         save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
+    #     )
+    #     shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "good_runs" / sub_folder_name / "misc.py")
     # ===============================================
     #   FILL BUFFER WITH (S, A, R, S') transitions
     # ===============================================
@@ -477,7 +480,10 @@ for loop_number in count(1):
             )
 
         for key, value in accumulated_stats.items():
-            step_stats[key] = value
+            if key != "alltime_min_ms":
+                step_stats[key] = value
+        for key, value in accumulated_stats["alltime_min_ms"].items():
+            step_stats[f"alltime_min_ms_{map_name}"] = value
 
         loss_history = []
         loss_test_history = []
@@ -570,9 +576,11 @@ for loop_number in count(1):
                 global_step=accumulated_stats["cumul_number_frames_played"],
                 walltime=walltime_tb,
             )
+
         tensorboard_writer.add_text(
             "times_summary",
-            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')}: {accumulated_stats['alltime_min_ms'] / 1000:.2f}",
+            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} "
+            + " ".join([f"{k}: {v / 1000:.2f}" for k, v in accumulated_stats["alltime_min_ms"].items()]),
             global_step=accumulated_stats["cumul_number_frames_played"],
             walltime=walltime_tb,
         )

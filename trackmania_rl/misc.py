@@ -37,7 +37,7 @@ constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward = 0 * 0.5 / 5000
+reward_per_ms_press_forward = 0.5 / 5000
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -48,8 +48,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 40_000
+memory_size = 75_000 if is_pb_desktop else 750_000
+memory_size_start_learn = 1_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -118,7 +118,7 @@ weight_decay = f * 1e-6
 
 
 number_memories_trained_on_between_target_network_updates = 50_000
-soft_update_tau = 0.025
+soft_update_tau = 0.05
 
 float_inputs_mean = np.array(
     [
@@ -683,7 +683,7 @@ action_forward_idx = 0  # Accelerate forward, don't turn
 action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 10
-road_width = 50  ## a little bit of margin, could be closer to 24 probably ? Don't take risk there are curvy roads
+road_width = 50  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
@@ -693,4 +693,10 @@ timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 300_000
 
 explo_races_per_eval_race = 5
-anneal_as_if_training_from_scratch = False
+anneal_as_if_training_from_scratch = True
+
+map_cycle = [
+    ("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy"),
+    ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
+]
+map_cycle_frequency = 10
