@@ -698,5 +698,6 @@ anneal_as_if_training_from_scratch = True
 map_cycle = [
     ("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy"),
     ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
+    ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
 ]
 map_cycle_frequency = 10

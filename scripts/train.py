@@ -21,7 +21,7 @@ from trackmania_rl.map_loader import load_next_map
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "83"
+run_name = "84"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -310,7 +310,7 @@ for loop_number in count(1):
         "time_to_iface_set_set": end_race_stats["time_to_iface_set_set"],
         "time_after_iface_set_set": end_race_stats["time_after_iface_set_set"],
     }
-    print("Race time ratio  ", race_stats_to_write["race_time_ratio"])
+    print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 
     if end_race_stats["race_finished"]:
         race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
