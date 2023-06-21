@@ -21,7 +21,7 @@ from trackmania_rl.map_loader import load_next_map
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "84"
+run_name = "85"
 
 save_dir = base_dir / "save" / run_name
 save_dir.mkdir(parents=True, exist_ok=True)

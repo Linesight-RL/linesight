@@ -580,72 +580,76 @@ class TMInterfaceManager:
                         self.iface.execute_command(f"map {map_path}")
                         # self.iface.execute_command("press delete")
                         self.latest_map_path_requested = map_path
-
-                    self.iface.give_up()
+                    else:
+                        self.iface.give_up()
                     give_up_signal_has_been_sent = True
+                else:
+                    if (
+                        (
+                            _time > self.max_overall_duration_ms
+                            or _time
+                            > rollout_results["zone_entrance_time_ms"][max(0, current_zone_idx + 2 - misc.n_zone_centers_in_inputs)]
+                            + self.max_minirace_duration_ms
+                        )
+                        and this_rollout_has_seen_t_negative
+                        and not this_rollout_is_finished
+                    ):
+                        # FAILED TO FINISH IN TIME
+                        simulation_state = self.iface.get_simulation_state()
+                        print(f"      --- {simulation_state.race_time:>6} ", end="")
 
-                if (
-                    (
-                        _time > self.max_overall_duration_ms
-                        or _time
-                        > rollout_results["zone_entrance_time_ms"][max(0, current_zone_idx + 2 - misc.n_zone_centers_in_inputs)]
-                        + self.max_minirace_duration_ms
-                    )
-                    and this_rollout_has_seen_t_negative
-                    and not this_rollout_is_finished
-                ):
-                    # FAILED TO FINISH IN TIME
-                    simulation_state = self.iface.get_simulation_state()
-                    print(f"      --- {simulation_state.race_time:>6} ", end="")
+                        end_race_stats["race_finished"] = False
+                        end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
+                        end_race_stats["race_time_for_ratio"] = simulation_state.race_time
+                        end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
+                        end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
+                        end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
+                        end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
+                        end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
+                        end_race_stats["time_between_normal_on_run_steps"] = (
+                            time_between_normal_on_run_steps / simulation_state.race_time * 50
+                        )
+                        end_race_stats["time_between_action_on_run_steps"] = (
+                            time_between_action_on_run_steps / simulation_state.race_time * 50
+                        )
+                        end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
+                        end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
+                        end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
+                        end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
+                        end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
+                        end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
+                        end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
+                        end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
 
-                    end_race_stats["race_finished"] = False
-                    end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
-                    end_race_stats["race_time_for_ratio"] = simulation_state.race_time
-                    end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
-                    end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
-                    end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
-                    end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
-                    end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
-                    end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / simulation_state.race_time * 50
-                    end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / simulation_state.race_time * 50
-                    end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
-                    end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
-                    end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
-                    end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
-                    end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
-                    end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
-                    end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
-                    end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+                        this_rollout_is_finished = True  # FAILED TO FINISH IN TIME
+                        self.msgtype_response_to_wakeup_TMI = msgtype
 
-                    this_rollout_is_finished = True  # FAILED TO FINISH IN TIME
-                    self.msgtype_response_to_wakeup_TMI = msgtype
+                        self.iface.set_timeout(misc.timeout_between_runs_ms)
 
-                    self.iface.set_timeout(misc.timeout_between_runs_ms)
+                        self.rewind_to_state(simulation_state)
+                        # self.iface.set_speed(0)
+                        # self.latest_tm_engine_speed_requested = 0
+                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
 
-                    self.rewind_to_state(simulation_state)
-                    # self.iface.set_speed(0)
-                    # self.latest_tm_engine_speed_requested = 0
-                    do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                    if not this_rollout_is_finished:
+                        this_rollout_has_seen_t_negative |= _time < 0
 
-                if not this_rollout_is_finished:
-                    this_rollout_has_seen_t_negative |= _time < 0
+                        if _time == -1000:
+                            # Press forward before the race starts
+                            self.iface.set_timeout(misc.timeout_during_run_ms)
+                            self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
+                        elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
+                            last_known_simulation_state = self.iface.get_simulation_state()
+                            self.rewind_to_state(last_known_simulation_state)
+                            self.iface.set_speed(0)
+                            self.latest_tm_engine_speed_requested = 0
+                            compute_action_asap = True
+                            do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
 
-                    if _time == -1000:
-                        # Press forward before the race starts
-                        self.iface.set_timeout(misc.timeout_during_run_ms)
-                        self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
-                    elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
-                        last_known_simulation_state = self.iface.get_simulation_state()
-                        self.rewind_to_state(last_known_simulation_state)
-                        self.iface.set_speed(0)
-                        self.latest_tm_engine_speed_requested = 0
-                        compute_action_asap = True
-                        do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
-
-                    elif (
-                        _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0
-                    ):  # TODO for next run : switch to elif instead of if
-                        n_ors_light_desynchro += 1
+                        elif (
+                            _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0
+                        ):  # TODO for next run : switch to elif instead of if
+                            n_ors_light_desynchro += 1
                 # ============================
                 # END ON RUN STEP
                 # ============================

@@ -48,7 +48,7 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 75_000 if is_pb_desktop else 750_000
+memory_size = 750_000 if is_pb_desktop else 750_000
 memory_size_start_learn = 1_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
@@ -696,8 +696,10 @@ explo_races_per_eval_race = 5
 anneal_as_if_training_from_scratch = True
 
 map_cycle = [
-    ("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy"),
-    ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
-    ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
+    ("map5_30s", '"My Challenges\Map5_30s.Challenge.Gbx"', "map5_10m_cl.npy"),
+    # ("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy"),
+    # ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
+    # ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
 ]
+
 map_cycle_frequency = 10
