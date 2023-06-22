@@ -99,6 +99,7 @@ class TMInterfaceManager:
         # self.trackmania_window = win32gui.FindWindow("TmForever", None)
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
+        remove_map_begin_camera_zoom_in()
         self.msgtype_response_to_wakeup_TMI = None
         self.pinned_buffer_size = (
             misc.memory_size + 100
@@ -833,3 +834,14 @@ def remove_fps_cap():
         process.write(0x005292F1 + 8, 2425393296)
         process.close()
         print(f"Disabled FPS cap of process {pid}")
+
+
+def remove_map_begin_camera_zoom_in():
+    process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
+    rwm = ReadWriteMemory()
+    for p in process:
+        pid = int(p.pid)
+        process = rwm.get_process_by_id(pid)
+        process.open()
+        process.write(0x00CE8E9C, 0)
+        process.close()
