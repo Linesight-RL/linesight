@@ -7,7 +7,6 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 import torch
-import win32com.client
 
 # noinspection PyPackageRequirements
 import win32gui
@@ -119,6 +118,10 @@ class TMInterfaceManager:
         self.iface._send_message(msg)
         self.iface._wait_for_server_response()
 
+    def request_speed(self, requested_speed):
+        self.iface.set_speed(requested_speed)
+        self.latest_tm_engine_speed_requested = requested_speed
+
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         end_race_stats = {}
 
@@ -184,8 +187,7 @@ class TMInterfaceManager:
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None
 
-            self.iface.set_speed(self.running_speed)
-            self.latest_tm_engine_speed_requested = self.running_speed
+            self.request_speed(self.running_speed)
             self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
             self.msgtype_response_to_wakeup_TMI = None
 
@@ -261,7 +263,7 @@ class TMInterfaceManager:
                         # This might happen if the car enters my last virtual zone, but has not finished the race yet.
                         # Just press forward and do not record any experience
                         self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
-                        self.iface.set_speed(self.running_speed)
+                        self.request_speed(self.running_speed)
                     else:
                         # ===================================================================================================
 
@@ -523,7 +525,7 @@ class TMInterfaceManager:
                         # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
 
                         self.iface.set_input_state(**misc.inputs[action_idx])
-                        self.iface.set_speed(self.running_speed)
+                        self.request_speed(self.running_speed)
 
                         time_to_iface_set_set += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
@@ -544,7 +546,6 @@ class TMInterfaceManager:
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
                         rollout_results["q_values"].append(q_values)
 
-                        self.latest_tm_engine_speed_requested = self.running_speed
                         compute_action_asap = False
                         n_th_action_we_compute += 1
 
@@ -626,8 +627,7 @@ class TMInterfaceManager:
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
 
                         self.rewind_to_state(simulation_state)
-                        # self.iface.set_speed(0)
-                        # self.latest_tm_engine_speed_requested = 0
+                        # self.request_speed(0)
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
 
                     if not this_rollout_is_finished:
@@ -640,8 +640,7 @@ class TMInterfaceManager:
                         elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.rewind_to_state(last_known_simulation_state)
-                            self.iface.set_speed(0)
-                            self.latest_tm_engine_speed_requested = 0
+                            self.request_speed(0)
                             compute_action_asap = True
                             do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
 
@@ -819,8 +818,6 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
 def _set_window_focus(trackmania_window):
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shell.SendKeys("%")
     win32gui.SetForegroundWindow(trackmania_window)
 
 def remove_fps_cap():
