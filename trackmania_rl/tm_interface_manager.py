@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 import torch
+import win32com.client
 
 # noinspection PyPackageRequirements
 import win32gui
@@ -100,6 +101,7 @@ class TMInterfaceManager:
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
         remove_map_begin_camera_zoom_in()
+        _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
         self.pinned_buffer_size = (
             misc.memory_size + 100
@@ -816,6 +818,10 @@ class TMInterfaceManager:
         print("E", end="")
         return rollout_results, end_race_stats
 
+def _set_window_focus(trackmania_window):
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shell.SendKeys("%")
+    win32gui.SetForegroundWindow(trackmania_window)
 
 def remove_fps_cap():
     # from @Kim on TrackMania Tool Assisted Discord server
