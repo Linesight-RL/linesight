@@ -1,4 +1,4 @@
-from itertools import repeat
+from itertools import chain, repeat
 
 import numpy as np
 import psutil
@@ -60,50 +60,30 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * number_time
 number_memories_generated_high_exploration_early_training = 100_000
 apply_horizontal_flip_augmentation = False
 flip_augmentation_ratio = 0.5
-flip_indices_floats_before_swap = [
-    3,
-    4,  # previous action left/right
-    7,
-    8,  # previous**2 action left/right
-    11,
-    12,  # previous**3 action left/right
-    15,
-    16,  # previous**4 action left/right
-    19,
-    20,  # previous**5 action left/right
-    21,
-    22,  # front wheels sliding
-    23,
-    24,  # back wheels sliding
-    25,
-    26,  # front wheels has_ground_contact
-    27,
-    28,  # back wheels has_ground_contact
-    29,
-    30,  # front wheels damper_absorb
-    31,
-    32,  # back wheels damper_absorb
-    37,
-    41,  # front wheels physics behavior 0
-    38,
-    42,  # front wheels physics behavior 1
-    39,
-    43,  # front wheels physics behavior 2
-    40,
-    44,  # front wheels physics behavior 3
-    45,
-    49,  # back wheels physics behavior 0
-    46,
-    50,  # back wheels physics behavior 1
-    47,
-    51,  # back wheels physics behavior 2
-    48,
-    52,  # back wheels physics behavior 3
+flip_pair_indices_to_swap = [
+    (3, 4),  # previous action left/right
+    (7, 8),  # previous**2 action left/right
+    (11, 12),  # previous**3 action left/right
+    (15, 16),  # previous**4 action left/right
+    (19, 20),  # previous**5 action left/right
+    (21, 22),  # front wheels sliding
+    (23, 24),  # back wheels sliding
+    (25, 26),  # front wheels has_ground_contact
+    (27, 28),  # back wheels has_ground_contact
+    (29, 30),  # front wheels damper_absorb
+    (31, 32),  # back wheels damper_absorb
+    (37, 41),  # front wheels physics behavior 0
+    (38, 42),  # front wheels physics behavior 1
+    (39, 43),  # front wheels physics behavior 2
+    (40, 44),  # front wheels physics behavior 3
+    (45, 49),  # back wheels physics behavior 0
+    (46, 50),  # back wheels physics behavior 1
+    (47, 51),  # back wheels physics behavior 2
+    (48, 52),  # back wheels physics behavior 3
 ]
 
-flip_indices_floats_after_swap = [
-    flip_indices_floats_before_swap[2 * (i // 2) + ((i + 1) % 2)] for i in range(len(flip_indices_floats_before_swap))
-]  # swap pairwise consecutive : [1,2,3,4,5,6] becomes [2,1,4,3,6,5]
+flip_indices_floats_before_swap = list(chain(*flip_pair_indices_to_swap))
+flip_indices_floats_after_swap = list(chain(*map(reversed, flip_pair_indices_to_swap)))
 
 indices_floats_sign_inversion = [
     54,  # state_car_angular_velocity_in_car_reference_system.y
