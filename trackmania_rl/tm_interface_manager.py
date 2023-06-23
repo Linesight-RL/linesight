@@ -72,6 +72,21 @@ def grab_screen():
     return grab_screen()
 
 
+class TMInterfaceCustom(TMInterface):
+    def _wait_for_server_response(self, clear: bool = True):
+        if self.mfile is None:
+            return
+
+        response_time = time.perf_counter()
+        self.mfile.seek(0)
+        while (self._read_int32() != MessageType.S_RESPONSE | 0xFF00) and time.perf_counter() - response_time < 2:
+            self.mfile.seek(0)
+            time.sleep(0)
+
+        if clear:
+            self._clear_buffer()
+
+
 create_dxcam()
 
 
@@ -100,6 +115,7 @@ class TMInterfaceManager:
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
         remove_map_begin_camera_zoom_in()
+        _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
         self.pinned_buffer_size = (
             misc.memory_size + 100
@@ -117,16 +133,12 @@ class TMInterfaceManager:
         self.iface._send_message(msg)
         self.iface._wait_for_server_response()
 
+    def request_speed(self, requested_speed):
+        self.iface.set_speed(requested_speed)
+        self.latest_tm_engine_speed_requested = requested_speed
+
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         end_race_stats = {}
-
-        # The 6 lines below are in the completely wrong place -_-
-        # zone_centers_delta = (np.random.rand(*map_zone_centers.shape) - 0.5) * misc.zone_centers_jitter
-        # zone_centers_delta[:, 1] *= 0.1  # Don't change the elevation
-        # zone_centers_delta[-(3 + misc.n_zone_centers_in_inputs) :, :] = 0  # Don't change the final zones
-        # if is_eval:  # TODO : zero jitter during eval round
-        #     zone_centers_delta *= 0
-        # zone_centers = map_zone_centers + zone_centers_delta
 
         time_to_answer_normal_step = 0
         time_to_answer_action_step = 0
@@ -166,7 +178,7 @@ class TMInterfaceManager:
         if self.iface is None:
             assert self.msgtype_response_to_wakeup_TMI is None
             print("Initialize connection to TMInterface ", end="")
-            self.iface = TMInterface(self.interface_name)
+            self.iface = TMInterfaceCustom(self.interface_name)
             self.iface.registered = False
 
             while not self.iface._ensure_connected():
@@ -182,8 +194,7 @@ class TMInterfaceManager:
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None
 
-            self.iface.set_speed(self.running_speed)
-            self.latest_tm_engine_speed_requested = self.running_speed
+            self.request_speed(self.running_speed)
             self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
             self.msgtype_response_to_wakeup_TMI = None
 
@@ -215,6 +226,36 @@ class TMInterfaceManager:
 
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
+        time_last_on_run_step = time.perf_counter()
+
+        def cutoff_rollout(end_race_stats):
+            # FAILED TO FINISH IN TIME
+            simulation_state = self.iface.get_simulation_state()
+            print(f"      --- {simulation_state.race_time:>6} ", end="")
+
+            end_race_stats["race_finished"] = False
+            end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
+            end_race_stats["race_time_for_ratio"] = simulation_state.race_time
+            end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
+            end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
+            end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
+            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
+            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
+            end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / simulation_state.race_time * 50
+            end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / simulation_state.race_time * 50
+            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
+            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
+            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
+            end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
+            end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
+            end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
+            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
+            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+
+            self.msgtype_response_to_wakeup_TMI = msgtype
+            self.iface.set_timeout(misc.timeout_between_runs_ms)
+            self.rewind_to_state(simulation_state)
+            return time.perf_counter_ns() + 120_000_000, True, end_race_stats
 
         print("L ", end="")
         while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
@@ -224,6 +265,11 @@ class TMInterfaceManager:
 
             if self.iface.mfile is None:
                 continue
+
+            if time.perf_counter() - time_last_on_run_step > 60 and self.latest_tm_engine_speed_requested > 0:
+                self.iface.registered = False
+                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats)
+                break
 
             self.iface.mfile.seek(0)
 
@@ -258,8 +304,11 @@ class TMInterfaceManager:
                     if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                         # This might happen if the car enters my last virtual zone, but has not finished the race yet.
                         # Just press forward and do not record any experience
-                        self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
-                        self.iface.set_speed(self.running_speed)
+                        if (
+                            len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
+                        ):  # Small performance trick, don't update input_state if it doesn't need to be updated
+                            self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
+                        self.request_speed(self.running_speed)
                     else:
                         # ===================================================================================================
 
@@ -521,7 +570,7 @@ class TMInterfaceManager:
                         # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
 
                         self.iface.set_input_state(**misc.inputs[action_idx])
-                        self.iface.set_speed(self.running_speed)
+                        self.request_speed(self.running_speed)
 
                         time_to_iface_set_set += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
@@ -542,7 +591,6 @@ class TMInterfaceManager:
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
                         rollout_results["q_values"].append(q_values)
 
-                        self.latest_tm_engine_speed_requested = self.running_speed
                         compute_action_asap = False
                         n_th_action_we_compute += 1
 
@@ -596,41 +644,7 @@ class TMInterfaceManager:
                         and not this_rollout_is_finished
                     ):
                         # FAILED TO FINISH IN TIME
-                        simulation_state = self.iface.get_simulation_state()
-                        print(f"      --- {simulation_state.race_time:>6} ", end="")
-
-                        end_race_stats["race_finished"] = False
-                        end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
-                        end_race_stats["race_time_for_ratio"] = simulation_state.race_time
-                        end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
-                        end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
-                        end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
-                        end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
-                        end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
-                        end_race_stats["time_between_normal_on_run_steps"] = (
-                            time_between_normal_on_run_steps / simulation_state.race_time * 50
-                        )
-                        end_race_stats["time_between_action_on_run_steps"] = (
-                            time_between_action_on_run_steps / simulation_state.race_time * 50
-                        )
-                        end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
-                        end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
-                        end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
-                        end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
-                        end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
-                        end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
-                        end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
-                        end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
-
-                        this_rollout_is_finished = True  # FAILED TO FINISH IN TIME
-                        self.msgtype_response_to_wakeup_TMI = msgtype
-
-                        self.iface.set_timeout(misc.timeout_between_runs_ms)
-
-                        self.rewind_to_state(simulation_state)
-                        # self.iface.set_speed(0)
-                        # self.latest_tm_engine_speed_requested = 0
-                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                        do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats)
 
                     if not this_rollout_is_finished:
                         this_rollout_has_seen_t_negative |= _time < 0
@@ -642,8 +656,7 @@ class TMInterfaceManager:
                         elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.rewind_to_state(last_known_simulation_state)
-                            self.iface.set_speed(0)
-                            self.latest_tm_engine_speed_requested = 0
+                            self.request_speed(0)
                             compute_action_asap = True
                             do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
 
@@ -821,6 +834,10 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
 
+def _set_window_focus(trackmania_window):
+    win32gui.SetForegroundWindow(trackmania_window)
+
+
 def remove_fps_cap():
     # from @Kim on TrackMania Tool Assisted Discord server
     process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
@@ -837,6 +854,7 @@ def remove_fps_cap():
 
 
 def remove_map_begin_camera_zoom_in():
+    # from @Kim on TrackMania Tool Assisted Discord server
     process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
     rwm = ReadWriteMemory()
     for p in process:
