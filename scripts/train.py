@@ -5,7 +5,7 @@ import time
 import typing
 from collections import defaultdict
 from datetime import datetime
-from itertools import count, cycle
+from itertools import chain, count, cycle
 from pathlib import Path
 
 import joblib
@@ -17,7 +17,7 @@ import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
-from trackmania_rl.map_loader import load_next_map
+from trackmania_rl.map_loader import load_next_map_zone_centers
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -212,38 +212,51 @@ tmi = tm_interface_manager.TMInterfaceManager(
     interface_name="TMInterface0",
 )
 
-map_cycle_iter = cycle(misc.map_cycle)
-saved_misc_map_cycle = misc.map_cycle.copy()
-map_name, map_path, zone_centers = load_next_map(map_cycle_iter, base_dir)
+map_cycle_str = str(misc.map_cycle)
+map_cycle_iter = cycle(chain(*misc.map_cycle))
+
+next_map_tuple = next(map_cycle_iter)
+zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
+map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
 for loop_number in count(1):
-    is_explo = (loop_number % misc.explo_races_per_eval_race) > 0
+    importlib.reload(misc)
 
-    if not is_explo:
-        # ===============================================
-        #   RELOAD
-        # ===============================================
-        importlib.reload(misc)
+    # ===============================================
+    #   DID THE CYCLE CHANGE ?
+    # ===============================================
+    if str(misc.map_cycle) != map_cycle_str:
+        map_cycle_str = str(misc.map_cycle)
+        map_cycle_iter = cycle(chain(*misc.map_cycle))
 
-        # ===============================================
-        #   VERY BASIC TRAINING ANNEALING
-        # ===============================================
+    # ===============================================
+    #   GET NEXT MAP FROM CYCLE
+    # ===============================================
 
-        if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
-            misc.reward_per_ms_press_forward = 0
-        if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] < 50000:
-            misc.learning_rate *= 5
+    next_map_tuple = next(map_cycle_iter)
+    if next_map_tuple[2] != zone_centers_filename:
+        zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
+    map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
-        # ===============================================
-        #   RELOAD
-        # ===============================================
+    # ===============================================
+    #   VERY BASIC TRAINING ANNEALING
+    # ===============================================
 
-        for param_group in optimizer1.param_groups:
-            param_group["lr"] = misc.learning_rate
-        trainer.gamma = misc.gamma
-        trainer.AL_alpha = misc.AL_alpha
-        trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-        trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
+    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
+        misc.reward_per_ms_press_forward = 0
+    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] < 30000:
+        misc.learning_rate *= 5
+
+    # ===============================================
+    #   RELOAD
+    # ===============================================
+
+    for param_group in optimizer1.param_groups:
+        param_group["lr"] = misc.learning_rate
+    trainer.gamma = misc.gamma
+    trainer.AL_alpha = misc.AL_alpha
+    trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+    trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
     if is_explo:
         trainer.epsilon = (
@@ -260,18 +273,6 @@ for loop_number in count(1):
         trainer.epsilon = 0
         trainer.epsilon_boltzmann = 0
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
-
-    # ===============================================
-    #   CHANGE MAP ?
-    # ===============================================
-
-    if (loop_number % misc.map_cycle_frequency) == 0:
-        if misc.map_cycle != saved_misc_map_cycle:
-            print("CHANGE MAP CYCLE")
-            map_cycle_iter = cycle(misc.map_cycle)
-            saved_misc_map_cycle = misc.map_cycle.copy()
-
-        map_name, map_path, zone_centers = load_next_map(map_cycle_iter, base_dir)
 
     # ===============================================
     #   PLAY ONE ROUND
@@ -359,99 +360,77 @@ for loop_number in count(1):
         )
         shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
-    # if end_race_stats["race_time"] < misc.good_time_save_all_ms:
-    #     sub_folder_name = f"{end_race_stats['race_time']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    #     (save_dir / "good_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-    #     joblib.dump(
-    #         rollout_results["actions"],
-    #         save_dir / "good_runs" / sub_folder_name / f"actions.joblib",
-    #     )
-    #     joblib.dump(
-    #         rollout_results["q_values"],
-    #         save_dir / "good_runs" / sub_folder_name / f"q_values.joblib",
-    #     )
-    #     torch.save(
-    #         model1.state_dict(),
-    #         save_dir / "good_runs" / sub_folder_name / "weights1.torch",
-    #     )
-    #     torch.save(
-    #         model2.state_dict(),
-    #         save_dir / "good_runs" / sub_folder_name / "weights2.torch",
-    #     )
-    #     torch.save(
-    #         optimizer1.state_dict(),
-    #         save_dir / "good_runs" / sub_folder_name / "optimizer1.torch",
-    #     )
-    #     shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "good_runs" / sub_folder_name / "misc.py")
     # ===============================================
     #   FILL BUFFER WITH (S, A, R, S') transitions
     # ===============================================
-    (
-        buffer,
-        buffer_test,
-        number_memories_added,
-    ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-        buffer,
-        buffer_test,
-        rollout_results,
-        misc.n_steps,
-        misc.gamma,
-        misc.discard_non_greedy_actions_in_nsteps,
-        misc.n_zone_centers_in_inputs,
-        zone_centers,
-    )
 
-    accumulated_stats["cumul_number_memories_generated"] += number_memories_added
-    accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
-        misc.number_times_single_memory_is_used_before_discard * number_memories_added
-    )
-    print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
+    if fill_buffer:
+        (
+            buffer,
+            buffer_test,
+            number_memories_added,
+        ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+            buffer,
+            buffer_test,
+            rollout_results,
+            misc.n_steps,
+            misc.gamma,
+            misc.discard_non_greedy_actions_in_nsteps,
+            misc.n_zone_centers_in_inputs,
+            zone_centers,
+        )
 
-    # ===============================================
-    #   LEARN ON BATCH
-    # ===============================================
+        accumulated_stats["cumul_number_memories_generated"] += number_memories_added
+        accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
+            misc.number_times_single_memory_is_used_before_discard * number_memories_added
+        )
+        print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
 
-    while (
-        len(buffer) >= misc.memory_size_start_learn
-        and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
-        <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
-    ):
-        if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-            loss = trainer.train_on_batch(buffer_test, do_learn=False)
-            loss_test_history.append(loss)
-            print(f"BT   {loss=:<8.2e}")
-        else:
-            train_start_time = time.time()
-            loss = trainer.train_on_batch(buffer, do_learn=True)
-            accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
-            train_on_batch_duration_history.append(time.time() - train_start_time)
-            loss_history.append(loss)
-            accumulated_stats["cumul_number_batches_done"] += 1
-            print(f"B    {loss=:<8.2e}")
+        # ===============================================
+        #   LEARN ON BATCH
+        # ===============================================
 
-            nn_utilities.custom_weight_decay(model1, 1 - misc.weight_decay)
+        while (
+            len(buffer) >= misc.memory_size_start_learn
+            and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
+            <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
+        ):
+            if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
+                loss = trainer.train_on_batch(buffer_test, do_learn=False)
+                loss_test_history.append(loss)
+                print(f"BT   {loss=:<8.2e}")
+            else:
+                train_start_time = time.time()
+                loss = trainer.train_on_batch(buffer, do_learn=True)
+                accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
+                train_on_batch_duration_history.append(time.time() - train_start_time)
+                loss_history.append(loss)
+                accumulated_stats["cumul_number_batches_done"] += 1
+                print(f"B    {loss=:<8.2e}")
 
-            # ===============================================
-            #   UPDATE TARGET NETWORK
-            # ===============================================
-            if (
-                accumulated_stats["cumul_number_single_memories_used"]
-                >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
-            ):
-                accumulated_stats["cumul_number_target_network_updates"] += 1
-                accumulated_stats[
-                    "cumul_number_single_memories_used_next_target_network_update"
-                ] += misc.number_memories_trained_on_between_target_network_updates
-                print("UPDATE")
-                nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
-                # model2.load_state_dict(model.state_dict())
-    buffer.sync_prefetching()  # Finish all prefetching to avoid invalid prefetches during rollouts where the pinned image buffer will be overwritten
-    print("")
+                nn_utilities.custom_weight_decay(model1, 1 - misc.weight_decay)
+
+                # ===============================================
+                #   UPDATE TARGET NETWORK
+                # ===============================================
+                if (
+                    accumulated_stats["cumul_number_single_memories_used"]
+                    >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
+                ):
+                    accumulated_stats["cumul_number_target_network_updates"] += 1
+                    accumulated_stats[
+                        "cumul_number_single_memories_used_next_target_network_update"
+                    ] += misc.number_memories_trained_on_between_target_network_updates
+                    print("UPDATE")
+                    nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
+                    # model2.load_state_dict(model.state_dict())
+        buffer.sync_prefetching()  # Finish all prefetching to avoid invalid prefetches during rollouts where the pinned image buffer will be overwritten
+        print("")
 
     # ===============================================
     #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
     # ===============================================
-    if not is_explo:
+    if save_aggregated_stats:
         accumulated_stats["cumul_training_hours"] += (time.time() - time_last_save) / 3600
         time_last_save = time.time()
 
@@ -467,10 +446,13 @@ for loop_number in count(1):
             "tau_greedy_boltzmann": misc.tau_greedy_boltzmann,
             "AL_alpha": misc.AL_alpha,
             "learning_rate": misc.learning_rate,
+            "weight_decay": misc.weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
             "reward_per_ms_press_forward": misc.reward_per_ms_press_forward,
+            "memory_size": len(buffer),
+            "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
         }
-        if len(loss_history) > 0:
+        if len(loss_history) > 0 and len(loss_test_history) > 0:
             step_stats.update(
                 {
                     "loss": np.mean(loss_history),
@@ -545,9 +527,6 @@ for loop_number in count(1):
                 state = optimizer1.state[p]
                 exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
                 mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
-                # print("exp_avg                : ", np.sqrt((exp_avg**2).mean().detach().cpu().item()))
-                # print("exp_avg_sq             : ", np.sqrt((exp_avg_sq ** 2).mean().detach().cpu().item()))
-                # print("modified_learning_rate            : ", f"{np.sqrt((mod_lr ** 2).mean().detach().cpu().item()):.2f}")
                 tensorboard_writer.add_scalar(
                     tag=f"lr_ratio_{name}_L2",
                     scalar_value=np.sqrt((mod_lr**2).mean().detach().cpu().item()),

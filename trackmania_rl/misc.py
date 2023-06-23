@@ -1,3 +1,5 @@
+from itertools import repeat
+
 import numpy as np
 import psutil
 
@@ -696,10 +698,14 @@ explo_races_per_eval_race = 5
 anneal_as_if_training_from_scratch = True
 
 map_cycle = [
-    ("map5_30s", '"My Challenges\Map5_30s.Challenge.Gbx"', "map5_10m_cl.npy"),
-    # ("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy"),
-    # ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
-    # ("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy"),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, False), 1),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, False), 1),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", True, True, False), 4),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", False, True, False), 1),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", True, True, False), 4),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", False, True, True), 1),
+    repeat(("map3", '"My Challenges\Map3.Challenge.Gbx"', "map3_10m_cl.npy", False, False, False), 1),
 ]
-
-map_cycle_frequency = 10
+#     ("map5_30s", '"My Challenges\Map5_30s.Challenge.Gbx"', "map5_10m_cl.npy"),
