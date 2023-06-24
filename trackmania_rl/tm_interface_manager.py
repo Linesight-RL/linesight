@@ -328,54 +328,57 @@ class TMInterfaceManager:
 
                         sim_state_race_time = last_known_simulation_state.race_time
                         sim_state_display_speed = last_known_simulation_state.display_speed
+                        sim_state_dyna_current = last_known_simulation_state.dyna.current_state
+                        sim_state_mobil = last_known_simulation_state.scene_mobil
+                        sim_state_mobil_engine = sim_state_mobil.engine
+                        simulation_wheels = last_known_simulation_state.simulation_wheels
+                        wheel_state = [simulation_wheels[i].real_time_state for i in range(4)]
                         sim_state_position = np.array(
-                            last_known_simulation_state.dyna.current_state.position,
+                            sim_state_dyna_current.position,
                             dtype=np.float32,
                         )  # (3,)
-                        sim_state_orientation = last_known_simulation_state.dyna.current_state.rotation.to_numpy()  # (3, 3)
+                        sim_state_orientation = sim_state_dyna_current.rotation.to_numpy()  # (3, 3)
                         sim_state_velocity = np.array(
-                            last_known_simulation_state.dyna.current_state.linear_speed,
+                            sim_state_dyna_current.linear_speed,
                             dtype=np.float32,
                         )  # (3,)
                         sim_state_angular_speed = np.array(
-                            last_known_simulation_state.dyna.current_state.angular_speed,
+                            sim_state_dyna_current.angular_speed,
                             dtype=np.float32,
                         )  # (3,)
 
-                        gearbox_state = last_known_simulation_state.scene_mobil.gearbox_state
+                        gearbox_state = sim_state_mobil.gearbox_state
                         counter_gearbox_state = 0
                         if gearbox_state != 0 and len(rollout_results["car_gear_and_wheels"]) > 0:
                             counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
-
-                        simulation_wheels = last_known_simulation_state.simulation_wheels
 
                         sim_state_car_gear_and_wheels = np.hstack(
                             (
                                 np.array(
                                     [
-                                        simulation_wheels[0].real_time_state.is_sliding,
+                                        wheel_state[0].is_sliding,
                                         # Bool
-                                        simulation_wheels[1].real_time_state.is_sliding,
+                                        wheel_state[1].is_sliding,
                                         # Bool
-                                        simulation_wheels[2].real_time_state.is_sliding,
+                                        wheel_state[2].is_sliding,
                                         # Bool
-                                        simulation_wheels[3].real_time_state.is_sliding,
+                                        wheel_state[3].is_sliding,
                                         # Bool
-                                        simulation_wheels[0].real_time_state.has_ground_contact,
+                                        wheel_state[0].has_ground_contact,
                                         # Bool
-                                        simulation_wheels[1].real_time_state.has_ground_contact,
+                                        wheel_state[1].has_ground_contact,
                                         # Bool
-                                        simulation_wheels[2].real_time_state.has_ground_contact,
+                                        wheel_state[2].has_ground_contact,
                                         # Bool
-                                        simulation_wheels[3].real_time_state.has_ground_contact,
+                                        wheel_state[3].has_ground_contact,
                                         # Bool
-                                        simulation_wheels[0].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        simulation_wheels[1].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        simulation_wheels[2].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        simulation_wheels[3].real_time_state.damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        wheel_state[0].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        wheel_state[1].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        wheel_state[2].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        wheel_state[3].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
                                         gearbox_state,  # Bool, except 2 at startup
-                                        last_known_simulation_state.scene_mobil.engine.gear,  # 0 -> 5 approx
-                                        last_known_simulation_state.scene_mobil.engine.actual_rpm,  # 0-10000 approx
+                                        sim_state_mobil_engine.gear,  # 0 -> 5 approx
+                                        sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
                                         counter_gearbox_state,  # Up to typically 28 when changing gears
                                     ],
                                     dtype=np.float32,
@@ -383,25 +386,25 @@ class TMInterfaceManager:
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
                                     == contact_materials.physics_behavior_fromint[
-                                        simulation_wheels[0].real_time_state.contact_material_id & 0xFFFF
+                                        wheel_state[0].contact_material_id & 0xFFFF
                                     ]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
                                     == contact_materials.physics_behavior_fromint[
-                                        simulation_wheels[1].real_time_state.contact_material_id & 0xFFFF
+                                        wheel_state[1].contact_material_id & 0xFFFF
                                     ]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
                                     == contact_materials.physics_behavior_fromint[
-                                        simulation_wheels[2].real_time_state.contact_material_id & 0xFFFF
+                                        wheel_state[2].contact_material_id & 0xFFFF
                                     ]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
                                     == contact_materials.physics_behavior_fromint[
-                                        simulation_wheels[3].real_time_state.contact_material_id & 0xFFFF
+                                        wheel_state[3].contact_material_id & 0xFFFF
                                     ]
                                 ).astype(np.float32),
                             )
