@@ -5,9 +5,12 @@ def init_kaiming(layer):
     torch.nn.init.kaiming_normal_(layer.weight, mode="fan_in")
     torch.nn.init.zeros_(layer.bias)
 
-
 def init_xavier(layer):
     torch.nn.init.xavier_normal_(layer.weight)
+    torch.nn.init.zeros_(layer.bias)
+
+def init_uniform(layer,a,b):
+    torch.nn.init.uniform_(layer.weight,a=a,b=b)
     torch.nn.init.zeros_(layer.bias)
 
 

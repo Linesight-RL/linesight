@@ -24,14 +24,15 @@ class Agent(torch.nn.Module):
         float_inputs_std,
     ):
         super().__init__()
+        img_head_channels = [1,16,32,64,32]
         self.img_head = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(4, 4), stride=2),
+            torch.nn.Conv2d(in_channels=img_head_channels[0], out_channels=img_head_channels[1], kernel_size=(4, 4), stride=2),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=(4, 4), stride=2),
+            torch.nn.Conv2d(in_channels=img_head_channels[1], out_channels=img_head_channels[2], kernel_size=(4, 4), stride=2),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), stride=2),
+            torch.nn.Conv2d(in_channels=img_head_channels[2], out_channels=img_head_channels[3], kernel_size=(3, 3), stride=2),
             torch.nn.LeakyReLU(inplace=True),
-            torch.nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(3, 3), stride=1),
+            torch.nn.Conv2d(in_channels=img_head_channels[3], out_channels=img_head_channels[4], kernel_size=(3, 3), stride=1),
             torch.nn.LeakyReLU(inplace=True),
             torch.nn.Flatten(),
         )
@@ -74,9 +75,14 @@ class Agent(torch.nn.Module):
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
                 nn_utilities.init_kaiming(m)
-        # This was uninitialized in Agade's code
-        nn_utilities.init_kaiming(self.iqn_fc)
-        # A_head and V_head are NoisyLinear, already initialized
+        nn_utilities.init_uniform(self.iqn_fc,-1,1)
+        for m in self.A_head:
+            if isinstance(m, torch.nn.Linear):
+                 nn_utilities.init_kaiming(m)
+        for m in self.V_head:
+            if isinstance(m, torch.nn.Linear):
+                 nn_utilities.init_kaiming(m)
+        
 
     def forward(
         self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
