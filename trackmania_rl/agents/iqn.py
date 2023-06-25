@@ -75,7 +75,7 @@ class Agent(torch.nn.Module):
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
                 nn_utilities.init_kaiming(m)
-        nn_utilities.init_uniform(self.iqn_fc,-1,1)
+        nn_utilities.init_kaiming(self.iqn_fc)
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
                  nn_utilities.init_kaiming(m)
