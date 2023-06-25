@@ -120,7 +120,7 @@ class TMInterfaceManager:
         self.pinned_buffer_size = (
             misc.memory_size + 100
         )  # We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
-        self.pinned_buffer = torch.empty((self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8)
+        self.pinned_buffer = torch.empty((self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8, memory_format=torch.channels_last)
         torch.cuda.cudart().cudaHostRegister(
             self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H_downsized * misc.W_downsized, 0
         )
