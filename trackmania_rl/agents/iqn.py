@@ -76,13 +76,14 @@ class Agent(torch.nn.Module):
             if isinstance(m, torch.nn.Linear):
                 nn_utilities.init_kaiming(m)
         nn_utilities.init_uniform(self.iqn_fc,-1,1)
-        for m in self.A_head:
+        for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
                  nn_utilities.init_kaiming(m)
-        for m in self.V_head:
+        nn_utilities.init_xavier(self.A_head[-1])
+        for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
                  nn_utilities.init_kaiming(m)
-        
+        nn_utilities.init_xavier(self.V_head[-1])
 
     def forward(
         self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
