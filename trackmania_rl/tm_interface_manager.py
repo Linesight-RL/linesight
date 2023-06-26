@@ -120,7 +120,9 @@ class TMInterfaceManager:
         self.pinned_buffer_size = (
             misc.memory_size + 100
         )  # We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
-        self.pinned_buffer = torch.empty((self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8, memory_format=torch.channels_last)
+        self.pinned_buffer = torch.empty(
+            (self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8, memory_format=torch.channels_last
+        )
         torch.cuda.cudart().cudaHostRegister(
             self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H_downsized * misc.W_downsized, 0
         )
@@ -175,7 +177,7 @@ class TMInterfaceManager:
 
         rollout_results["zone_entrance_time_ms"].append(0)  # We start the race in zone zero, and assume we just entered that zone
 
-        if self.iface is None:
+        if (self.iface is None) or (not self.iface.registered):
             assert self.msgtype_response_to_wakeup_TMI is None
             print("Initialize connection to TMInterface ", end="")
             self.iface = TMInterfaceCustom(self.interface_name)
@@ -228,7 +230,7 @@ class TMInterfaceManager:
         time_first_message0 = time.perf_counter_ns()
         time_last_on_run_step = time.perf_counter()
 
-        def cutoff_rollout(end_race_stats):
+        def cutoff_rollout(end_race_stats, msgtype):
             # FAILED TO FINISH IN TIME
             simulation_state = self.iface.get_simulation_state()
             print(f"      --- {simulation_state.race_time:>6} ", end="")
@@ -253,8 +255,9 @@ class TMInterfaceManager:
             end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
 
             self.msgtype_response_to_wakeup_TMI = msgtype
-            self.iface.set_timeout(misc.timeout_between_runs_ms)
-            self.rewind_to_state(simulation_state)
+            if msgtype != None:
+                self.iface.set_timeout(misc.timeout_between_runs_ms)
+                self.rewind_to_state(simulation_state)
             return time.perf_counter_ns() + 120_000_000, True, end_race_stats
 
         print("L ", end="")
@@ -268,7 +271,7 @@ class TMInterfaceManager:
 
             if time.perf_counter() - time_last_on_run_step > 60 and self.latest_tm_engine_speed_requested > 0:
                 self.iface.registered = False
-                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats)
+                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None)
                 break
 
             self.iface.mfile.seek(0)
@@ -385,27 +388,19 @@ class TMInterfaceManager:
                                 ),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[
-                                        wheel_state[0].contact_material_id & 0xFFFF
-                                    ]
+                                    == contact_materials.physics_behavior_fromint[wheel_state[0].contact_material_id & 0xFFFF]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[
-                                        wheel_state[1].contact_material_id & 0xFFFF
-                                    ]
+                                    == contact_materials.physics_behavior_fromint[wheel_state[1].contact_material_id & 0xFFFF]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[
-                                        wheel_state[2].contact_material_id & 0xFFFF
-                                    ]
+                                    == contact_materials.physics_behavior_fromint[wheel_state[2].contact_material_id & 0xFFFF]
                                 ).astype(np.float32),
                                 (
                                     np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[
-                                        wheel_state[3].contact_material_id & 0xFFFF
-                                    ]
+                                    == contact_materials.physics_behavior_fromint[wheel_state[3].contact_material_id & 0xFFFF]
                                 ).astype(np.float32),
                             )
                         )
@@ -647,7 +642,9 @@ class TMInterfaceManager:
                         and not this_rollout_is_finished
                     ):
                         # FAILED TO FINISH IN TIME
-                        do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats)
+                        do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(
+                            end_race_stats, msgtype
+                        )
 
                     if not this_rollout_is_finished:
                         this_rollout_has_seen_t_negative |= _time < 0

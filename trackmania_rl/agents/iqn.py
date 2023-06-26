@@ -25,7 +25,7 @@ class Agent(torch.nn.Module):
     ):
         super().__init__()
         self.iqn_embedding_dimension = iqn_embedding_dimension
-        img_head_channels = [1,16,32,64,32]
+        img_head_channels = [1, 16, 32, 64, 32]
         self.img_head = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=img_head_channels[0], out_channels=img_head_channels[1], kernel_size=(4, 4), stride=2),
             torch.nn.LeakyReLU(inplace=True),
@@ -72,18 +72,20 @@ class Agent(torch.nn.Module):
         lrelu_neg_slope = 1e-2
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_kaiming(m,lrelu_neg_slope)
+                nn_utilities.init_kaiming(m, lrelu_neg_slope)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_kaiming(m,lrelu_neg_slope)
-        nn_utilities.init_normal(self.iqn_fc,0,np.sqrt(2)*torch.nn.init.calculate_gain('leaky_relu', lrelu_neg_slope)/np.sqrt(self.iqn_embedding_dimension)) #Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
+                nn_utilities.init_kaiming(m, lrelu_neg_slope)
+        nn_utilities.init_normal(
+            self.iqn_fc, 0, np.sqrt(2) * torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope) / np.sqrt(self.iqn_embedding_dimension)
+        )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                 nn_utilities.init_kaiming(m,lrelu_neg_slope)
+                nn_utilities.init_kaiming(m, lrelu_neg_slope)
         nn_utilities.init_xavier(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                 nn_utilities.init_kaiming(m,lrelu_neg_slope)
+                nn_utilities.init_kaiming(m, lrelu_neg_slope)
         nn_utilities.init_xavier(self.V_head[-1])
 
     def forward(

@@ -1,20 +1,25 @@
 import torch
 
-def init_kaiming(layer,neg_slope):
-    torch.nn.init.kaiming_normal_(layer.weight,a=neg_slope, mode="fan_in")
+
+def init_kaiming(layer, neg_slope):
+    torch.nn.init.kaiming_normal_(layer.weight, a=neg_slope, mode="fan_in")
     torch.nn.init.zeros_(layer.bias)
+
 
 def init_xavier(layer):
     torch.nn.init.xavier_normal_(layer.weight)
     torch.nn.init.zeros_(layer.bias)
 
-def init_uniform(layer,a,b):
-    torch.nn.init.uniform_(layer.weight,a=a,b=b)
+
+def init_uniform(layer, a, b):
+    torch.nn.init.uniform_(layer.weight, a=a, b=b)
     torch.nn.init.zeros_(layer.bias)
 
-def init_normal(layer,mean,std):
-    torch.nn.init.normal_(layer.weight,mean=mean, std=std)
+
+def init_normal(layer, mean, std):
+    torch.nn.init.normal_(layer.weight, mean=mean, std=std)
     torch.nn.init.zeros_(layer.bias)
+
 
 # From https://github.com/pfnet/pfrl/blob/2ad3d51a7a971f3fe7f2711f024be11642990d61/pfrl/utils/copy_param.py#L37
 def soft_copy_param(target_link, source_link, tau):
