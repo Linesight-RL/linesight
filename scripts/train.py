@@ -21,11 +21,9 @@ from trackmania_rl.map_loader import load_next_map_zone_centers
 
 base_dir = Path(__file__).resolve().parents[1]
 
-run_name = "85"
-
-save_dir = base_dir / "save" / run_name
+save_dir = base_dir / "save" / misc.run_name
 save_dir.mkdir(parents=True, exist_ok=True)
-tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / run_name))
+tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
 layout = {
     "89": {

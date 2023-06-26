@@ -13,6 +13,8 @@ H_downsized = 120
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
+run_name = ""
+
 running_speed = 50
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
