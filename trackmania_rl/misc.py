@@ -11,9 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
-
-run_name = "26_512batch"
+run_name = "101"
 running_speed = 50
 
 tm_engine_step_per_action = 5
@@ -42,6 +40,7 @@ reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
 reward_per_ms_press_forward = 0.5 / 5000
+anneal_as_if_training_from_scratch = True
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -52,8 +51,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 750_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 20_000
+memory_size = 50_000 if is_pb_desktop else 800_000
+memory_size_start_learn = 1
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -102,9 +101,8 @@ weight_decay = f * 1e-6
 adam_epsilon = 1e-4
 grad_clip = 1000
 
-
-number_memories_trained_on_between_target_network_updates = 50000
-soft_update_tau = 0.05
+number_memories_trained_on_between_target_network_updates = 10_000
+soft_update_tau = 0.1
 
 float_inputs_mean = np.array(
     [
@@ -295,56 +293,6 @@ float_inputs_mean = np.array(
         1.17e01,
         1.01e02,
         # ==================== END   40 CP =====================
-        # ==================== BEGIN 16 CP =====================
-        # -1.30e00,
-        # -1.30e00,
-        # 9.00e-01,
-        # 1.00e-01,
-        # 1.00e-01,
-        # 2.26e01,
-        # 1.70e00,
-        # 1.70e00,
-        # 4.18e01,
-        # 2.90e00,
-        # 2.90e00,
-        # 5.75e01,
-        # 3.90e00,
-        # 3.90e00,
-        # 6.96e01,
-        # 4.80e00,
-        # 4.80e00,
-        # 7.82e01,
-        # 5.50e00,
-        # 5.50e00,
-        # 8.40e01,
-        # 6.10e00,
-        # 6.10e00,
-        # 8.77e01,
-        # 7.10e00,
-        # 7.10e00,
-        # 9.03e01,
-        # 8.20e00,
-        # 8.20e00,
-        # 9.22e01,
-        # 9.50e00,
-        # 9.50e00,
-        # 9.38e01,
-        # 1.07e01,
-        # 1.07e01,
-        # 9.55e01,
-        # 1.14e01,
-        # 1.14e01,
-        # 9.71e01,
-        # 1.18e01,
-        # 1.18e01,
-        # 9.85e01,
-        # 1.20e01,
-        # 1.20e01,
-        # 1.00e02,
-        # 1.17e01,
-        # 1.17e01,
-        # 1.01e02,
-        # ==================== END 16 CP =====================
     ]
 )
 
@@ -536,56 +484,6 @@ float_inputs_std = np.array(
         1.89e02,
         1.57e02,
         # ==================== END   40 CP =====================
-        # ==================== BEGIN 16 CP =====================
-        # 7.20e00,
-        # 7.20e00,
-        # 1.06e01,
-        # 1.10e01,
-        # 1.10e01,
-        # 1.38e01,
-        # 2.03e01,
-        # 2.03e01,
-        # 2.10e01,
-        # 3.30e01,
-        # 3.30e01,
-        # 3.05e01,
-        # 4.76e01,
-        # 4.76e01,
-        # 4.15e01,
-        # 6.27e01,
-        # 6.27e01,
-        # 5.34e01,
-        # 7.74e01,
-        # 7.74e01,
-        # 6.61e01,
-        # 9.16e01,
-        # 9.16e01,
-        # 7.90e01,
-        # 1.06e02,
-        # 1.06e02,
-        # 9.14e01,
-        # 1.20e02,
-        # 1.20e02,
-        # 1.03e02,
-        # 1.34e02,
-        # 1.34e02,
-        # 1.12e02,
-        # 1.46e02,
-        # 1.46e02,
-        # 1.22e02,
-        # 1.58e02,
-        # 1.58e02,
-        # 1.31e02,
-        # 1.68e02,
-        # 1.68e02,
-        # 1.40e02,
-        # 1.79e02,
-        # 1.79e02,
-        # 1.48e02,
-        # 1.89e02,
-        # 1.89e02,
-        # 1.57e02,
-        # ==================== END   16 CP =====================
     ]
 )
 
@@ -669,22 +567,42 @@ action_forward_idx = 0  # Accelerate forward, don't turn
 action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 10
-road_width = 50  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
+road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
-good_time_save_all_ms = 0
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 300_000
+timeout_between_runs_ms = 600_000
+tmi_protection_timeout_s = 500 if is_pb_desktop else 60
 
-explo_races_per_eval_race = 5
-anneal_as_if_training_from_scratch = True
 
 map_cycle = [
     repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
     repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, True), 1),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy",True,True,False),4),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy",False,True,True),1),
+    # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", True, True, False), 4),
+    # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", False, True, False), 1),
+    # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", True, True, False), 4),
+    # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", False, True, False), 1),
+    # repeat(("B01", '"Official Maps\Green\B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", True, True, False), 4),
+    # repeat(("B01", '"Official Maps\Green\B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", False, True, False), 1),
+    # repeat(("B02", '"Official Maps\Green\B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", True, True, False), 4),
+    # repeat(("B02", '"Official Maps\Green\B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", False, True, False), 1),
+    # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", True, True, False), 4),
+    # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True, False), 1),
+    # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True, False), 4),
+    # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True, False), 1),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl_2.npy", True, True, False), 4),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl_2.npy", False, True, False), 1),
+    # repeat(("A02", '"Official Maps\White\A02-Race.Challenge.Gbx"', "A02-Race_10m_cl.npy", False, False, False), 1),
+    # repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_10m_cl.npy", False, False, True), 1),
 ]
-#     ("map5_30s", '"My Challenges\Map5_30s.Challenge.Gbx"', "map5_10m_cl.npy"),
+
+# repeat(("parrots", '"ESL - Parrots are cool.Challenge.Gbx"', "parrots_are_cool_10m_cl.npy", True, True, False), 4),
+# repeat(("parrots", '"ESL - Parrots are cool.Challenge.Gbx"', "parrots_are_cool_10m_cl.npy", False, True, False), 1),
+# repeat(("leaveit", '"Leave it behind.Challenge.Gbx"', "leave_it_behind_10m_cl.npy", True, True, False), 4),
+# repeat(("leaveit", '"Leave it behind.Challenge.Gbx"', "leave_it_behind_10m_cl.npy", False, True, False), 1),
+# repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", True, True,
+#         False), 4),
+# repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
+#         False), 1),

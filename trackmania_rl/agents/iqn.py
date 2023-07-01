@@ -84,12 +84,10 @@ class Agent(torch.nn.Module):
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
                 nn_utilities.init_xavier(m, lrelu_gain)
-        # nn_utilities.init_kaiming(self.A_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
                 nn_utilities.init_xavier(m, lrelu_gain)
-        # nn_utilities.init_kaiming(self.V_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.V_head[-1])
 
     def forward(
@@ -97,6 +95,7 @@ class Agent(torch.nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
         img_outputs = self.img_head((img.to(torch.float32 if use_fp32 else torch.float16) - 128) / 128)  # PERF
+        # img_outputs = torch.zeros(batch_size, misc.conv_head_output_dim).to(device="cuda") # Uncomment to temporarily mask the img_head
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
         # (batch_size, dense_input_dimension) OK
         concat = torch.cat((img_outputs, float_outputs), 1)

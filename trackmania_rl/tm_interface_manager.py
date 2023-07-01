@@ -111,7 +111,6 @@ class TMInterfaceManager:
         self.max_minirace_duration_ms = max_minirace_duration_ms
         self.timeout_has_been_set = False
         self.interface_name = interface_name
-        # self.trackmania_window = win32gui.FindWindow("TmForever", None)
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         remove_fps_cap()
         remove_map_begin_camera_zoom_in()
@@ -230,7 +229,7 @@ class TMInterfaceManager:
         time_first_message0 = time.perf_counter_ns()
         time_last_on_run_step = time.perf_counter()
 
-        def cutoff_rollout(end_race_stats, msgtype):
+        def cutoff_rollout(end_race_stats, msgtype, tmi_protection_cutoff):
             # FAILED TO FINISH IN TIME
             simulation_state = self.iface.get_simulation_state()
             print(f"      --- {simulation_state.race_time:>6} ", end="")
@@ -253,6 +252,7 @@ class TMInterfaceManager:
             end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
             end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
             end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+            end_race_stats["tmi_protection_cutoff"] = tmi_protection_cutoff
 
             self.msgtype_response_to_wakeup_TMI = msgtype
             if msgtype != None:
@@ -269,9 +269,9 @@ class TMInterfaceManager:
             if self.iface.mfile is None:
                 continue
 
-            if time.perf_counter() - time_last_on_run_step > 60 and self.latest_tm_engine_speed_requested > 0:
+            if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
                 self.iface.registered = False
-                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None)
+                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
                 break
 
             self.iface.mfile.seek(0)
@@ -643,7 +643,7 @@ class TMInterfaceManager:
                     ):
                         # FAILED TO FINISH IN TIME
                         do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(
-                            end_race_stats, msgtype
+                            end_race_stats, msgtype, False
                         )
 
                     if not this_rollout_is_finished:
@@ -735,6 +735,7 @@ class TMInterfaceManager:
                         end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
                         end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
                         end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+                        end_race_stats["tmi_protection_cutoff"] = False
 
                         this_rollout_is_finished = True  # SUCCESSFULLY FINISHED THE RACE
                         self.msgtype_response_to_wakeup_TMI = msgtype

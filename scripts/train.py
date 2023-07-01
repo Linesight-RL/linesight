@@ -308,6 +308,7 @@ for loop_number in count(1):
         "time_exploration_policy": end_race_stats["time_exploration_policy"],
         "time_to_iface_set_set": end_race_stats["time_to_iface_set_set"],
         "time_after_iface_set_set": end_race_stats["time_after_iface_set_set"],
+        "tmi_protection_cutoff": end_race_stats["tmi_protection_cutoff"],
     }
     print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 
