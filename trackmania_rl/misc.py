@@ -13,9 +13,9 @@ H_downsized = 120
 
 wind32gui_margins = {"left": 7, "top": 32, "right": 7, "bottom": 7}
 
-run_name = ""
-
+run_name = "26_512batch"
 running_speed = 50
+
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
@@ -52,8 +52,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 750_000 if is_pb_desktop else 750_000
-memory_size_start_learn = 1_000
+memory_size = 750_000 if is_pb_desktop else 800_000
+memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -95,13 +95,15 @@ indices_floats_sign_inversion = [
 ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
 high_exploration_ratio = 3
-batch_size = 2048
+batch_size = 512
 f = 1
 learning_rate = f * 5e-5
 weight_decay = f * 1e-6
+adam_epsilon = 1e-4
+grad_clip = 1000
 
 
-number_memories_trained_on_between_target_network_updates = 50_000
+number_memories_trained_on_between_target_network_updates = 50000
 soft_update_tau = 0.05
 
 float_inputs_mean = np.array(
@@ -680,14 +682,9 @@ explo_races_per_eval_race = 5
 anneal_as_if_training_from_scratch = True
 
 map_cycle = [
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, False), 1),
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, False), 1),
-    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", True, True, False), 4),
-    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", False, True, False), 1),
-    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", True, True, False), 4),
-    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy", False, True, True), 1),
-    repeat(("map3", '"My Challenges\Map3.Challenge.Gbx"', "map3_10m_cl.npy", False, False, False), 1),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy",True,True,False),4),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy",False,True,True),1),
+    #repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy",True,True,False),4),
+    #repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl.npy",False,True,True),1),
 ]
 #     ("map5_30s", '"My Challenges\Map5_30s.Challenge.Gbx"', "map5_10m_cl.npy"),

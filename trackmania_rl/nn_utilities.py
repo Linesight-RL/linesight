@@ -1,20 +1,16 @@
 import torch
 
-
-def init_kaiming(layer, neg_slope):
-    torch.nn.init.kaiming_normal_(layer.weight, a=neg_slope, mode="fan_in")
+def init_kaiming(layer,neg_slope=0,nonlinearity='leaky_relu'):
+    torch.nn.init.kaiming_normal_(layer.weight,a=neg_slope, mode="fan_out", nonlinearity=nonlinearity)
     torch.nn.init.zeros_(layer.bias)
 
-
-def init_xavier(layer):
-    torch.nn.init.xavier_normal_(layer.weight)
+def init_xavier(layer,gain=1.0):
+    torch.nn.init.xavier_normal_(layer.weight,gain=gain)
     torch.nn.init.zeros_(layer.bias)
-
 
 def init_uniform(layer, a, b):
     torch.nn.init.uniform_(layer.weight, a=a, b=b)
     torch.nn.init.zeros_(layer.bias)
-
 
 def init_normal(layer, mean, std):
     torch.nn.init.normal_(layer.weight, mean=mean, std=std)

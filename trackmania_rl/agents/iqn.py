@@ -26,34 +26,35 @@ class Agent(torch.nn.Module):
         super().__init__()
         self.iqn_embedding_dimension = iqn_embedding_dimension
         img_head_channels = [1, 16, 32, 64, 32]
+        activation_function = torch.nn.LeakyReLU
         self.img_head = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=img_head_channels[0], out_channels=img_head_channels[1], kernel_size=(4, 4), stride=2),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Conv2d(in_channels=img_head_channels[1], out_channels=img_head_channels[2], kernel_size=(4, 4), stride=2),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Conv2d(in_channels=img_head_channels[2], out_channels=img_head_channels[3], kernel_size=(3, 3), stride=2),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Conv2d(in_channels=img_head_channels[3], out_channels=img_head_channels[4], kernel_size=(3, 3), stride=1),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Flatten(),
         )
         self.float_feature_extractor = torch.nn.Sequential(
             torch.nn.Linear(float_inputs_dim, float_hidden_dim),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Linear(float_hidden_dim, float_hidden_dim),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
         )
 
         dense_input_dimension = conv_head_output_dim + float_hidden_dim
 
         self.A_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Linear(dense_hidden_dimension // 2, n_actions),
         )
         self.V_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
-            torch.nn.LeakyReLU(inplace=True),
+            activation_function(inplace=True),
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
         )
 
@@ -70,22 +71,23 @@ class Agent(torch.nn.Module):
 
     def initialize_weights(self):
         lrelu_neg_slope = 1e-2
+        lrelu_gain = torch.nn.init.calculate_gain('leaky_relu', lrelu_neg_slope)
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_kaiming(m, lrelu_neg_slope)
+                nn_utilities.init_xavier(m,lrelu_gain)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_kaiming(m, lrelu_neg_slope)
-        nn_utilities.init_normal(
-            self.iqn_fc, 0, np.sqrt(2) * torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope) / np.sqrt(self.iqn_embedding_dimension)
-        )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
+                nn_utilities.init_xavier(m,lrelu_gain)
+        nn_utilities.init_xavier(self.iqn_fc,np.sqrt(2)*lrelu_gain) #Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_kaiming(m, lrelu_neg_slope)
+                 nn_utilities.init_xavier(m,lrelu_gain)
+        #nn_utilities.init_kaiming(self.A_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_kaiming(m, lrelu_neg_slope)
+                 nn_utilities.init_xavier(m,lrelu_gain)
+        #nn_utilities.init_kaiming(self.V_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.V_head[-1])
 
     def forward(
@@ -333,7 +335,7 @@ class Trainer:
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_value_(self.model.parameters(), 0.5)
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.grad_clip)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
