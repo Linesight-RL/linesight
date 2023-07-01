@@ -71,23 +71,25 @@ class Agent(torch.nn.Module):
 
     def initialize_weights(self):
         lrelu_neg_slope = 1e-2
-        lrelu_gain = torch.nn.init.calculate_gain('leaky_relu', lrelu_neg_slope)
+        lrelu_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_xavier(m,lrelu_gain)
+                nn_utilities.init_xavier(m, lrelu_gain)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_xavier(m,lrelu_gain)
-        nn_utilities.init_xavier(self.iqn_fc,np.sqrt(2)*lrelu_gain) #Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
+                nn_utilities.init_xavier(m, lrelu_gain)
+        nn_utilities.init_xavier(
+            self.iqn_fc, np.sqrt(2) * lrelu_gain
+        )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                 nn_utilities.init_xavier(m,lrelu_gain)
-        #nn_utilities.init_kaiming(self.A_head[-1],nonlinearity='linear')
+                nn_utilities.init_xavier(m, lrelu_gain)
+        # nn_utilities.init_kaiming(self.A_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                 nn_utilities.init_xavier(m,lrelu_gain)
-        #nn_utilities.init_kaiming(self.V_head[-1],nonlinearity='linear')
+                nn_utilities.init_xavier(m, lrelu_gain)
+        # nn_utilities.init_kaiming(self.V_head[-1],nonlinearity='linear')
         nn_utilities.init_xavier(self.V_head[-1])
 
     def forward(
