@@ -243,23 +243,25 @@ for loop_number in count(1):
 
     if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
         misc.reward_per_ms_press_forward = 0
-    if misc.anneal_as_if_training_from_scratch:
-        LR_Schedule = sorted(misc.LR_Schedule,key=lambda p:p[0]) #Sort by step in case it was not defined in sorted order
-        assert(LR_Schedule[0][0]==0)
-        current_step = accumulated_stats["cumul_number_memories_generated"] #Shorthand, expression is too long
-        LR_schedule_end_index = next((idx for idx,p in enumerate(LR_Schedule) if p[0]>current_step),-1) #Returns -1 if none is found
-        if LR_schedule_end_index==-1:
-            misc.learning_rate = LR_Schedule[-1][1]
-        else:
-            assert(LR_schedule_end_index>=1)
-            LR_schedule_end_step = LR_Schedule[LR_schedule_end_index][0]
-            LR_Schedule_begin_step = LR_Schedule[LR_schedule_end_index-1][0]
-            LR_annealing_period = LR_schedule_end_step-LR_Schedule_begin_step
-            LR_end_value = LR_Schedule[LR_schedule_end_index][1]
-            LR_begin_value = LR_Schedule[LR_schedule_end_index-1][1]
-            LR_ratio = LR_begin_value/LR_end_value
-            assert(LR_annealing_period>0)
-            misc.learning_rate = LR_begin_value*math.exp(-math.log(LR_ratio)*(current_step-LR_Schedule_begin_step)/LR_annealing_period)
+    
+    #LR and weight_decay calculation
+    LR_Schedule = sorted(misc.LR_Schedule,key=lambda p:p[0]) #Sort by step in case it was not defined in sorted order
+    assert(LR_Schedule[0][0]==0)
+    current_step = accumulated_stats["cumul_number_memories_generated"] #Shorthand, expression is too long
+    LR_schedule_end_index = next((idx for idx,p in enumerate(LR_Schedule) if p[0]>current_step),-1) #Returns -1 if none is found
+    if LR_schedule_end_index==-1:
+        misc.learning_rate = LR_Schedule[-1][1]
+    else:
+        assert(LR_schedule_end_index>=1)
+        LR_schedule_end_step = LR_Schedule[LR_schedule_end_index][0]
+        LR_Schedule_begin_step = LR_Schedule[LR_schedule_end_index-1][0]
+        LR_annealing_period = LR_schedule_end_step-LR_Schedule_begin_step
+        LR_end_value = LR_Schedule[LR_schedule_end_index][1]
+        LR_begin_value = LR_Schedule[LR_schedule_end_index-1][1]
+        LR_ratio = LR_begin_value/LR_end_value
+        assert(LR_annealing_period>0)
+        misc.learning_rate = LR_begin_value*math.exp(-math.log(LR_ratio)*(current_step-LR_Schedule_begin_step)/LR_annealing_period)
+    misc.weight_decay = misc.weight_decay_LR_ratio*misc.learning_rate
 
 
     # ===============================================

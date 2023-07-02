@@ -95,9 +95,8 @@ indices_floats_sign_inversion = [
 
 high_exploration_ratio = 3
 batch_size = 512
-learning_rate = 1e-3 #Value ignored, will be overruled by LR_Schedule
 LR_Schedule = [[0,1e-3], [3_000_000,5e-5]]
-weight_decay = 1e-6
+weight_decay_LR_ratio = 1e-6/5e-5
 adam_epsilon = 1e-4
 grad_clip = 1000
 
@@ -606,3 +605,6 @@ map_cycle = [
 #         False), 4),
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
+
+learning_rate = 1e-3 #Value ignored, will be overruled by LR_Schedule
+weight_decay = 1e-6 #Value ignored, will be overruled by weight_decay_LR_ratio
