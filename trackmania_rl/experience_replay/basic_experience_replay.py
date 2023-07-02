@@ -3,7 +3,7 @@ from collections import deque
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import torch
-from torchrl.data.replay_buffers.samplers import RandomSampler
+from torchrl.data.replay_buffers.samplers import RandomSampler, PrioritizedSampler
 from torchrl.data.replay_buffers.storages import ListStorage
 from torchrl.data.replay_buffers.utils import INT_CLASSES
 from torchrl.data.replay_buffers.writers import RoundRobinWriter
@@ -18,10 +18,13 @@ class ReplayBuffer:
         collate_fn: Optional[Callable] = None,
         prefetch: Optional[int] = None,
         batch_size: Optional[int] = None,
+        alpha: float,
+        beta: float,
+        eps: float
     ) -> None:
         self._storage = ListStorage(max_size=capacity)
         self._storage.attach(self)
-        self._sampler = RandomSampler()
+        self._sampler = PrioritizedSampler(capacity, alpha, beta, eps, torch.float)
         self._writer = RoundRobinWriter()
         self._writer.register_storage(self._storage)
         self._collate_fn = collate_fn

@@ -173,10 +173,8 @@ optimizer1 = torch.optim.RAdam(
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1)
-buffer_test = ReplayBuffer(
-    capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
-)
+buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
+buffer_test = ReplayBuffer(capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
 
 loss_history = []
 loss_test_history = []
@@ -263,6 +261,10 @@ for loop_number in count(1):
     trainer.AL_alpha = misc.AL_alpha
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
+
+    buffer._sampler._alpha = misc.prio_alpha
+    buffer._sampler._beta = misc.prio_beta
+    buffer._sampler._eps  = misc.prio_epsilon
 
     if is_explo:
         trainer.epsilon = (

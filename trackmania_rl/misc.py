@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "27_512_schedule"
+run_name = "29_512_schedule1_5M_PER0_2"
 running_speed = 100
 
 tm_engine_step_per_action = 5
@@ -50,7 +50,11 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 50_000 if is_pb_desktop else 50_000
+prio_alpha = np.float32(0.2) #Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
+prio_epsilon = np.float32(1e-6) #Defaults to 10^-6 in stable-baselines
+prio_beta = np.float32(1)
+
+memory_size = 50_000 if is_pb_desktop else 800_000
 memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
@@ -96,9 +100,10 @@ high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
     (0, 1e-3),
-    (3_000_000, 5e-5),
+    (1_500_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
+
 adam_epsilon = 1e-4
 grad_clip = 1000
 

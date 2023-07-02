@@ -187,6 +187,7 @@ class Trainer:
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
+                batch, batch_info = buffer.sample(self.batch_size, return_info=True)
                 (
                     state_img_tensor,
                     state_float_tensor,
@@ -197,10 +198,11 @@ class Trainer:
                     next_state_float_tensor,
                     gammas_per_n_steps,
                     minirace_min_time_actions,
-                ) = buffer.sample(self.batch_size)
+                ) = batch
         with torch.cuda.stream(self.execution_stream):
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 with torch.no_grad():
+                    IS_weights = torch.from_numpy(batch_info['_weight']).to("cuda")
                     new_actions = new_actions.to(dtype=torch.int64)
                     new_n_steps = new_n_steps.to(dtype=torch.int64)
                     minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
@@ -329,7 +331,7 @@ class Trainer:
                     (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
                 )  # pinball loss # (batch_size, )
 
-                total_loss = torch.sum(loss)  # total_loss.shape=torch.Size([])
+                total_loss = torch.sum(IS_weights*loss)
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()
@@ -342,6 +344,7 @@ class Trainer:
                 self.scaler.update()
 
             total_loss = total_loss.detach().cpu()
+            buffer.update_priority(batch_info['index'],loss.detach().cpu().type(torch.float64))
         self.execution_stream.synchronize()
         return total_loss
 
