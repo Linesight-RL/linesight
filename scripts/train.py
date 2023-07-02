@@ -242,7 +242,7 @@ for loop_number in count(1):
     #   VERY BASIC TRAINING ANNEALING
     # ===============================================
 
-    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
+    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_memories_generated"] > 300_000:
         misc.reward_per_ms_press_forward = 0
 
     #LR and weight_decay calculation
