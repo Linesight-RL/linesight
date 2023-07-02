@@ -3,6 +3,7 @@ import random
 import shutil
 import time
 import typing
+import math
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -242,8 +243,9 @@ for loop_number in count(1):
 
     if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
         misc.reward_per_ms_press_forward = 0
-    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] < 30000:
-        misc.learning_rate *= 5
+    if misc.anneal_as_if_training_from_scratch:
+        misc.learning_rate = misc.learning_rate*max(1,20*math.exp(-math.log(20)*accumulated_stats["cumul_number_memories_generated"]/misc.LR_annealing_period))
+
 
     # ===============================================
     #   RELOAD

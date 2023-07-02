@@ -11,8 +11,8 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "101"
-running_speed = 50
+run_name = "27_512_schedule"
+running_speed = 100
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -51,8 +51,8 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 50_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 1
+memory_size = 50_000 if is_pb_desktop else 50_000
+memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -100,6 +100,7 @@ learning_rate = f * 5e-5
 weight_decay = f * 1e-6
 adam_epsilon = 1e-4
 grad_clip = 1000
+LR_annealing_period = 3_000_000
 
 number_memories_trained_on_between_target_network_updates = 10_000
 soft_update_tau = 0.1
