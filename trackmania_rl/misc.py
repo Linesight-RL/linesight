@@ -605,6 +605,3 @@ map_cycle = [
 #         False), 4),
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
-
-learning_rate = 1e-3 #Value ignored, will be overruled by LR_Schedule
-weight_decay = 1e-6 #Value ignored, will be overruled by weight_decay_LR_ratio

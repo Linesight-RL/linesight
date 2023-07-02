@@ -141,14 +141,6 @@ model2 = torch.jit.script(
 ).to("cuda", memory_format=torch.channels_last)
 print(model1)
 
-optimizer1 = torch.optim.RAdam(model1.parameters(), lr=misc.learning_rate, eps=misc.adam_epsilon)  # TODO essayer un autre epsilon
-# optimizer1 = torch.optim.Adam(model1.parameters(), lr=misc.learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=misc.learning_rate, momentum=0.8)
-scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1)
-buffer_test = ReplayBuffer(
-    capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
-)
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
 
@@ -172,6 +164,15 @@ except:
     print(" Could not load stats")
 
 accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
+
+optimizer1 = torch.optim.RAdam(model1.parameters(), lr=nn_utilities.LR_From_Schedule(misc.LR_Schedule,accumulated_stats["cumul_number_memories_generated"]), eps=misc.adam_epsilon)  # TODO essayer un autre epsilon
+# optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
+scaler = torch.cuda.amp.GradScaler()
+buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1)
+buffer_test = ReplayBuffer(
+    capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
+)
 
 loss_history = []
 loss_test_history = []
@@ -243,25 +244,10 @@ for loop_number in count(1):
 
     if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_batches_done"] > 10000:
         misc.reward_per_ms_press_forward = 0
-    
+
     #LR and weight_decay calculation
-    LR_Schedule = sorted(misc.LR_Schedule,key=lambda p:p[0]) #Sort by step in case it was not defined in sorted order
-    assert(LR_Schedule[0][0]==0)
-    current_step = accumulated_stats["cumul_number_memories_generated"] #Shorthand, expression is too long
-    LR_schedule_end_index = next((idx for idx,p in enumerate(LR_Schedule) if p[0]>current_step),-1) #Returns -1 if none is found
-    if LR_schedule_end_index==-1:
-        misc.learning_rate = LR_Schedule[-1][1]
-    else:
-        assert(LR_schedule_end_index>=1)
-        LR_schedule_end_step = LR_Schedule[LR_schedule_end_index][0]
-        LR_Schedule_begin_step = LR_Schedule[LR_schedule_end_index-1][0]
-        LR_annealing_period = LR_schedule_end_step-LR_Schedule_begin_step
-        LR_end_value = LR_Schedule[LR_schedule_end_index][1]
-        LR_begin_value = LR_Schedule[LR_schedule_end_index-1][1]
-        LR_ratio = LR_begin_value/LR_end_value
-        assert(LR_annealing_period>0)
-        misc.learning_rate = LR_begin_value*math.exp(-math.log(LR_ratio)*(current_step-LR_Schedule_begin_step)/LR_annealing_period)
-    misc.weight_decay = misc.weight_decay_LR_ratio*misc.learning_rate
+    learning_rate = nn_utilities.LR_From_Schedule(misc.LR_Schedule,accumulated_stats["cumul_number_memories_generated"])
+    weight_decay = misc.weight_decay_LR_ratio*learning_rate
 
 
     # ===============================================
@@ -269,7 +255,7 @@ for loop_number in count(1):
     # ===============================================
 
     for param_group in optimizer1.param_groups:
-        param_group["lr"] = misc.learning_rate
+        param_group["lr"] = learning_rate
     trainer.gamma = misc.gamma
     trainer.AL_alpha = misc.AL_alpha
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
@@ -426,7 +412,7 @@ for loop_number in count(1):
                 accumulated_stats["cumul_number_batches_done"] += 1
                 print(f"B    {loss=:<8.2e}")
 
-                nn_utilities.custom_weight_decay(model1, 1 - misc.weight_decay)
+                nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
 
                 # ===============================================
                 #   UPDATE TARGET NETWORK
@@ -463,8 +449,8 @@ for loop_number in count(1):
             "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
             "tau_greedy_boltzmann": misc.tau_greedy_boltzmann,
             "AL_alpha": misc.AL_alpha,
-            "learning_rate": misc.learning_rate,
-            "weight_decay": misc.weight_decay,
+            "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
             "reward_per_ms_press_forward": misc.reward_per_ms_press_forward,
             "memory_size": len(buffer),
