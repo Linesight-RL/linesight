@@ -1,9 +1,9 @@
 import importlib
+import math
 import random
 import shutil
 import time
 import typing
-import math
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -165,7 +165,11 @@ except:
 
 accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
 
-optimizer1 = torch.optim.RAdam(model1.parameters(), lr=nn_utilities.LR_From_Schedule(misc.LR_Schedule,accumulated_stats["cumul_number_memories_generated"]), eps=misc.adam_epsilon)  # TODO essayer un autre epsilon
+optimizer1 = torch.optim.RAdam(
+    model1.parameters(),
+    lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+    eps=misc.adam_epsilon,
+)  # TODO essayer un autre epsilon
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
@@ -242,13 +246,12 @@ for loop_number in count(1):
     #   VERY BASIC TRAINING ANNEALING
     # ===============================================
 
-    if misc.anneal_as_if_training_from_scratch and accumulated_stats["cumul_number_memories_generated"] > 300_000:
-        misc.reward_per_ms_press_forward = 0
+    if accumulated_stats["cumul_number_memories_generated"] > 300_000:
+        misc.reward_per_ms_press_forward_early_training = 0
 
-    #LR and weight_decay calculation
-    learning_rate = nn_utilities.LR_From_Schedule(misc.LR_Schedule,accumulated_stats["cumul_number_memories_generated"])
-    weight_decay = misc.weight_decay_LR_ratio*learning_rate
-
+    # LR and weight_decay calculation
+    learning_rate = nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+    weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
     # ===============================================
     #   RELOAD
@@ -452,7 +455,7 @@ for loop_number in count(1):
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
-            "reward_per_ms_press_forward": misc.reward_per_ms_press_forward,
+            "reward_per_ms_press_forward": misc.reward_per_ms_press_forward_early_training,
             "memory_size": len(buffer),
             "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
         }

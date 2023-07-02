@@ -75,7 +75,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             # )
             # Reward due to press forward
             reward += (
-                np.sum(gammas[:j] * np.array(rollout_results["input_w"][i : i + j])) * misc.reward_per_ms_press_forward * misc.ms_per_action
+                np.sum(gammas[:j] * np.array(rollout_results["input_w"][i : i + j]))
+                * misc.reward_per_ms_press_forward_early_training
+                * misc.ms_per_action
             )
 
             rewards[j - 1] = reward

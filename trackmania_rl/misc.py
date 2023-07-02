@@ -39,8 +39,7 @@ constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward = 0.5 / 5000
-anneal_as_if_training_from_scratch = True
+reward_per_ms_press_forward_early_training = 0.5 / 5000
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -95,8 +94,11 @@ indices_floats_sign_inversion = [
 
 high_exploration_ratio = 3
 batch_size = 512
-LR_Schedule = [[0,1e-3], [3_000_000,5e-5]]
-weight_decay_LR_ratio = 1e-6/5e-5
+lr_schedule = [
+    (0, 1e-3),
+    (3_000_000, 5e-5),
+]
+weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 grad_clip = 1000
 

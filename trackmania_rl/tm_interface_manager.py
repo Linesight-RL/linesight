@@ -705,16 +705,15 @@ class TMInterfaceManager:
                 if current == target:  # Finished the race !!
                     simulation_state = self.iface.get_simulation_state()
 
-                    cp_times_bug_handling_attempts=0
-                    while len(simulation_state.cp_data.cp_times)==0 and cp_times_bug_handling_attempts<5:
+                    cp_times_bug_handling_attempts = 0
+                    while len(simulation_state.cp_data.cp_times) == 0 and cp_times_bug_handling_attempts < 5:
                         simulation_state = self.iface.get_simulation_state()
                         cp_times_bug_handling_attempts += 1
-                    if len(simulation_state.cp_data.cp_times)!=0:
+                    if len(simulation_state.cp_data.cp_times) != 0:
                         simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
                         self.rewind_to_state(simulation_state)
                     else:
                         self.iface.prevent_simulation_finish()
-                    # self.iface.prevent_simulation_finish()  # Agade claims his trick above is better. Don't poke Agade.
 
                     if (
                         this_rollout_has_seen_t_negative and not this_rollout_is_finished
