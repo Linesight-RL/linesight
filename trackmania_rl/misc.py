@@ -95,12 +95,11 @@ indices_floats_sign_inversion = [
 
 high_exploration_ratio = 3
 batch_size = 512
-f = 1
-learning_rate = f * 5e-5
-weight_decay = f * 1e-6
+learning_rate = 1e-3 #Value ignored, will be overruled by LR_Schedule
+LR_Schedule = [[0,1e-3], [3_000_000,5e-5]]
+weight_decay = 1e-6
 adam_epsilon = 1e-4
 grad_clip = 1000
-LR_annealing_period = 3_000_000
 
 number_memories_trained_on_between_target_network_updates = 10_000
 soft_update_tau = 0.1
