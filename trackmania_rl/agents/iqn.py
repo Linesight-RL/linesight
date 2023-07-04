@@ -1,6 +1,7 @@
 import math
 import random
 from typing import Optional, Tuple
+from collections import deque
 
 import numpy as np
 import torch
@@ -74,21 +75,21 @@ class Agent(torch.nn.Module):
         lrelu_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_xavier(m, lrelu_gain)
+                nn_utilities.init_orthogonal(m, lrelu_gain)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_xavier(m, lrelu_gain)
-        nn_utilities.init_xavier(
+                nn_utilities.init_orthogonal(m, lrelu_gain)
+        nn_utilities.init_orthogonal(
             self.iqn_fc, np.sqrt(2) * lrelu_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_xavier(m, lrelu_gain)
-        nn_utilities.init_xavier(self.A_head[-1])
+                nn_utilities.init_orthogonal(m, lrelu_gain)
+        nn_utilities.init_orthogonal(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_xavier(m, lrelu_gain)
-        nn_utilities.init_xavier(self.V_head[-1])
+                nn_utilities.init_orthogonal(m, lrelu_gain)
+        nn_utilities.init_orthogonal(self.V_head[-1])
 
     def forward(
         self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
@@ -147,6 +148,7 @@ class Trainer:
         "tau_epsilon_boltzmann",
         "tau_greedy_boltzmann",
         "execution_stream",
+        "IS_Average"
     )
 
     def __init__(
@@ -181,6 +183,7 @@ class Trainer:
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
         self.execution_stream = torch.cuda.Stream()
+        self.IS_Average = deque([], maxlen=100)
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -202,7 +205,9 @@ class Trainer:
         with torch.cuda.stream(self.execution_stream):
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 with torch.no_grad():
-                    IS_weights = torch.from_numpy(batch_info['_weight']).to("cuda")
+                    if misc.prio_alpha>0:
+                        self.IS_Average.append(batch_info['_weight'].mean())
+                        IS_weights = torch.from_numpy(batch_info['_weight']/np.mean(self.IS_Average)).to("cuda")
                     new_actions = new_actions.to(dtype=torch.int64)
                     new_n_steps = new_n_steps.to(dtype=torch.int64)
                     minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
@@ -331,7 +336,7 @@ class Trainer:
                     (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
                 )  # pinball loss # (batch_size, )
 
-                total_loss = torch.sum(IS_weights*loss)
+                total_loss = torch.sum(IS_weights*loss if misc.prio_alpha>0 else loss)
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()

@@ -52,7 +52,10 @@ def recreate_dxcam():
     global camera
     print("RECREATE")
     del camera
-    create_dxcam()
+    try:
+        create_dxcam()
+    except Exception as e:
+        print(e)
 
 
 def create_dxcam():

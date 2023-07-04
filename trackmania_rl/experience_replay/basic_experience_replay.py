@@ -24,7 +24,7 @@ class ReplayBuffer:
     ) -> None:
         self._storage = ListStorage(max_size=capacity)
         self._storage.attach(self)
-        self._sampler = PrioritizedSampler(capacity, alpha, beta, eps, torch.float)
+        self._sampler = PrioritizedSampler(capacity, alpha, beta, eps, torch.float) if alpha>0 else RandomSampler()
         self._writer = RoundRobinWriter()
         self._writer.register_storage(self._storage)
         self._collate_fn = collate_fn

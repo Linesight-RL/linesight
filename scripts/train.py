@@ -13,6 +13,7 @@ import joblib
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from torchrl.data.replay_buffers.samplers import PrioritizedSampler
 
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
@@ -149,15 +150,6 @@ accumulated_stats["alltime_min_ms"] = {}
 # ========================================================
 # noinspection PyBroadException
 try:
-    model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
-    model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
-    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
-    print(" =========================     Weights loaded !     ================================")
-except:
-    print(" Could not load weights")
-
-# noinspection PyBroadException
-try:
     accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
     print(" =========================      Stats loaded !      ================================")
 except:
@@ -175,6 +167,15 @@ optimizer1 = torch.optim.RAdam(
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
 buffer_test = ReplayBuffer(capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
+
+# noinspection PyBroadException
+try:
+    model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
+    model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
+    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+    print(" =========================     Weights loaded !     ================================")
+except:
+    print(" Could not load weights")
 
 loss_history = []
 loss_test_history = []
@@ -262,9 +263,10 @@ for loop_number in count(1):
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
-    buffer._sampler._alpha = misc.prio_alpha
-    buffer._sampler._beta = misc.prio_beta
-    buffer._sampler._eps  = misc.prio_epsilon
+    if isinstance(buffer._sampler,PrioritizedSampler):
+        buffer._sampler._alpha = misc.prio_alpha
+        buffer._sampler._beta = misc.prio_beta
+        buffer._sampler._eps  = misc.prio_epsilon
 
     if is_explo:
         trainer.epsilon = (
