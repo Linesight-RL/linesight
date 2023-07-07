@@ -141,6 +141,10 @@ class TMInterfaceManager:
         self.iface.set_speed(requested_speed)
         self.latest_tm_engine_speed_requested = requested_speed
 
+    def request_inputs(self, action_idx, rollout_results):
+        if (len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx):  # Small performance trick, don't update input_state if it doesn't need to be updated
+            self.iface.set_input_state(**misc.inputs[action_idx])
+
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         end_race_stats = {}
 
@@ -310,10 +314,7 @@ class TMInterfaceManager:
                     if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
                         # This might happen if the car enters my last virtual zone, but has not finished the race yet.
                         # Just press forward and do not record any experience
-                        if (
-                            len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
-                        ):  # Small performance trick, don't update input_state if it doesn't need to be updated
-                            self.iface.set_input_state(**misc.inputs[misc.action_forward_idx])
+                        self.request_inputs(misc.action_forward_idx, rollout_results)
                         self.request_speed(self.running_speed)
                     else:
                         # ===================================================================================================
@@ -569,8 +570,7 @@ class TMInterfaceManager:
                         # action_idx = random.randint(0, 8)
 
                         # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
-
-                        self.iface.set_input_state(**misc.inputs[action_idx])
+                        self.request_inputs(action_idx, rollout_results)
                         self.request_speed(self.running_speed)
 
                         time_to_iface_set_set += time.perf_counter_ns() - pc2
@@ -655,7 +655,7 @@ class TMInterfaceManager:
                         if _time == -1000:
                             # Press forward before the race starts
                             self.iface.set_timeout(misc.timeout_during_run_ms)
-                            self.iface.set_input_state(**(misc.inputs[misc.action_forward_idx]))  # forward
+                            self.request_inputs(misc.action_forward_idx, rollout_results)
                         elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.rewind_to_state(last_known_simulation_state)
