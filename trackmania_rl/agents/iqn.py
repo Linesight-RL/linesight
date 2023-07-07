@@ -343,7 +343,7 @@ class Trainer:
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.grad_clip)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), misc.grad_clip)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
