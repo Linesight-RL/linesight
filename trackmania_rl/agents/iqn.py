@@ -204,15 +204,15 @@ class Trainer:
                 with torch.no_grad():
                     if misc.prio_alpha>0:
                         self.IS_Average.append(batch_info['_weight'].mean())
-                        IS_weights = torch.from_numpy(batch_info['_weight']/np.mean(self.IS_Average)).to("cuda")
+                        IS_weights = torch.from_numpy(batch_info['_weight']/np.mean(self.IS_Average)).to("cuda", non_blocking=True)
                     new_actions = new_actions.to(dtype=torch.int64)
                     new_n_steps = new_n_steps.to(dtype=torch.int64)
                     minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
 
                     new_xxx = (
-                        torch.rand(size=minirace_min_time_actions.shape).to(device="cuda")
+                        torch.rand(size=minirace_min_time_actions.shape, device="cuda")
                         * (misc.temporal_mini_race_duration_actions - minirace_min_time_actions)
-                    ).to(dtype=torch.int64, device="cuda")
+                    ).to(dtype=torch.int64)
                     temporal_mini_race_current_time_actions = misc.temporal_mini_race_duration_actions - 1 - new_xxx
                     temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + new_n_steps
 
