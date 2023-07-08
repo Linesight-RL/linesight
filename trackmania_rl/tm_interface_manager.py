@@ -824,6 +824,7 @@ class TMInterfaceManager:
             elif msgtype == MessageType.S_ON_REGISTERED:
                 print("REGISTERED ", end="")
                 self.iface.registered = True
+                self.request_speed(1)
                 self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
