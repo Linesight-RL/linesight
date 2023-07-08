@@ -28,7 +28,7 @@ def ensure_not_minimized(trackmania_window):
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    rect = win32gui.GetWindowRect(trackmania_window)
+    rect = win32gui.GetWindowPlacement(trackmania_window)[4]#Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
     clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
     windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
     titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
