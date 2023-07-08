@@ -48,7 +48,6 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-AL_alpha = 0
 UseDDQN = False
 
 prio_alpha = np.float32(0) #Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6

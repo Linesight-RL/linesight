@@ -144,7 +144,6 @@ class Trainer:
         "epsilon",
         "epsilon_boltzmann",
         "gamma",
-        "AL_alpha",
         "tau_epsilon_boltzmann",
         "tau_greedy_boltzmann",
         "execution_stream",
@@ -164,7 +163,6 @@ class Trainer:
         epsilon: float,
         epsilon_boltzmann: float,
         gamma: float,
-        AL_alpha: float,
         tau_epsilon_boltzmann: float,
         tau_greedy_boltzmann: float,
     ):
@@ -179,7 +177,6 @@ class Trainer:
         self.epsilon = epsilon
         self.epsilon_boltzmann = epsilon_boltzmann
         self.gamma = gamma
-        self.AL_alpha = AL_alpha
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
         self.execution_stream = torch.cuda.Stream()
@@ -269,45 +266,6 @@ class Trainer:
                         rewards,
                         target,
                     )  # (batch_size*iqn_n, 1)
-
-                    # # =============== BEG PAL ==============
-                    # # V(x') dans PAL devient une distribution en IQN, on veux les quantiles de cette distribution. Il faut choisir une action, la meilleure action, et prendre les quantiles de cette action: notre V
-                    # # Parceque si tu max par quantile, tu melange des quantiles de distributions differentes
-                    # #
-                    # #   PAL Term
-                    # #
-                    # pal_term_tau2 = q__stpo__model2__quantiles_tau2.gather(
-                    #     1,
-                    #     q__stpo__model2__quantiles_tau2.reshape(
-                    #         [self.iqn_n, self.batch_size, self.model.n_actions]
-                    #     )
-                    #     .mean(dim=0)
-                    #     .argmax(dim=1, keepdim=True)
-                    #     .repeat([self.iqn_n, 1]),
-                    # ) - q__stpo__model2__quantiles_tau2.gather(1, actions_n)
-                    # # (batch_size*iqn_n, 1)
-                    #
-                    # #
-                    # #   AL Term
-                    # #
-                    # q__st__model2__quantiles_tau2, tau2 = self.model2(
-                    #     state_img_tensor, state_float_tensor, self.iqn_n, tau=tau2
-                    # )  # (batch_size*iqn_n,n_actions)
-                    # al_term_tau2 = q__st__model2__quantiles_tau2.gather(
-                    #     1,
-                    #     q__st__model2__quantiles_tau2.reshape(
-                    #         [self.iqn_n, self.batch_size, self.model.n_actions]
-                    #     )
-                    #     .mean(dim=0)
-                    #     .argmax(dim=1, keepdim=True)
-                    #     .repeat([self.iqn_n, 1]),
-                    # ) - q__st__model2__quantiles_tau2.gather(1, actions_n)
-                    # # (batch_size*iqn_n, 1)
-                    #
-                    # outputs_target_tau2 -= self.AL_alpha * torch.minimum(
-                    #     al_term_tau2, pal_term_tau2
-                    # )
-                    # # =============== END PAL ==============
 
                     #
                     #   This is our target

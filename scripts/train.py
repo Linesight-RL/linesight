@@ -198,7 +198,6 @@ trainer = iqn.Trainer(
     epsilon=misc.epsilon,
     epsilon_boltzmann=misc.epsilon_boltzmann,
     gamma=misc.gamma,
-    AL_alpha=misc.AL_alpha,
     tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann,
     tau_greedy_boltzmann=misc.tau_greedy_boltzmann,
 )
@@ -269,7 +268,6 @@ for loop_number in count(1):
     for param_group in optimizer1.param_groups:
         param_group["lr"] = learning_rate
     trainer.gamma = misc.gamma
-    trainer.AL_alpha = misc.AL_alpha
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
@@ -479,7 +477,6 @@ for loop_number in count(1):
             "epsilon_boltzmann": misc.epsilon_boltzmann,
             "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
             "tau_greedy_boltzmann": misc.tau_greedy_boltzmann,
-            "AL_alpha": misc.AL_alpha,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
