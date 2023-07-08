@@ -49,6 +49,7 @@ iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
+UseDDQN = False
 
 prio_alpha = np.float32(0) #Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
 prio_epsilon = np.float32(1e-6) #Defaults to 10^-6 in stable-baselines

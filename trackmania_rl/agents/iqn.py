@@ -236,36 +236,38 @@ class Trainer:
                     actions = new_actions[:, None]  # (batch_size, 1)
                     actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                     #
-                    #   Use model to choose an action for next state.
-                    #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
-                    #
-                    a__tpo__model__reduced_repeated = (
-                        self.model(
-                            next_state_img_tensor,
-                            next_state_float_tensor,
-                            self.iqn_n,
-                            tau=None,
-                        )[0]
-                        .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                        .mean(dim=0)
-                        .argmax(dim=1, keepdim=True)
-                        .repeat([self.iqn_n, 1])
-                    )  # (iqn_n * batch_size, 1)
-
-                    #
                     #   Use model2 to evaluate the action chosen, per quantile.
                     #
                     q__stpo__model2__quantiles_tau2, tau2 = self.model2(
                         next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
                     )  # (batch_size*iqn_n,n_actions)
-
+                    #
+                    #   Use model to choose an action for next state.
+                    #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
+                    #
+                    if misc.UseDDQN:
+                        a__tpo__model__reduced_repeated = (
+                            self.model(
+                                next_state_img_tensor,
+                                next_state_float_tensor,
+                                self.iqn_n,
+                                tau=None,
+                            )[0]
+                            .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                            .mean(dim=0)
+                            .argmax(dim=1, keepdim=True)
+                            .repeat([self.iqn_n, 1])
+                        )  # (iqn_n * batch_size, 1)
+                        target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated)
+                    else:
+                        target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.argmax(dim=1,keepdim=True)
                     #
                     #   Build IQN target on tau2 quantiles
                     #
                     outputs_target_tau2 = torch.where(
                         done,
                         rewards,
-                        rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated),
+                        target,
                     )  # (batch_size*iqn_n, 1)
 
                     # # =============== BEG PAL ==============
