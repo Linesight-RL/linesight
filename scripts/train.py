@@ -174,6 +174,7 @@ try:
     model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
     model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
     optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+    scaler.load_state_dict(torch.load(save_dir / "scaler.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
     print(" Could not load weights")
@@ -387,6 +388,10 @@ for loop_number in count(1):
         torch.save(
             optimizer1.state_dict(),
             save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
+        )
+        torch.save(
+            scaler.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "scaler.torch",
         )
         shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
