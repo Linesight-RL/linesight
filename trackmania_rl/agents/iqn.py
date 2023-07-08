@@ -104,12 +104,12 @@ class Agent(torch.nn.Module):
             tau = torch.rand(
                 size=(batch_size * num_quantiles, 1), device="cuda", dtype=torch.float32
             )  # (batch_size * num_quantiles, 1) (random numbers)
-        quantile_net = tau.expand(
+        quantile_net = torch.cos(
+            torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * tau
+        )  # (batch_size*num_quantiles, 1)
+        quantile_net = quantile_net.expand(
             [-1, self.iqn_embedding_dimension]
         )  # (batch_size*num_quantiles, iqn_embedding_dimension) (still random numbers)
-        quantile_net = torch.cos(
-            torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * quantile_net
-        )  # (batch_size*num_quantiles, iqn_embedding_dimension)
         # (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
         # (batch_size*num_quantiles, dense_input_dimension)
         quantile_net = self.iqn_fc(quantile_net)
@@ -257,7 +257,7 @@ class Trainer:
                         )  # (iqn_n * batch_size, 1)
                         target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated)
                     else:
-                        target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.argmax(dim=1,keepdim=True)
+                        target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.max(dim=1,keepdim=True)[0]
                     #
                     #   Build IQN target on tau2 quantiles
                     #
