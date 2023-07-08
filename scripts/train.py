@@ -222,6 +222,8 @@ next_map_tuple = next(map_cycle_iter)
 zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
+steps_since_output_reset = 0
+
 for loop_number in count(1):
     importlib.reload(misc)
 
@@ -296,6 +298,7 @@ for loop_number in count(1):
     )
 
     accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
+    steps_since_output_reset += len(rollout_results["frames"])
 
     # ===============================================
     #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
@@ -305,7 +308,7 @@ for loop_number in count(1):
         f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
         f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
         f"mean_action_gap_{map_name}": -(
-            np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
+            np.atleast_2d(rollout_results["q_values"]) - np.atleast_2d(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
         ).mean(),
         f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
         "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
@@ -337,6 +340,15 @@ for loop_number in count(1):
             global_step=accumulated_stats["cumul_number_frames_played"],
             walltime=walltime_tb,
         )
+
+    if steps_since_output_reset>=misc.output_reset_period and len(buffer)>=misc.memory_size:
+        steps_since_output_reset = 0
+        def reset_output(model):
+            nn_utilities.init_orthogonal(model.A_head[-1])
+            nn_utilities.init_orthogonal(model.V_head[-1])
+        reset_output(model1)
+        reset_output(model2)
+        #To Do: reset the optimizer parameters for the layers we have reset
 
     # ===============================================
     #   SAVE STUFF IF THIS WAS A GOOD RACE
