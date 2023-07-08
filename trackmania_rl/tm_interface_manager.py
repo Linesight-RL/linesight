@@ -10,6 +10,7 @@ import torch
 
 # noinspection PyPackageRequirements
 import win32gui
+import win32.lib.win32con as win32con
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
@@ -21,10 +22,12 @@ from .geometry import fraction_time_spent_in_current_zone
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
+def ensure_not_minimized(trackmania_window):
+    if win32gui.IsIconic(trackmania_window):#https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
+        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNOACTIVATE) #Unminimize window without setting it in focus
 
-def _get_window_position():
+def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    trackmania_window = win32gui.FindWindow("TmForever", None)
     rect = win32gui.GetWindowRect(trackmania_window)
     clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
     windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
@@ -60,7 +63,9 @@ def recreate_dxcam():
 
 def create_dxcam():
     global camera
-    region, output_idx = _get_window_position()
+    trackmania_window = win32gui.FindWindow("TmForever", None)
+    ensure_not_minimized(trackmania_window)
+    region, output_idx = _get_window_position(trackmania_window)
     print(f"CREATE {region=}, {output_idx=}")
     camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
 
