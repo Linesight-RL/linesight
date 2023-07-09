@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 from . import misc
-from .experience_replay.basic_experience_replay import ReplayBuffer
+from torchrl.data import ReplayBuffer
 from .experience_replay.experience_replay_interface import Experience
 
 

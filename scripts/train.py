@@ -13,12 +13,13 @@ import joblib
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from torchrl.data.replay_buffers.samplers import PrioritizedSampler
 
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
-from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
+from torchrl.data import ReplayBuffer
+from torchrl.data.replay_buffers.samplers import RandomSampler, PrioritizedSampler
+from torchrl.data.replay_buffers import ListStorage
 from trackmania_rl.map_loader import load_next_map_zone_centers
 from trackmania_rl.time_parsing import parse_time, DigitsLibrary
 
@@ -166,8 +167,8 @@ optimizer1 = torch.optim.RAdam(
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
-buffer_test = ReplayBuffer(capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function, alpha=misc.prio_alpha, beta=misc.prio_beta, eps=misc.prio_epsilon)
+buffer = ReplayBuffer(storage=ListStorage(misc.memory_size), batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1, sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float) if misc.prio_alpha>0 else RandomSampler())
+buffer_test = ReplayBuffer(storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)), batch_size=misc.batch_size, collate_fn=buffer_collate_function, sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float) if misc.prio_alpha>0 else RandomSampler())
 
 # noinspection PyBroadException
 try:
@@ -438,6 +439,7 @@ for loop_number in count(1):
                 train_start_time = time.time()
                 loss = trainer.train_on_batch(buffer, do_learn=True)
                 accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
+                print(time.time() - train_start_time)
                 train_on_batch_duration_history.append(time.time() - train_start_time)
                 loss_history.append(loss)
                 accumulated_stats["cumul_number_batches_done"] += 1

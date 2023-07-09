@@ -6,7 +6,7 @@ from collections import deque
 import numpy as np
 import torch
 
-from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
+from torchrl.data import ReplayBuffer
 
 from .. import misc  # TODO virer cet import
 from .. import nn_utilities
