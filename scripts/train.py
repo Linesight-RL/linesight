@@ -224,6 +224,7 @@ zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
 steps_since_output_reset = 0
+num_resets = 0
 
 # ========================================================
 # Warmup numba
@@ -347,8 +348,9 @@ for loop_number in count(1):
             walltime=walltime_tb,
         )
 
-    if steps_since_output_reset>=misc.output_reset_period and len(buffer)>=misc.memory_size:
+    if steps_since_output_reset>=misc.output_reset_period and len(buffer)>=misc.min_memory_for_resets and num_resets<misc.max_resets:
         steps_since_output_reset = 0
+        num_resets += 1
         def reset_output(model):
             nn_utilities.init_orthogonal(model.A_head[-1])
             nn_utilities.init_orthogonal(model.V_head[-1])

@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "39_OutputResets2"
+run_name = "43_OutputResets5"
 running_speed = 100
 
 tm_engine_step_per_action = 5
@@ -55,7 +55,7 @@ prio_epsilon = np.float32(1e-6) #Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
 memory_size = 50_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 20_000
+memory_size_start_learn = 800_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
@@ -103,7 +103,9 @@ lr_schedule = [
     (1_500_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
-output_reset_period = 200_000
+output_reset_period = 800_000
+min_memory_for_resets = memory_size
+max_resets = 1
 
 adam_epsilon = 1e-4
 grad_clip = 30
