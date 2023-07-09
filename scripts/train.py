@@ -12,6 +12,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
+import torch_optimizer
 from torch.utils.tensorboard import SummaryWriter
 
 import trackmania_rl.agents.iqn as iqn
@@ -151,7 +152,6 @@ accumulated_stats["alltime_min_ms"] = {}
 try:
     model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
     model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
-    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
     print(" Could not load weights")
@@ -169,18 +169,37 @@ optimizer1 = torch.optim.RAdam(
     model1.parameters(),
     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
-)  # TODO essayer un autre epsilon
+    betas=(0.9, 0.95),
+)
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
+# optimizer1 = torch_optimizer.Lamb(
+#     model1.parameters(),
+#     lr= 5e-5,
+#     betas=(0.9, 0.999),
+#     eps=1e-4,
+#     weight_decay=0,
+# )
+optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
+
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(capacity=misc.memory_size, batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1)
 buffer_test = ReplayBuffer(
     capacity=int(misc.memory_size * misc.buffer_test_ratio), batch_size=misc.batch_size, collate_fn=buffer_collate_function
 )
 
+# noinspection PyBroadException
+try:
+    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+    print(" =========================     Optimizer loaded !     ================================")
+except:
+    print(" Could not load optimizer")
+
 loss_history = []
 loss_test_history = []
 train_on_batch_duration_history = []
+grad_norm_history = []
+layer_grad_norm_history = defaultdict(list)
 
 # ========================================================
 # Make the trainer
@@ -394,6 +413,23 @@ for loop_number in count(1):
         print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
 
         # ===============================================
+        #   PERIODIC RESET ?
+        # ===============================================
+
+        if loop_number % misc.reset_frequency == 0:
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.reset_frequency * 130 * 20 * misc.number_times_single_memory_is_used_before_discard_reset
+
+            with torch.no_grad():
+                model1.A_head[0].weight *= misc.reset_mul_factor
+                model1.V_head[0].weight *= misc.reset_mul_factor
+                model1.A_head[0].bias *= misc.reset_mul_factor
+                model1.V_head[0].bias *= misc.reset_mul_factor
+                model1.A_head[2].weight *= misc.reset_mul_factor
+                model1.V_head[2].weight *= misc.reset_mul_factor
+                model1.A_head[2].bias *= misc.reset_mul_factor
+                model1.V_head[2].bias *= misc.reset_mul_factor
+
+        # ===============================================
         #   LEARN ON BATCH
         # ===============================================
 
@@ -403,17 +439,23 @@ for loop_number in count(1):
             <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
         ):
             if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-                loss = trainer.train_on_batch(buffer_test, do_learn=False)
+                loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
                 loss_test_history.append(loss)
                 print(f"BT   {loss=:<8.2e}")
             else:
                 train_start_time = time.time()
-                loss = trainer.train_on_batch(buffer, do_learn=True)
+                loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
                 accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
                 train_on_batch_duration_history.append(time.time() - train_start_time)
                 loss_history.append(loss)
+                if not math.isinf(grad_norm):
+                    grad_norm_history.append(grad_norm)
+                    for name, param in model1.named_parameters():
+                        layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
+                        layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
+
                 accumulated_stats["cumul_number_batches_done"] += 1
-                print(f"B    {loss=:<8.2e}")
+                print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
 
                 nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
 
@@ -465,8 +507,24 @@ for loop_number in count(1):
                     "loss": np.mean(loss_history),
                     "loss_test": np.mean(loss_test_history),
                     "train_on_batch_duration": np.median(train_on_batch_duration_history),
+                    "grad_norm_history_q1": np.quantile(grad_norm_history, 0.25),
+                    "grad_norm_history_median": np.quantile(grad_norm_history, 0.5),
+                    "grad_norm_history_q3": np.quantile(grad_norm_history, 0.75),
+                    "grad_norm_history_d9": np.quantile(grad_norm_history, 0.9),
+                    "grad_norm_history_d98": np.quantile(grad_norm_history, 0.98),
+                    "grad_norm_history_max": np.max(grad_norm_history),
                 }
             )
+            for key, val in layer_grad_norm_history.items():
+                step_stats.update(
+                    {
+                        f"{key}_median": np.quantile(val, 0.5),
+                        f"{key}_q3": np.quantile(val, 0.75),
+                        f"{key}_d9": np.quantile(val, 0.9),
+                        f"{key}_d98": np.quantile(val, 0.98),
+                        f"{key}_max": np.max(val),
+                    }
+                )
 
         for key, value in accumulated_stats.items():
             if key != "alltime_min_ms":
@@ -477,6 +535,8 @@ for loop_number in count(1):
         loss_history = []
         loss_test_history = []
         train_on_batch_duration_history = []
+        grad_norm_history = []
+        layer_grad_norm_history = defaultdict(list)
 
         # ===============================================
         #   COLLECT IQN SPREAD

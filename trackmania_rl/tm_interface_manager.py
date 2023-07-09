@@ -117,7 +117,7 @@ class TMInterfaceManager:
         _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
         self.pinned_buffer_size = (
-            misc.memory_size + 100
+            int(misc.memory_size * (1 + misc.buffer_test_ratio)) + 100
         )  # We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
         self.pinned_buffer = torch.empty(
             (self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8, memory_format=torch.channels_last

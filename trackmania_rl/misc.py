@@ -11,8 +11,8 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "27_512_schedule"
-running_speed = 100
+run_name = "110"
+running_speed = 50
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -50,9 +50,10 @@ iqn_k = 32
 iqn_kappa = 1
 AL_alpha = 0
 
-memory_size = 50_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 20_000
+memory_size = 800_000 if is_pb_desktop else 50_000
+memory_size_start_learn = 1_000
 number_times_single_memory_is_used_before_discard = 64  # 32 // 4
+number_times_single_memory_is_used_before_discard_reset = 64 - number_times_single_memory_is_used_before_discard
 offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
@@ -95,14 +96,29 @@ indices_floats_sign_inversion = [
 high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
-    (0, 1e-3),
-    (3_000_000, 5e-5),
+    (0, 2e-4),
+    (1_000_000, 2e-4),
+    (2_500_000, 5e-5),
+    (3_600_000, 1e-4),  # start 800k memory
+    (7_000_000, 5e-5),
+    (12_800_000, 5e-5),
+    (13_000_000, 1e-5),
+    (14_800_000, 5e-5),
+    (19_300_000, 5e-5),
+    (19_500_000, 1e-5),
+    (19_600_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
-adam_epsilon = 1e-4
-grad_clip = 1000
 
-number_memories_trained_on_between_target_network_updates = 10_000
+
+reset_frequency = 100 #in loops
+reset_mul_factor = 0.8
+
+adam_epsilon = 1e-4
+clip_grad_value = 100
+clip_grad_norm = 30.0
+
+number_memories_trained_on_between_target_network_updates = 20_000
 soft_update_tau = 0.1
 
 float_inputs_mean = np.array(
@@ -574,7 +590,7 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 600_000
+timeout_between_runs_ms = 600_000_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
 
 

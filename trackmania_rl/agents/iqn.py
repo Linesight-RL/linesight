@@ -336,14 +336,19 @@ class Trainer:
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.grad_clip)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), misc.clip_grad_norm).detach().cpu().item()
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.clip_grad_value)
+
+                # print("\n".join([str((name, param.grad.min(), param.grad.max())) for name, param in self.model.named_parameters()]))
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+            else:
+                grad_norm = 0
 
-            total_loss = total_loss.detach().cpu()
+            total_loss = total_loss.detach().cpu().item()
         self.execution_stream.synchronize()
-        return total_loss
+        return total_loss, grad_norm
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.cuda.stream(self.execution_stream):
