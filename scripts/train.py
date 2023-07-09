@@ -622,4 +622,5 @@ for loop_number in count(1):
         torch.save(model1.state_dict(), save_dir / "weights1.torch")
         torch.save(model2.state_dict(), save_dir / "weights2.torch")
         torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
+        torch.save(scaler.state_dict(), save_dir / "optimizer1.torch")
         joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")
