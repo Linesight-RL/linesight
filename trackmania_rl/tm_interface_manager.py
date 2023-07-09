@@ -10,6 +10,7 @@ import torch
 
 # noinspection PyPackageRequirements
 import win32gui
+import win32com.client
 import win32.lib.win32con as win32con
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
@@ -850,7 +851,9 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
 
-def _set_window_focus(trackmania_window):
+def _set_window_focus(trackmania_window): #https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shell.SendKeys('%')
     win32gui.SetForegroundWindow(trackmania_window)
 
 
