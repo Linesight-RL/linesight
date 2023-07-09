@@ -45,7 +45,6 @@ class ReplayBuffer:
                 "Please pass the batch-size to the ReplayBuffer constructor."
             )
         self._batch_size = batch_size
-        self.sampling_stream = torch.cuda.Stream()
 
     def __len__(self) -> int:
         return len(self._storage)
@@ -78,8 +77,8 @@ class ReplayBuffer:
         info["index"] = index
         data = self._storage[index]
         if not isinstance(index, INT_CLASSES) and self._collate_fn is not None:
-            data, cuda_batch_event = self._collate_fn(data, self.sampling_stream)
-        return data, info, cuda_batch_event
+            data = self._collate_fn(data)
+        return data, info
 
     def sample(self, batch_size: Optional[int] = None, return_info: bool = False) -> Any:
         if batch_size is not None and self._batch_size is not None and batch_size != self._batch_size:
@@ -111,13 +110,9 @@ class ReplayBuffer:
                 fut = self._sample(batch_size)
                 self._prefetch_queue.append(fut)
 
-        ret[2].synchronize()
         if return_info:
-            return ret[:2]
+            return ret[:]
         return ret[0]
-
-    def sync_prefetching(self):
-        self.sampling_stream.synchronize()
 
     def mark_update(self, index: Union[int, torch.Tensor]) -> None:
         self._sampler.mark_update(index)

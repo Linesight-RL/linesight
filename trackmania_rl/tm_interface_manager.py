@@ -125,16 +125,6 @@ class TMInterfaceManager:
         remove_map_begin_camera_zoom_in()
         _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
-        self.pinned_buffer_size = (
-            math.ceil(misc.memory_size*(1+misc.buffer_test_ratio)) + 100
-        )  # We need some margin so we don't invalidate de the next ~n_step transitions when we overwrite images
-        self.pinned_buffer = torch.empty(
-            (self.pinned_buffer_size, 1, misc.H_downsized, misc.W_downsized), dtype=torch.uint8, memory_format=torch.channels_last
-        )
-        torch.cuda.cudart().cudaHostRegister(
-            self.pinned_buffer.data_ptr(), self.pinned_buffer_size * misc.H_downsized * misc.W_downsized, 0
-        )
-        self.pinned_buffer_index = 0
         self.latest_map_path_requested = None
 
     def rewind_to_state(self, state):
@@ -485,21 +475,14 @@ class TMInterfaceManager:
                         time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        frame = torch.from_numpy(
-                            np.expand_dims(
-                                cv2.resize(
-                                    cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
-                                    (misc.W_downsized, misc.H_downsized),
-                                    interpolation=cv2.INTER_AREA,
-                                ),
-                                0,
-                            )
-                        )
-                        self.pinned_buffer[self.pinned_buffer_index].copy_(frame)
-                        frame = self.pinned_buffer[self.pinned_buffer_index]
-                        self.pinned_buffer_index += 1
-                        if self.pinned_buffer_index >= self.pinned_buffer_size:
-                            self.pinned_buffer_index = 0
+                        frame = np.expand_dims(
+                                    cv2.resize(
+                                        cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
+                                        (misc.W_downsized, misc.H_downsized),
+                                        interpolation=cv2.INTER_AREA,
+                                    ),
+                                    0,
+                                )
 
                         rollout_results["frames"].append(frame)
 
