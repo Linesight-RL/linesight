@@ -23,27 +23,39 @@ from .geometry import fraction_time_spent_in_current_zone
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
+def _set_window_focus(trackmania_window): #https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shell.SendKeys('%')
+    win32gui.SetForegroundWindow(trackmania_window)
+
+def is_fullscreen(trackmania_window):
+    rect = win32gui.GetWindowPlacement(trackmania_window)[4]
+    return rect[0]==0 and rect[1]==0 and rect[2]==misc.W_screen and rect[3]==misc.H_screen
+
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):#https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
-        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNOACTIVATE) #Unminimize window without setting it in focus
+        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL) #Unminimize window without setting it in focus
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
     rect = win32gui.GetWindowPlacement(trackmania_window)[4]#Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
-    clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
-    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
-    rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
-    top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
-    left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
+    top = rect[1]
+    left = rect[0]
     output_idx = 0
-    if left >= monitor_width:
-        left -= monitor_width
-        output_idx += 1
-    if left < 0:
-        Secondary_Width = ctypes.windll.user32.GetSystemMetrics(78) - monitor_width
-        left = Secondary_Width + left
-        output_idx += 1
+    if not is_fullscreen(trackmania_window):
+        clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+        windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
+        titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
+        rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
+        top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
+        left = rect[0] +  round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
+        if left >= monitor_width:
+            left -= monitor_width
+            output_idx += 1
+        if left < 0:
+            Secondary_Width = ctypes.windll.user32.GetSystemMetrics(78) - monitor_width
+            left = Secondary_Width + left
+            output_idx += 1
     right = left + misc.W_screen
     bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
@@ -60,6 +72,7 @@ def recreate_dxcam():
         create_dxcam()
     except Exception as e:
         print(e)
+        time.sleep(1)
 
 
 def create_dxcam():
@@ -275,6 +288,7 @@ class TMInterfaceManager:
             if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
                 self.iface.registered = False
                 do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
+                ensure_not_minimized(win32gui.FindWindow("TmForever", None))
                 break
 
             self.iface.mfile.seek(0)
@@ -832,12 +846,6 @@ class TMInterfaceManager:
 
         print("E", end="")
         return rollout_results, end_race_stats
-
-
-def _set_window_focus(trackmania_window): #https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shell.SendKeys('%')
-    win32gui.SetForegroundWindow(trackmania_window)
 
 
 def remove_fps_cap():

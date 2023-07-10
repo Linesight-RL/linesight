@@ -305,7 +305,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results)>0:
+    if len(rollout_results["q_values"])>0:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
         steps_since_output_reset += len(rollout_results["frames"])
 
