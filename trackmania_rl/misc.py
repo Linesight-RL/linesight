@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "110"
+run_name = "113"
 running_speed = 50
 
 tm_engine_step_per_action = 5
@@ -27,7 +27,7 @@ temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
-epsilon = 0.03
+epsilon = 0.02
 epsilon_boltzmann = 0.03
 tau_epsilon_boltzmann = 0.01
 tau_greedy_boltzmann = 0
@@ -51,10 +51,11 @@ iqn_kappa = 1
 AL_alpha = 0
 
 memory_size = 800_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 1_000
-number_times_single_memory_is_used_before_discard = 64  # 32 // 4
-number_times_single_memory_is_used_before_discard_reset = 64 - number_times_single_memory_is_used_before_discard
-offset_cumul_number_single_memories_used = memory_size_start_learn * number_times_single_memory_is_used_before_discard
+memory_size_start_learn = 25_000
+number_times_single_memory_is_used_before_discard = 8  # 32 // 4
+offset_cumul_number_single_memories_used = (
+    memory_size_start_learn * 8
+)  # memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
@@ -111,8 +112,10 @@ lr_schedule = [
 weight_decay_lr_ratio = 1 / 50
 
 
-reset_frequency = 100 #in loops
-reset_mul_factor = 0.8
+reset_every_n_frames_generated = 800_000  # in loops
+additional_transition_after_reset = 0
+a_v_reset_mul_factor = 1
+overall_reset_mul_factor = 1  # 0 : nothing happens ; 1 : full reset
 
 adam_epsilon = 1e-4
 clip_grad_value = 100
@@ -623,3 +626,5 @@ map_cycle = [
 #         False), 4),
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
+
+temporary_test = True

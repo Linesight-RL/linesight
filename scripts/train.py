@@ -140,6 +140,18 @@ model2 = torch.jit.script(
         float_inputs_std=misc.float_inputs_std,
     )
 ).to("cuda", memory_format=torch.channels_last)
+model3 = torch.jit.script(
+    iqn.Agent(
+        float_inputs_dim=misc.float_input_dim,
+        float_hidden_dim=misc.float_hidden_dim,
+        conv_head_output_dim=misc.conv_head_output_dim,
+        dense_hidden_dimension=misc.dense_hidden_dimension,
+        iqn_embedding_dimension=misc.iqn_embedding_dimension,
+        n_actions=len(misc.inputs),
+        float_inputs_mean=misc.float_inputs_mean,
+        float_inputs_std=misc.float_inputs_std,
+    )
+).to("cuda", memory_format=torch.channels_last)
 print(model1)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
@@ -164,6 +176,7 @@ except:
     print(" Could not load stats")
 
 accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
+accumulated_stats["reset_counter"] = 0
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
@@ -283,6 +296,9 @@ for loop_number in count(1):
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
+    if len(buffer) >= misc.memory_size - 100 and misc.temporary_test:
+        is_explo = False
+
     if is_explo:
         trainer.epsilon = (
             misc.high_exploration_ratio * misc.epsilon
@@ -391,43 +407,56 @@ for loop_number in count(1):
     # ===============================================
 
     if fill_buffer:
-        (
-            buffer,
-            buffer_test,
-            number_memories_added,
-        ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-            buffer,
-            buffer_test,
-            rollout_results,
-            misc.n_steps,
-            misc.gamma,
-            misc.discard_non_greedy_actions_in_nsteps,
-            misc.n_zone_centers_in_inputs,
-            zone_centers,
-        )
+        if not (len(buffer) >= misc.memory_size - 100 and misc.temporary_test):
+            (
+                buffer,
+                buffer_test,
+                number_memories_added,
+            ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+                buffer,
+                buffer_test,
+                rollout_results,
+                misc.n_steps,
+                misc.gamma,
+                misc.discard_non_greedy_actions_in_nsteps,
+                misc.n_zone_centers_in_inputs,
+                zone_centers,
+            )
 
-        accumulated_stats["cumul_number_memories_generated"] += number_memories_added
-        accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
-            misc.number_times_single_memory_is_used_before_discard * number_memories_added
-        )
-        print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
+            accumulated_stats["cumul_number_memories_generated"] += number_memories_added
+            accumulated_stats["reset_counter"] += number_memories_added
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
+                misc.number_times_single_memory_is_used_before_discard * number_memories_added
+            )
+            print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
+        else:
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
+                misc.number_times_single_memory_is_used_before_discard * 130 * 20
+            )
+            accumulated_stats["reset_counter"] += 130 * 20
+            accumulated_stats["cumul_number_memories_generated"] += 130 * 20
 
         # ===============================================
         #   PERIODIC RESET ?
         # ===============================================
 
-        if loop_number % misc.reset_frequency == 0:
-            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.reset_frequency * 130 * 20 * misc.number_times_single_memory_is_used_before_discard_reset
+        if accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated:
+            accumulated_stats["reset_counter"] = 0
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
+
+            nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
-                model1.A_head[0].weight *= misc.reset_mul_factor
-                model1.V_head[0].weight *= misc.reset_mul_factor
-                model1.A_head[0].bias *= misc.reset_mul_factor
-                model1.V_head[0].bias *= misc.reset_mul_factor
-                model1.A_head[2].weight *= misc.reset_mul_factor
-                model1.V_head[2].weight *= misc.reset_mul_factor
-                model1.A_head[2].bias *= misc.reset_mul_factor
-                model1.V_head[2].bias *= misc.reset_mul_factor
+                # for name, param in model1.named_parameters():
+                #     param *= misc.overall_reset_mul_factor
+                model1.A_head[0].weight *= misc.a_v_reset_mul_factor
+                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
+                model1.A_head[0].bias *= misc.a_v_reset_mul_factor
+                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
+                model1.A_head[2].weight *= misc.a_v_reset_mul_factor
+                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
+                model1.A_head[2].bias *= misc.a_v_reset_mul_factor
+                model1.V_head[2].bias *= misc.a_v_reset_mul_factor
 
         # ===============================================
         #   LEARN ON BATCH
