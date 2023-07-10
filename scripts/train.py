@@ -305,49 +305,50 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
-    steps_since_output_reset += len(rollout_results["frames"])
+    if len(rollout_results)>0:
+        accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
+        steps_since_output_reset += len(rollout_results["frames"])
 
-    # ===============================================
-    #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
-    # ===============================================
-    race_stats_to_write = {
-        f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
-        f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
-        f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
-        f"mean_action_gap_{map_name}": -(
-            np.atleast_2d(rollout_results["q_values"]) - np.atleast_2d(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
-        ).mean(),
-        f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
-        "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
-        "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
-        "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],
-        "time_between_action_on_run_steps": end_race_stats["time_between_action_on_run_steps"],
-        "time_to_grab_frame": end_race_stats["time_to_grab_frame"],
-        "time_between_grab_frame": end_race_stats["time_between_grab_frame"],
-        "time_A_rgb2gray": end_race_stats["time_A_rgb2gray"],
-        "time_A_geometry": end_race_stats["time_A_geometry"],
-        "time_A_stack": end_race_stats["time_A_stack"],
-        "time_exploration_policy": end_race_stats["time_exploration_policy"],
-        "time_to_iface_set_set": end_race_stats["time_to_iface_set_set"],
-        "time_after_iface_set_set": end_race_stats["time_after_iface_set_set"],
-        "tmi_protection_cutoff": end_race_stats["tmi_protection_cutoff"],
-    }
-    print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
+        # ===============================================
+        #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
+        # ===============================================
+        race_stats_to_write = {
+            f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
+            f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
+            f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
+            f"mean_action_gap_{map_name}": -(
+                np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
+            ).mean(),
+            f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
+            "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
+            "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
+            "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],
+            "time_between_action_on_run_steps": end_race_stats["time_between_action_on_run_steps"],
+            "time_to_grab_frame": end_race_stats["time_to_grab_frame"],
+            "time_between_grab_frame": end_race_stats["time_between_grab_frame"],
+            "time_A_rgb2gray": end_race_stats["time_A_rgb2gray"],
+            "time_A_geometry": end_race_stats["time_A_geometry"],
+            "time_A_stack": end_race_stats["time_A_stack"],
+            "time_exploration_policy": end_race_stats["time_exploration_policy"],
+            "time_to_iface_set_set": end_race_stats["time_to_iface_set_set"],
+            "time_after_iface_set_set": end_race_stats["time_after_iface_set_set"],
+            "tmi_protection_cutoff": end_race_stats["tmi_protection_cutoff"],
+        }
+        print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 
-    if end_race_stats["race_finished"]:
-        race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
-    for i in range(len(misc.inputs)):
-        race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
+        if end_race_stats["race_finished"]:
+            race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
+        for i in range(len(misc.inputs)):
+            race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
 
-    walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
-    for tag, value in race_stats_to_write.items():
-        tensorboard_writer.add_scalar(
-            tag=tag,
-            scalar_value=value,
-            global_step=accumulated_stats["cumul_number_frames_played"],
-            walltime=walltime_tb,
-        )
+        walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
+        for tag, value in race_stats_to_write.items():
+            tensorboard_writer.add_scalar(
+                tag=tag,
+                scalar_value=value,
+                global_step=accumulated_stats["cumul_number_frames_played"],
+                walltime=walltime_tb,
+            )
 
     if steps_since_output_reset>=misc.output_reset_period and len(buffer)>=misc.min_memory_for_resets and num_resets<misc.max_resets:
         steps_since_output_reset = 0
