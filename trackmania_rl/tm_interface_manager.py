@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 import psutil
-import torch
 import win32.lib.win32con as win32con
 import win32com.client
 

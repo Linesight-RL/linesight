@@ -283,7 +283,7 @@ class Trainer:
             # Huber loss, my alternative
             loss = torch.where(
                 torch.abs(TD_error) <= self.iqn_kappa,
-                0.5 * TD_error ** 2,
+                0.5 * TD_error**2,
                 self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
             )
             tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
