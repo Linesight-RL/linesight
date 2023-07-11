@@ -224,14 +224,10 @@ next_map_tuple = next(map_cycle_iter)
 zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
-steps_since_output_reset = 0
-num_resets = 0
-
 # ========================================================
 # Warmup numba
 # ========================================================
 parse_time(np.random.randint(low=0,high=256,size=(misc.H_screen,misc.W_screen,4),dtype=np.uint8),DigitsLibrary(base_dir / "data" / "digits_file.npy"))
-
 
 for loop_number in count(1):
     importlib.reload(misc)
@@ -307,7 +303,6 @@ for loop_number in count(1):
 
     if len(rollout_results["q_values"])>0:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
-        steps_since_output_reset += len(rollout_results["frames"])
 
         # ===============================================
         #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
@@ -349,16 +344,6 @@ for loop_number in count(1):
                 global_step=accumulated_stats["cumul_number_frames_played"],
                 walltime=walltime_tb,
             )
-
-    if steps_since_output_reset>=misc.output_reset_period and len(buffer)>=misc.min_memory_for_resets and num_resets<misc.max_resets:
-        steps_since_output_reset = 0
-        num_resets += 1
-        def reset_output(model):
-            nn_utilities.init_orthogonal(model.A_head[-1])
-            nn_utilities.init_orthogonal(model.V_head[-1])
-        reset_output(model1)
-        reset_output(model2)
-        #To Do: reset the optimizer parameters for the layers we have reset
 
     # ===============================================
     #   SAVE STUFF IF THIS WAS A GOOD RACE
@@ -461,7 +446,6 @@ for loop_number in count(1):
                     ] += misc.number_memories_trained_on_between_target_network_updates
                     print("UPDATE")
                     nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
-                    # model2.load_state_dict(model.state_dict())
         print("")
 
     # ===============================================
@@ -624,5 +608,5 @@ for loop_number in count(1):
         torch.save(model1.state_dict(), save_dir / "weights1.torch")
         torch.save(model2.state_dict(), save_dir / "weights2.torch")
         torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
-        torch.save(scaler.state_dict(), save_dir / "optimizer1.torch")
+        torch.save(scaler.state_dict(), save_dir / "scaler.torch")
         joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")
