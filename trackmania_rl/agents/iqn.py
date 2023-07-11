@@ -299,15 +299,18 @@ class Trainer:
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), misc.grad_clip)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), misc.clip_grad_norm).detach().cpu().item()
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.clip_grad_value)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+            else:
+                grad_norm = 0
 
             total_loss = total_loss.detach().cpu()
             if misc.prio_alpha > 0:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
-        return total_loss
+        return total_loss, grad_norm
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.no_grad():
