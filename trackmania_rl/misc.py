@@ -103,9 +103,6 @@ lr_schedule = [
     (1_500_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
-output_reset_period = 800_000
-min_memory_for_resets = memory_size
-max_resets = 1
 
 adam_epsilon = 1e-4
 grad_clip = 30
