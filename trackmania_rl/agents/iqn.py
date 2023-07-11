@@ -10,6 +10,11 @@ from trackmania_rl.experience_replay.basic_experience_replay import ReplayBuffer
 from .. import misc  # TODO virer cet import
 from .. import nn_utilities
 
+class CLReLU(torch.nn.Module):
+    def __init__(self):
+        super(CLReLU, self).__init__()
+    def forward(self, x):
+        return torch.cat((torch.nn.functional.leaky_relu(x), torch.nn.functional.leaky_relu(-x)), 1)
 
 class Agent(torch.nn.Module):
     def __init__(
@@ -35,27 +40,33 @@ class Agent(torch.nn.Module):
             torch.nn.Conv2d(in_channels=img_head_channels[2], out_channels=img_head_channels[3], kernel_size=(3, 3), stride=2),
             activation_function(inplace=True),
             torch.nn.Conv2d(in_channels=img_head_channels[3], out_channels=img_head_channels[4], kernel_size=(3, 3), stride=1),
-            activation_function(inplace=True),
+            # activation_function(inplace=True),
+            CLReLU(),
             torch.nn.Flatten(),
         )
         self.float_feature_extractor = torch.nn.Sequential(
             torch.nn.Linear(float_inputs_dim, float_hidden_dim),
             activation_function(inplace=True),
             torch.nn.Linear(float_hidden_dim, float_hidden_dim),
-            activation_function(inplace=True),
+            # activation_function(inplace=True),
+            CLReLU(),
         )
 
-        dense_input_dimension = conv_head_output_dim + float_hidden_dim
+        dense_input_dimension = 2 * (conv_head_output_dim + float_hidden_dim)
 
         self.A_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
-            activation_function(inplace=True),
-            torch.nn.Linear(dense_hidden_dimension // 2, n_actions),
+            # activation_function(inplace=True),
+            # torch.nn.Linear(dense_hidden_dimension // 2, n_actions),
+            CLReLU(),
+            torch.nn.Linear(dense_hidden_dimension, n_actions),
         )
         self.V_head = torch.nn.Sequential(
             torch.nn.Linear(dense_input_dimension, dense_hidden_dimension // 2),
-            activation_function(inplace=True),
-            torch.nn.Linear(dense_hidden_dimension // 2, 1),
+            # activation_function(inplace=True),
+            # torch.nn.Linear(dense_hidden_dimension // 2, 1),
+            CLReLU(),
+            torch.nn.Linear(dense_hidden_dimension, 1),
         )
 
         self.iqn_fc = torch.nn.Linear(

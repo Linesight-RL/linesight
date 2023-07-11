@@ -116,42 +116,22 @@ np.random.seed(random_seed)
 # ========================================================
 # Create new stuff
 # ========================================================
-model1 = torch.jit.script(
-    iqn.Agent(
-        float_inputs_dim=misc.float_input_dim,
-        float_hidden_dim=misc.float_hidden_dim,
-        conv_head_output_dim=misc.conv_head_output_dim,
-        dense_hidden_dimension=misc.dense_hidden_dimension,
-        iqn_embedding_dimension=misc.iqn_embedding_dimension,
-        n_actions=len(misc.inputs),
-        float_inputs_mean=misc.float_inputs_mean,
-        float_inputs_std=misc.float_inputs_std,
-    )
-).to("cuda", memory_format=torch.channels_last)
-model2 = torch.jit.script(
-    iqn.Agent(
-        float_inputs_dim=misc.float_input_dim,
-        float_hidden_dim=misc.float_hidden_dim,
-        conv_head_output_dim=misc.conv_head_output_dim,
-        dense_hidden_dimension=misc.dense_hidden_dimension,
-        iqn_embedding_dimension=misc.iqn_embedding_dimension,
-        n_actions=len(misc.inputs),
-        float_inputs_mean=misc.float_inputs_mean,
-        float_inputs_std=misc.float_inputs_std,
-    )
-).to("cuda", memory_format=torch.channels_last)
-model3 = torch.jit.script(
-    iqn.Agent(
-        float_inputs_dim=misc.float_input_dim,
-        float_hidden_dim=misc.float_hidden_dim,
-        conv_head_output_dim=misc.conv_head_output_dim,
-        dense_hidden_dimension=misc.dense_hidden_dimension,
-        iqn_embedding_dimension=misc.iqn_embedding_dimension,
-        n_actions=len(misc.inputs),
-        float_inputs_mean=misc.float_inputs_mean,
-        float_inputs_std=misc.float_inputs_std,
-    )
-).to("cuda", memory_format=torch.channels_last)
+
+def make_random_agent():
+    return iqn.Agent(
+            float_inputs_dim=misc.float_input_dim,
+            float_hidden_dim=misc.float_hidden_dim,
+            conv_head_output_dim=misc.conv_head_output_dim,
+            dense_hidden_dimension=misc.dense_hidden_dimension,
+            iqn_embedding_dimension=misc.iqn_embedding_dimension,
+            n_actions=len(misc.inputs),
+            float_inputs_mean=misc.float_inputs_mean,
+            float_inputs_std=misc.float_inputs_std,
+        )
+
+model1 = torch.jit.script(make_random_agent()).to("cuda", memory_format=torch.channels_last)
+model2 = torch.jit.script(make_random_agent()).to("cuda", memory_format=torch.channels_last)
+model3 = make_random_agent().to("cuda", memory_format=torch.channels_last)
 print(model1)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
@@ -184,6 +164,13 @@ optimizer1 = torch.optim.RAdam(
     eps=misc.adam_epsilon,
     betas=(0.9, 0.95),
 )
+# optimizer1 = torch.optim.AdamW(
+#     model1.parameters(),
+#     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+#     eps=misc.adam_epsilon,
+#     betas=(0.9, 0.95),
+#     weight_decay=0.1,
+# )
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
 # optimizer1 = torch_optimizer.Lamb(
@@ -444,19 +431,35 @@ for loop_number in count(1):
             accumulated_stats["reset_counter"] = 0
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
 
+            model3 = make_random_agent().to("cuda", memory_format=torch.channels_last)
             nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
                 # for name, param in model1.named_parameters():
                 #     param *= misc.overall_reset_mul_factor
                 model1.A_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
+                model1.A_head[0].weight += (1-misc.a_v_reset_mul_factor) * model3.A_head[0].weight
+
                 model1.A_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
+                model1.A_head[0].bias += (1-misc.a_v_reset_mul_factor) * model3.A_head[0].bias
+
                 model1.A_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
+                model1.A_head[2].weight += (1-misc.a_v_reset_mul_factor) * model3.A_head[2].weight
+
                 model1.A_head[2].bias *= misc.a_v_reset_mul_factor
+                model1.A_head[2].bias += (1-misc.a_v_reset_mul_factor) * model3.A_head[2].bias
+
+                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
+                model1.V_head[0].weight += (1-misc.a_v_reset_mul_factor) * model3.V_head[0].weight
+
+                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
+                model1.V_head[0].bias += (1-misc.a_v_reset_mul_factor) * model3.V_head[0].bias
+
+                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
+                model1.V_head[2].weight += (1-misc.a_v_reset_mul_factor) * model3.V_head[2].weight
+
                 model1.V_head[2].bias *= misc.a_v_reset_mul_factor
+                model1.V_head[2].bias += (1-misc.a_v_reset_mul_factor) * model3.V_head[2].bias
 
         # ===============================================
         #   LEARN ON BATCH
@@ -486,7 +489,7 @@ for loop_number in count(1):
                 accumulated_stats["cumul_number_batches_done"] += 1
                 print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
 
-                nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
+                # nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
 
                 # ===============================================
                 #   UPDATE TARGET NETWORK
