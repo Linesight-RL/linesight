@@ -7,11 +7,11 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 import torch
+import win32.lib.win32con as win32con
+import win32com.client
 
 # noinspection PyPackageRequirements
 import win32gui
-import win32com.client
-import win32.lib.win32con as win32con
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
@@ -23,32 +23,42 @@ from .geometry import fraction_time_spent_in_current_zone
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
-def _set_window_focus(trackmania_window): #https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+
+def _set_window_focus(
+    trackmania_window,
+):  # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
     shell = win32com.client.Dispatch("WScript.Shell")
-    shell.SendKeys('%')
+    shell.SendKeys("%")
     win32gui.SetForegroundWindow(trackmania_window)
+
 
 def is_fullscreen(trackmania_window):
     rect = win32gui.GetWindowPlacement(trackmania_window)[4]
-    return rect[0]==0 and rect[1]==0 and rect[2]==misc.W_screen and rect[3]==misc.H_screen
+    return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
+
 
 def ensure_not_minimized(trackmania_window):
-    if win32gui.IsIconic(trackmania_window):#https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
-        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL) #Unminimize window without setting it in focus
+    if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
+        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window without setting it in focus
+
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    rect = win32gui.GetWindowPlacement(trackmania_window)[4]#Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
+    rect = win32gui.GetWindowPlacement(trackmania_window)[
+        4
+    ]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
     top = rect[1]
     left = rect[0]
     output_idx = 0
     if not is_fullscreen(trackmania_window):
-        clientRect = win32gui.GetClientRect(trackmania_window)  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+        clientRect = win32gui.GetClientRect(
+            trackmania_window
+        )  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
         windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
         titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
         rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
         top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
-        left = rect[0] +  round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
+        left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
         if left >= monitor_width:
             left -= monitor_width
             output_idx += 1
@@ -151,7 +161,9 @@ class TMInterfaceManager:
         self.latest_tm_engine_speed_requested = requested_speed
 
     def request_inputs(self, action_idx, rollout_results):
-        if (len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx):  # Small performance trick, don't update input_state if it doesn't need to be updated
+        if (
+            len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
+        ):  # Small performance trick, don't update input_state if it doesn't need to be updated
             self.iface.set_input_state(**misc.inputs[action_idx])
 
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
@@ -490,13 +502,13 @@ class TMInterfaceManager:
                         pc2 = time.perf_counter_ns()
 
                         frame = np.expand_dims(
-                                    cv2.resize(
-                                        cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
-                                        (misc.W_downsized, misc.H_downsized),
-                                        interpolation=cv2.INTER_AREA,
-                                    ),
-                                    0,
-                                )
+                            cv2.resize(
+                                cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
+                                (misc.W_downsized, misc.H_downsized),
+                                interpolation=cv2.INTER_AREA,
+                            ),
+                            0,
+                        )
 
                         rollout_results["frames"].append(frame)
 

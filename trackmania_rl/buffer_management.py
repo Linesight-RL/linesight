@@ -1,9 +1,9 @@
 import random
 
 import numpy as np
+from torchrl.data import ReplayBuffer
 
 from . import misc
-from torchrl.data import ReplayBuffer
 from .experience_replay.experience_replay_interface import Experience
 
 

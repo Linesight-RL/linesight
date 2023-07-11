@@ -13,15 +13,15 @@ import joblib
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from torchrl.data import ReplayBuffer
+from torchrl.data.replay_buffers import ListStorage
+from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampler
 
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
-from torchrl.data import ReplayBuffer
-from torchrl.data.replay_buffers.samplers import RandomSampler, PrioritizedSampler
-from torchrl.data.replay_buffers import ListStorage
 from trackmania_rl.map_loader import load_next_map_zone_centers
-from trackmania_rl.time_parsing import parse_time, DigitsLibrary
+from trackmania_rl.time_parsing import DigitsLibrary, parse_time
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -167,8 +167,23 @@ optimizer1 = torch.optim.RAdam(
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
 # optimizer1 = torch.optim.SGD(model1.parameters(), lr=learning_rate, momentum=0.8)
 scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(storage=ListStorage(misc.memory_size), batch_size=misc.batch_size, collate_fn=buffer_collate_function, prefetch=1, sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float) if misc.prio_alpha>0 else RandomSampler())
-buffer_test = ReplayBuffer(storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)), batch_size=misc.batch_size, collate_fn=buffer_collate_function, sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float) if misc.prio_alpha>0 else RandomSampler())
+buffer = ReplayBuffer(
+    storage=ListStorage(misc.memory_size),
+    batch_size=misc.batch_size,
+    collate_fn=buffer_collate_function,
+    prefetch=1,
+    sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+    if misc.prio_alpha > 0
+    else RandomSampler(),
+)
+buffer_test = ReplayBuffer(
+    storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),
+    batch_size=misc.batch_size,
+    collate_fn=buffer_collate_function,
+    sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+    if misc.prio_alpha > 0
+    else RandomSampler(),
+)
 
 # noinspection PyBroadException
 try:
@@ -227,7 +242,10 @@ map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregate
 # ========================================================
 # Warmup numba
 # ========================================================
-parse_time(np.random.randint(low=0,high=256,size=(misc.H_screen,misc.W_screen,4),dtype=np.uint8),DigitsLibrary(base_dir / "data" / "digits_file.npy"))
+parse_time(
+    np.random.randint(low=0, high=256, size=(misc.H_screen, misc.W_screen, 4), dtype=np.uint8),
+    DigitsLibrary(base_dir / "data" / "digits_file.npy"),
+)
 
 for loop_number in count(1):
     importlib.reload(misc)
@@ -269,10 +287,10 @@ for loop_number in count(1):
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
-    if isinstance(buffer._sampler,PrioritizedSampler):
+    if isinstance(buffer._sampler, PrioritizedSampler):
         buffer._sampler._alpha = misc.prio_alpha
         buffer._sampler._beta = misc.prio_beta
-        buffer._sampler._eps  = misc.prio_epsilon
+        buffer._sampler._eps = misc.prio_epsilon
 
     if is_explo:
         trainer.epsilon = (
@@ -301,7 +319,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results["q_values"])>0:
+    if len(rollout_results["q_values"]) > 0:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================

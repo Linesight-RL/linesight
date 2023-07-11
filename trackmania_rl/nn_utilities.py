@@ -12,9 +12,11 @@ def init_xavier(layer, gain=1.0):
     torch.nn.init.xavier_normal_(layer.weight, gain=gain)
     torch.nn.init.zeros_(layer.bias)
 
+
 def init_orthogonal(layer, gain=1.0):
     torch.nn.init.orthogonal_(layer.weight, gain=gain)
     torch.nn.init.zeros_(layer.bias)
+
 
 def init_uniform(layer, a, b):
     torch.nn.init.uniform_(layer.weight, a=a, b=b)

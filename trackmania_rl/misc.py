@@ -48,10 +48,10 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-UseDDQN = False
+use_ddqn = False
 
-prio_alpha = np.float32(0) #Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
-prio_epsilon = np.float32(1e-6) #Defaults to 10^-6 in stable-baselines
+prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
+prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
 memory_size = 50_000 if is_pb_desktop else 800_000

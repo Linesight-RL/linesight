@@ -1,11 +1,10 @@
 import math
 import random
-from typing import Optional, Tuple
 from collections import deque
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
-
 from torchrl.data import ReplayBuffer
 
 from .. import misc  # TODO virer cet import
@@ -146,7 +145,7 @@ class Trainer:
         "gamma",
         "tau_epsilon_boltzmann",
         "tau_greedy_boltzmann",
-        "IS_Average"
+        "IS_average",
     )
 
     def __init__(
@@ -178,7 +177,7 @@ class Trainer:
         self.gamma = gamma
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.tau_greedy_boltzmann = tau_greedy_boltzmann
-        self.IS_Average = deque([], maxlen=100)
+        self.IS_average = deque([], maxlen=100)
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -199,9 +198,9 @@ class Trainer:
                 ) = batch
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
-                if misc.prio_alpha>0:
-                    self.IS_Average.append(batch_info['_weight'].mean())
-                    IS_weights = torch.from_numpy(batch_info['_weight']/np.mean(self.IS_Average)).to("cuda", non_blocking=True)
+                if misc.prio_alpha > 0:
+                    self.IS_average.append(batch_info["_weight"].mean())
+                    IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
                 new_actions = new_actions.to(dtype=torch.int64)
                 new_n_steps = new_n_steps.to(dtype=torch.int64)
                 minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
@@ -239,7 +238,7 @@ class Trainer:
                 #   Use model to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
-                if misc.UseDDQN:
+                if misc.use_ddqn:
                     a__tpo__model__reduced_repeated = (
                         self.model(
                             next_state_img_tensor,
@@ -254,7 +253,7 @@ class Trainer:
                     )  # (iqn_n * batch_size, 1)
                     target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated)
                 else:
-                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.max(dim=1,keepdim=True)[0]
+                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
                 #
                 #   Build IQN target on tau2 quantiles
                 #
@@ -279,21 +278,21 @@ class Trainer:
                 q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
-            TD_Error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
+            TD_error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
             # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
             # Huber loss, my alternative
             loss = torch.where(
-                torch.abs(TD_Error) <= self.iqn_kappa,
-                0.5 * TD_Error**2,
-                self.iqn_kappa * (torch.abs(TD_Error) - 0.5 * self.iqn_kappa),
+                torch.abs(TD_error) <= self.iqn_kappa,
+                0.5 * TD_error ** 2,
+                self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
             )
             tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
             tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
             loss = (
-                (torch.where(TD_Error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+                (torch.where(TD_error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
             )  # pinball loss # (batch_size, )
 
-            total_loss = torch.sum(IS_weights*loss if misc.prio_alpha>0 else loss)
+            total_loss = torch.sum(IS_weights * loss if misc.prio_alpha > 0 else loss)
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()
@@ -306,7 +305,8 @@ class Trainer:
                 self.scaler.update()
 
             total_loss = total_loss.detach().cpu()
-            buffer.update_priority(batch_info['index'],loss.detach().cpu().type(torch.float64))
+            if misc.prio_alpha > 0:
+                buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss
 
     def get_exploration_action(self, img_inputs, float_inputs):

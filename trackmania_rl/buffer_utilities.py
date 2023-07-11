@@ -9,6 +9,7 @@ def fast_collate(batch, attr_name):
         non_blocking=True, device="cuda", memory_format=torch.channels_last if "img" in attr_name else torch.preserve_format
     )
 
+
 def buffer_collate_function(batch):
     state_img, state_float, action, n_steps, rewards, next_state_img, next_state_float, gammas, minirace_min_time_actions = tuple(
         map(
@@ -50,9 +51,7 @@ def buffer_collate_function(batch):
             return floats_flipped
 
         state_float = torch.where(use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(state_float), state_float)
-        next_state_float = torch.where(
-            use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(next_state_float), next_state_float
-        )
+        next_state_float = torch.where(use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(next_state_float), next_state_float)
 
     return (
         state_img,
