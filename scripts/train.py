@@ -196,7 +196,7 @@ buffer = ReplayBuffer(
     batch_size=misc.batch_size,
     collate_fn=buffer_collate_function,
     prefetch=1,
-    sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+    sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
     if misc.prio_alpha > 0
     else RandomSampler(),
 )
@@ -204,7 +204,7 @@ buffer_test = ReplayBuffer(
     storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),
     batch_size=misc.batch_size,
     collate_fn=buffer_collate_function,
-    sampler=PrioritizedSampler(capacity, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+    sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
     if misc.prio_alpha > 0
     else RandomSampler(),
 )

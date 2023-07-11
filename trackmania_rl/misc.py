@@ -11,8 +11,8 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "43_OutputResets5"
-running_speed = 100
+run_name = "117"
+running_speed = 50
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -39,7 +39,7 @@ constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward_early_training = 0.5 / 5000
+reward_per_ms_press_forward_early_training = 0 * 0.5 / 5000
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -50,15 +50,15 @@ iqn_k = 32
 iqn_kappa = 1
 use_ddqn = False
 
-prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
+prio_alpha = np.float32(0.2)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 800_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 50_000
-number_times_single_memory_is_used_before_discard = 32 - 4  # 32 // 4
+memory_size = 50_000 if is_pb_desktop else 50_000
+memory_size_start_learn = 1
+number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
-    32 - 4
+    32
 )  # memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
@@ -104,14 +104,12 @@ lr_schedule = [
     (0, 2.5e-4),
     (1_000_000, 2.5e-4),
     (3_500_000, 5e-5),
-    # (3_600_000, 1e-4),  # start 800k memory
-    # (7_000_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 
 single_reset_counter = 0
-reset_every_n_frames_generated = 400_000
+reset_every_n_frames_generated = 400_000_00000000
 additional_transition_after_reset = 1_600_000
 a_v_reset_mul_factor = 0.8  # 0 : full reset, 1 : nothing happens
 overall_reset_mul_factor = 0.01  # 0 : nothing happens ; 1 : full reset
