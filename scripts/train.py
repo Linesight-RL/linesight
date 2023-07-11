@@ -143,17 +143,6 @@ accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
 
 
-
-
-
-
-
-
-
-
-
-
-
 # ========================================================
 # Load existing stuff
 # ========================================================
@@ -174,6 +163,8 @@ except:
 
 accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
 accumulated_stats["reset_counter"] = 0
+accumulated_stats["single_reset_counter"] = misc.single_reset_counter
+
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
@@ -464,8 +455,12 @@ for loop_number in count(1):
         #   PERIODIC RESET ?
         # ===============================================
 
-        if accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated:
+        if (
+            accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated
+            or accumulated_stats["single_reset_counter"] != misc.single_reset_counter
+        ):
             accumulated_stats["reset_counter"] = 0
+            accumulated_stats["single_reset_counter"] = misc.single_reset_counter
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
 
             model3 = make_untrained_agent().to("cuda", memory_format=torch.channels_last)

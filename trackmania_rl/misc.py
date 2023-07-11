@@ -110,7 +110,7 @@ lr_schedule = [
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 
-
+single_reset_counter = 0
 reset_every_n_frames_generated = 400_000
 additional_transition_after_reset = 1_600_000
 a_v_reset_mul_factor = 0.8  # 0 : full reset, 1 : nothing happens
