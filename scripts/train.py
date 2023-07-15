@@ -603,39 +603,40 @@ for loop_number in count(1):
         #   COLLECT IQN SPREAD
         # ===============================================
 
-        tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-        state_img_tensor = torch.as_tensor(
-            np.expand_dims(rollout_results["frames"][0], axis=0)
-        ).to(  # TODO : remove as_tensor and expand dims, because this is already pinned memory
-            "cuda", memory_format=torch.channels_last, non_blocking=True
-        )
-        state_float_tensor = torch.as_tensor(
-            np.expand_dims(
-                np.hstack(
-                    (
-                        0,
-                        np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
-                        rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
-                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
-                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
-                        rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
-                        rollout_results["car_orientation"][0]
-                        .T.dot((zone_centers[0 : misc.n_zone_centers_in_inputs, :] - rollout_results["car_position"][0]).T)
-                        .T.ravel(),
-                    )
-                ).astype(np.float32),
-                axis=0,
+        if len(rollout_results['frames']>0):
+            tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+            state_img_tensor = torch.as_tensor(
+                np.expand_dims(rollout_results["frames"][0], axis=0)
+            ).to(  # TODO : remove as_tensor and expand dims, because this is already pinned memory
+                "cuda", memory_format=torch.channels_last, non_blocking=True
             )
-        ).to("cuda", non_blocking=True)
+            state_float_tensor = torch.as_tensor(
+                np.expand_dims(
+                    np.hstack(
+                        (
+                            0,
+                            np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
+                            rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
+                            rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
+                            rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
+                            rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
+                            rollout_results["car_orientation"][0]
+                            .T.dot((zone_centers[0 : misc.n_zone_centers_in_inputs, :] - rollout_results["car_position"][0]).T)
+                            .T.ravel(),
+                        )
+                    ).astype(np.float32),
+                    axis=0,
+                )
+            ).to("cuda", non_blocking=True)
 
-        # Désactiver noisy, tirer des tau équitablement répartis
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
+            # Désactiver noisy, tirer des tau équitablement répartis
+            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                with torch.no_grad():
+                    per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
 
-        for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
-            step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-        model1.train()
+            for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
+                step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+            model1.train()
 
         # ===============================================
         #   WRITE TO TENSORBOARD
