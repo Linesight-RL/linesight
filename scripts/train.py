@@ -343,7 +343,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results["q_values"]) > 0:
+    if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
@@ -428,7 +428,7 @@ for loop_number in count(1):
     #   FILL BUFFER WITH (S, A, R, S') transitions
     # ===============================================
 
-    if fill_buffer:
+    if fill_buffer and not tmi.last_rollout_crashed:
         (
             buffer,
             buffer_test,
@@ -603,7 +603,7 @@ for loop_number in count(1):
         #   COLLECT IQN SPREAD
         # ===============================================
 
-        if len(rollout_results['frames'])>0:
+        if not tmi.last_rollout_crashed:
             tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
             state_img_tensor = torch.as_tensor(
                 np.expand_dims(rollout_results["frames"][0], axis=0)

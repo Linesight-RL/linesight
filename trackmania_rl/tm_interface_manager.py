@@ -38,7 +38,7 @@ def is_fullscreen(trackmania_window):
 
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
-        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window without setting it in focus
+        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
 
 
 def _get_window_position(trackmania_window):
@@ -92,11 +92,16 @@ def create_dxcam():
     print(f"CREATE {region=}, {output_idx=}")
     camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
 
+def grab_screen2():
+    frame = None
+    while frame is None:
+        frame = camera.grab()
+    return frame
 
 def grab_screen():
     global camera
     try:
-        return camera.grab()
+        return grab_screen2()
     except:
         pass
     recreate_dxcam()
@@ -148,6 +153,7 @@ class TMInterfaceManager:
         _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
         self.latest_map_path_requested = None
+        self.last_rollout_crashed = False
 
     def rewind_to_state(self, state):
         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
@@ -220,13 +226,16 @@ class TMInterfaceManager:
                 self.iface.registered = True
 
         else:
-            assert self.msgtype_response_to_wakeup_TMI is not None
+            assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
             self.request_speed(self.running_speed)
-            self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
-            self.msgtype_response_to_wakeup_TMI = None
+            if self.msgtype_response_to_wakeup_TMI is not None:
+                self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
+                self.msgtype_response_to_wakeup_TMI = None
 
         assert self.iface._ensure_connected()
+
+        self.last_rollout_crashed = False
 
         compute_action_asap = False
 
@@ -257,7 +266,6 @@ class TMInterfaceManager:
         time_last_on_run_step = time.perf_counter()
 
         def cutoff_rollout(end_race_stats, msgtype, tmi_protection_cutoff):
-            # FAILED TO FINISH IN TIME
             simulation_state = self.iface.get_simulation_state()
             print(f"      --- {simulation_state.race_time:>6} ", end="")
 
@@ -299,6 +307,7 @@ class TMInterfaceManager:
             if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
                 self.iface.registered = False
                 do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
+                self.last_rollout_crashed = True
                 ensure_not_minimized(win32gui.FindWindow("TmForever", None))
                 break
 
@@ -342,11 +351,8 @@ class TMInterfaceManager:
 
                         pc2 = time.perf_counter_ns()
 
-                        iterations = 0
-                        frame = None
-                        while frame is None:
-                            # frame = self.camera.grab(region=trackmania_window_region)#,frame_timeout=2000)
-                            frame = grab_screen()
+                        frame = grab_screen()
+                        iterations = 1
                         parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
                         time_to_grab_frame += time.perf_counter_ns() - pc2
@@ -485,17 +491,14 @@ class TMInterfaceManager:
                         time_between_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
-                        while parsed_time != sim_state_race_time:
-                            frame = None
+                        while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
+                            frame = grab_screen()
                             iterations += 1
-                            while frame is None:
-                                # frame = self.camera.grab(region=trackmania_window_region)#, frame_timeout=2000)
-                                frame = grab_screen()
                             parsed_time = time_parsing.parse_time(frame, self.digits_library)
-
-                            if iterations > 10:
-                                print(f"warning capturing {iterations=}, {parsed_time=}, {sim_state_race_time=}")
-                                recreate_dxcam()
+                        if iterations >= misc.tmi_protection_timeout_s:
+                            do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
+                            self.last_rollout_crashed = True
+                            break
 
                         time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
