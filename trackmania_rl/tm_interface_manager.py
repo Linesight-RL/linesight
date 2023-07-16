@@ -268,25 +268,26 @@ class TMInterfaceManager:
         def cutoff_rollout(end_race_stats, msgtype, tmi_protection_cutoff):
             simulation_state = self.iface.get_simulation_state()
             print(f"      --- {simulation_state.race_time:>6} ", end="")
+            race_time = max(simulation_state.race_time,1e-12) #Epsilon trick to avoid division by zero
 
             end_race_stats["race_finished"] = False
             end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
-            end_race_stats["race_time_for_ratio"] = simulation_state.race_time
+            end_race_stats["race_time_for_ratio"] = race_time
             end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
             end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
             end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
-            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
-            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
-            end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / simulation_state.race_time * 50
-            end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / simulation_state.race_time * 50
-            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
-            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
-            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
-            end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
-            end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
-            end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
-            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
-            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
+            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
+            end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
+            end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
+            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
+            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
+            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
+            end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
+            end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
+            end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
+            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
+            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
             end_race_stats["tmi_protection_cutoff"] = tmi_protection_cutoff
 
             self.msgtype_response_to_wakeup_TMI = msgtype
