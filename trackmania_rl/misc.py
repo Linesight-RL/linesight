@@ -11,8 +11,8 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "117"
-running_speed = 50
+run_name = "56_huber3"
+running_speed = 100
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -54,11 +54,11 @@ prio_alpha = np.float32(0.2)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER 
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 50_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 1
-number_times_single_memory_is_used_before_discard = 32  # 32 // 4
+memory_size = 800_000 if is_pb_desktop else 1_600_000
+memory_size_start_learn = 20_000
+number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
-    32
+    64 - 4
 )  # memory_size_start_learn * number_times_single_memory_is_used_before_discard
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
@@ -101,9 +101,8 @@ indices_floats_sign_inversion = [
 high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
-    (0, 2.5e-4),
-    (1_000_000, 2.5e-4),
-    (3_500_000, 5e-5),
+    (0, 1e-3),
+    (1_500_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
@@ -111,11 +110,11 @@ adam_epsilon = 1e-4
 single_reset_counter = 0
 reset_every_n_frames_generated = 400_000_00000000
 additional_transition_after_reset = 1_600_000
-a_v_reset_mul_factor = 0.8  # 0 : full reset, 1 : nothing happens
+last_layer_reset_factor = 0.8  # 0 : full reset, 1 : nothing happens
 overall_reset_mul_factor = 0.01  # 0 : nothing happens ; 1 : full reset
 
-clip_grad_value = 100
-clip_grad_norm = 30.0
+clip_grad_value = 1000
+clip_grad_norm = 3000
 
 number_memories_trained_on_between_target_network_updates = 512
 soft_update_tau = 0.005

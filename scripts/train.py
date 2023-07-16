@@ -467,31 +467,10 @@ for loop_number in count(1):
             nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
-                # for name, param in model1.named_parameters():
-                #     param *= misc.overall_reset_mul_factor
-                model1.A_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].weight
-
-                model1.A_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].bias
-
-                model1.A_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].weight
-
-                model1.A_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].bias
-
-                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].weight
-
-                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].bias
-
-                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].weight
-
-                model1.V_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].bias
+                model1.A_head[2].weight = nn_utilities.linear_combination(model1.A_head[2].weight,model3.A_head[2].weight,misc.last_layer_reset_factor)
+                model1.A_head[2].bias = nn_utilities.linear_combination(model1.A_head[2].bias,model3.A_head[2].bias,misc.last_layer_reset_factor)
+                model1.V_head[2].weight = nn_utilities.linear_combination(model1.V_head[2].weight,model3.V_head[2].weight,misc.last_layer_reset_factor)
+                model1.V_head[2].bias = nn_utilities.linear_combination(model1.A_head[2].bias,model3.A_head[2].bias,misc.last_layer_reset_factor)
 
         # ===============================================
         #   LEARN ON BATCH
