@@ -306,6 +306,7 @@ class TMInterfaceManager:
                 continue
 
             if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
+                print("Cutoff rollout due to TMI timeout")
                 self.iface.registered = False
                 do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
                 self.last_rollout_crashed = True
@@ -496,7 +497,10 @@ class TMInterfaceManager:
                             frame = grab_screen()
                             iterations += 1
                             parsed_time = time_parsing.parse_time(frame, self.digits_library)
+                        if iterations > 10 :
+                            recreate_dxcam()
                         if iterations >= misc.tmi_protection_timeout_s:
+                            print("Cutoff rollout due to",iterations,"failed attempts to OCR",sim_state_race_time,". Got",parsed_time,"instead")
                             do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
                             self.last_rollout_crashed = True
                             break
