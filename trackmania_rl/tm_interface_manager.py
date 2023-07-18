@@ -76,7 +76,8 @@ camera = None
 def recreate_dxcam():
     global camera
     print("RECREATE")
-    del camera
+    if 'camera' in locals() or 'camera' in globals():
+        del camera
     try:
         create_dxcam()
     except Exception as e:
