@@ -17,7 +17,6 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_zone_centers_in_inputs: int,
     zone_centers,
 ):
-    Start_Time = time.perf_counter()
     assert n_zone_centers_in_inputs >= 2
 
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
