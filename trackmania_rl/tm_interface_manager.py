@@ -194,7 +194,6 @@ class TMInterfaceManager:
             "current_zone_idx": [],
             "frames": [],
             "zone_entrance_time_ms": [],
-            "display_speed": [],
             "input_w": [],
             "actions": [],
             "action_was_greedy": [],
@@ -361,7 +360,6 @@ class TMInterfaceManager:
                         # ===================================================================================================
 
                         sim_state_race_time = last_known_simulation_state.race_time
-                        sim_state_display_speed = last_known_simulation_state.display_speed
                         sim_state_dyna_current = last_known_simulation_state.dyna.current_state
                         sim_state_mobil = last_known_simulation_state.scene_mobil
                         sim_state_mobil_engine = sim_state_mobil.engine
@@ -601,7 +599,6 @@ class TMInterfaceManager:
                             for i, val in enumerate(np.nditer(q_values)):
                                 end_race_stats[f"q_value_{i}_starting_frame"] = val
                         rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
-                        rollout_results["display_speed"].append(sim_state_display_speed)
                         rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
                         rollout_results["actions"].append(action_idx)
                         rollout_results["action_was_greedy"].append(action_was_greedy)
@@ -781,7 +778,6 @@ class TMInterfaceManager:
                             rollout_results["frames"].append(np.nan)
                             rollout_results["zone_entrance_time_ms"].append(simulation_state.race_time)
 
-                            rollout_results["display_speed"].append(simulation_state.display_speed)
                             rollout_results["input_w"].append(np.nan)
                             rollout_results["actions"].append(np.nan)
                             rollout_results["action_was_greedy"].append(np.nan)
