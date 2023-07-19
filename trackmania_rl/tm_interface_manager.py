@@ -198,14 +198,11 @@ class TMInterfaceManager:
             "input_w": [],
             "actions": [],
             "action_was_greedy": [],
-            "car_position": [],
-            "car_orientation": [],
-            "car_velocity": [],
-            "car_angular_speed": [],
             "car_gear_and_wheels": [],
             "q_values": [],
             "fraction_time_in_previous_zone": [],
             "meters_advanced_along_centerline": [],
+            "state_float":[]
         }
 
         rollout_results["zone_entrance_time_ms"].append(0)  # We start the race in zone zero, and assume we just entered that zone
@@ -608,12 +605,9 @@ class TMInterfaceManager:
                         rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
                         rollout_results["actions"].append(action_idx)
                         rollout_results["action_was_greedy"].append(action_was_greedy)
-                        rollout_results["car_position"].append(sim_state_position)
-                        rollout_results["car_orientation"].append(sim_state_orientation)
-                        rollout_results["car_velocity"].append(sim_state_velocity)
-                        rollout_results["car_angular_speed"].append(sim_state_angular_speed)
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
                         rollout_results["q_values"].append(q_values)
+                        rollout_results["state_float"].append(floats)
 
                         compute_action_asap = False
                         n_th_action_we_compute += 1
@@ -791,10 +785,6 @@ class TMInterfaceManager:
                             rollout_results["input_w"].append(np.nan)
                             rollout_results["actions"].append(np.nan)
                             rollout_results["action_was_greedy"].append(np.nan)
-                            rollout_results["car_position"].append(np.nan)
-                            rollout_results["car_orientation"].append(np.nan)
-                            rollout_results["car_velocity"].append(np.nan)
-                            rollout_results["car_angular_speed"].append(np.nan)
                             rollout_results["car_gear_and_wheels"].append(np.nan)
                             rollout_results["fraction_time_in_previous_zone"].append(
                                 (

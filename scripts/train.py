@@ -513,7 +513,7 @@ for loop_number in count(1):
                     accumulated_stats[
                         "cumul_number_single_memories_used_next_target_network_update"
                     ] += misc.number_memories_trained_on_between_target_network_updates
-                    print("UPDATE")
+                    #print("UPDATE")
                     nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
         print("")
 
@@ -591,20 +591,8 @@ for loop_number in count(1):
             )
             state_float_tensor = torch.as_tensor(
                 np.expand_dims(
-                    np.hstack(
-                        (
-                            0,
-                            np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
-                            rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
-                            rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
-                            rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
-                            rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
-                            rollout_results["car_orientation"][0]
-                            .T.dot((zone_centers[0 : misc.n_zone_centers_in_inputs, :] - rollout_results["car_position"][0]).T)
-                            .T.ravel(),
-                        )
-                    ).astype(np.float32),
-                    axis=0,
+                    rollout_results["state_float"][0],
+                    axis=0
                 )
             ).to("cuda", non_blocking=True)
 
