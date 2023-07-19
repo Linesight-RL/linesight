@@ -17,6 +17,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_zone_centers_in_inputs: int,
     zone_centers,
 ):
+    Start_Time = time.perf_counter()
     assert n_zone_centers_in_inputs >= 2
 
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
@@ -28,6 +29,12 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     gammas = (gamma ** np.linspace(1, n_steps_max, n_steps_max)).astype(
         np.float32
     )  # Discount factor that will be placed in front of next_step in Bellman equation, depending on n_steps chosen
+
+    reward_into = np.zeros(n_frames)
+    for i in range(1,n_frames):
+        reward_into[i] += misc.constant_reward_per_ms * misc.ms_per_action
+        reward_into[i] += (rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i-1]) * misc.reward_per_m_advanced_along_centerline
+        reward_into[i] += rollout_results["input_w"][i-1] * misc.reward_per_ms_press_forward_early_training * misc.ms_per_action
 
     for i in range(n_frames - 1):# Loop over all frames that were generated
         # Switch memory buffer sometimes
@@ -42,30 +49,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             except ValueError:
                 pass
 
-        rewards = np.zeros(n_steps_max).astype(np.float32)
-        for j in range(1, 1 + n_steps):
-            reward = 0
-            # Not sure I'll use this, maybe to ""normalize"" q-values ?
-            reward += np.sum(gammas[:j]) * misc.constant_reward_per_ms * misc.ms_per_action
-            # Reward due to meters advanced
-            reward += (
-                np.sum(
-                    gammas[:j]
-                    * (
-                        np.array(rollout_results["meters_advanced_along_centerline"][i + 1 : i + 1 + j])
-                        - np.array(rollout_results["meters_advanced_along_centerline"][i : i + j])
-                    )
-                )
-                * misc.reward_per_m_advanced_along_centerline
-            )
-            # Reward due to press forward
-            reward += (
-                np.sum(gammas[:j] * np.array(rollout_results["input_w"][i : i + j]))
-                * misc.reward_per_ms_press_forward_early_training
-                * misc.ms_per_action
-            )
-
-            rewards[j - 1] = reward
+        rewards = np.empty(n_steps_max).astype(np.float32)
+        for j in range(n_steps):
+            rewards[j] = reward_into[i+j+1] + (gamma*rewards[j-1] if j>=1 else 0)
 
         state_img = rollout_results["frames"][i]
         state_float = rollout_results["state_float"][i]
