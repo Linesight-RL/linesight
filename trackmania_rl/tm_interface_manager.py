@@ -830,8 +830,8 @@ class TMInterfaceManager:
                 print("msg_on_custom_command")
                 self.iface._read_int32()
                 self.iface._read_int32()
-                self.iface._read_int32()
-                self.iface._read_string()
+                n_args = self.iface._read_int32()
+                [self.iface._read_string() for _ in range(n_args)]
                 self.iface._respond_to_call(msgtype)
             elif msgtype == 0:
                 if prev_msgtype != 0:
