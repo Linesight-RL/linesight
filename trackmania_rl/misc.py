@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "56_huber3"
+run_name = "60_N5"
 running_speed = 100
 
 tm_engine_step_per_action = 5
@@ -50,11 +50,11 @@ iqn_k = 32
 iqn_kappa = 1
 use_ddqn = False
 
-prio_alpha = np.float32(0.2)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
+prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 800_000 if is_pb_desktop else 1_600_000
+memory_size = 800_000 if is_pb_desktop else 50_000
 memory_size_start_learn = 20_000
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
@@ -590,6 +590,8 @@ zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 600_000_000 if is_pb_desktop else 600_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
+
+frames_before_save_best_runs = 1_500_000
 
 
 map_cycle = [
