@@ -108,6 +108,15 @@ def grab_screen():
     recreate_dxcam()
     return grab_screen()
 
+def current_zone_to_A_B(current_zone_idx, zone_centers):
+        next_zone_center = zone_centers[current_zone_idx + 1]
+        current_zone_center = zone_centers[current_zone_idx]
+        previous_zone_center = (
+            zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
+        )  # TODO : handle jitter
+        pointA = 0.5 * (previous_zone_center + current_zone_center)
+        pointB = 0.5 * (current_zone_center + next_zone_center)
+        return pointA, pointB
 
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
@@ -239,8 +248,6 @@ class TMInterfaceManager:
         _time = -3000
         cpcount = 0
         current_zone_idx = 0
-        current_zone_center = zone_centers[0, :]
-        next_zone_center = zone_centers[1, :]
         prev_sim_state_position = zone_centers[0, :]
 
         give_up_signal_has_been_sent = False
@@ -433,8 +440,8 @@ class TMInterfaceManager:
                                 ).astype(np.float32),
                             )
                         )
-                        d1 = np.linalg.norm(next_zone_center - sim_state_position)
-                        d2 = np.linalg.norm(current_zone_center - sim_state_position)
+                        d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
+                        d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
                         if (
                             d1 <= d2
                             and d1 <= misc.max_allowable_distance_to_checkpoint
@@ -444,40 +451,25 @@ class TMInterfaceManager:
                             # Move from one virtual zone to another
                             rollout_results["fraction_time_in_previous_zone"].append(
                                 fraction_time_spent_in_current_zone(
-                                    current_zone_center,
-                                    next_zone_center,
+                                    zone_centers[current_zone_idx],
+                                    zone_centers[current_zone_idx + 1],
                                     prev_sim_state_position,
                                     sim_state_position,
                                 )
                             )
 
-                            ###############
-                            next_zone_center = zone_centers[1 + current_zone_idx]
-                            previous_zone_center = (
-                                zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
-                            )  # TODO : handle jitter
-                            # TODO : don't duplicate this code with 3 lines below
-                            pointA = 0.5 * (previous_zone_center + current_zone_center)
-                            pointB = 0.5 * (current_zone_center + next_zone_center)
+                            pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
                             prev_zones_cumulative_distance += np.linalg.norm(pointB - pointA)
-                            ###############
 
                             current_zone_idx += 1
                             rollout_results["zone_entrance_time_ms"].append(sim_state_race_time)
-                            current_zone_center = zone_centers[current_zone_idx]
 
                         else:
                             rollout_results["fraction_time_in_previous_zone"].append(np.nan)  # Won't be used
 
                         rollout_results["current_zone_idx"].append(current_zone_idx)
 
-                        next_zone_center = zone_centers[1 + current_zone_idx]
-                        previous_zone_center = (
-                            zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
-                        )  # TODO : handle jitter
-                        # TODO : make these calculations less often
-                        pointA = 0.5 * (previous_zone_center + current_zone_center)
-                        pointB = 0.5 * (current_zone_center + next_zone_center)
+                        pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
 
                         dist_pointB_pointA = np.linalg.norm(pointB - pointA)
                         meters_in_current_zone = np.clip(
