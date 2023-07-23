@@ -193,45 +193,22 @@ class Trainer:
                 (
                     state_img_tensor,
                     state_float_tensor,
-                    new_actions,
-                    new_n_steps,
-                    rewards_per_n_steps,
+                    actions,
+                    rewards,
                     next_state_img_tensor,
                     next_state_float_tensor,
-                    gammas_per_n_steps,
-                    terminal_actions,
+                    gammas_terminal,
                 ) = batch
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 if misc.prio_alpha > 0:
                     self.IS_average.append(batch_info["_weight"].mean())
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
-                new_actions = new_actions.to(dtype=torch.int64)
-                new_n_steps = new_n_steps.to(dtype=torch.int64)
+                actions = actions.to(dtype=torch.int64)
 
-                new_xxx = (
-                    torch.rand(size=(len(state_img_tensor),), device="cuda")
-                    * (misc.temporal_mini_race_duration_actions)
-                ).to(dtype=torch.int64)
-                temporal_mini_race_current_time_actions = misc.temporal_mini_race_duration_actions - 1 - new_xxx
-                temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + new_n_steps
-
-                state_float_tensor[:, 0] = temporal_mini_race_current_time_actions
-                next_state_float_tensor[:, 0] = temporal_mini_race_next_time_actions
-
-                possibly_reduced_n_steps = (
-                    new_n_steps - (temporal_mini_race_next_time_actions - misc.temporal_mini_race_duration_actions).clip(min=0)
-                ).to(dtype=torch.int64)
-                terminal = (possibly_reduced_n_steps>=terminal_actions) | (temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions)
-
-                rewards = rewards_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat(
-                    [self.iqn_n, 1]
-                )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
-                # (batch_size*iqn_n, 1)
-                gammas_pow_nsteps = gammas_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat([self.iqn_n, 1])
-                terminal = terminal.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
-                actions = new_actions[:, None]  # (batch_size, 1)
-                actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                rewards = rewards.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+                gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])# (batch_size*iqn_n, 1)
+                actions = actions[:, None].repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
                 #   Use model2 to evaluate the action chosen, per quantile.
                 #
@@ -255,17 +232,12 @@ class Trainer:
                         .argmax(dim=1, keepdim=True)
                         .repeat([self.iqn_n, 1])
                     )  # (iqn_n * batch_size, 1)
-                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated)
+                    #
+                    #   Build IQN target on tau2 quantiles
+                    #
+                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated) # (batch_size*iqn_n, 1)
                 else:
-                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
-                #
-                #   Build IQN target on tau2 quantiles
-                #
-                outputs_target_tau2 = torch.where(
-                    terminal,
-                    rewards,
-                    target,
-                )  # (batch_size*iqn_n, 1)
+                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0] # (batch_size*iqn_n, 1)
 
                 #
                 #   This is our target
@@ -279,7 +251,7 @@ class Trainer:
             )  # (batch_size*iqn_n,n_actions)
 
             outputs_tau3 = (
-                q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
+                q__st__model__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
             TD_error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]

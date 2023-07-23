@@ -3,27 +3,31 @@ import torch
 
 from . import misc
 
+def fast_collate_cpu(batch,attr_name):
+    return np.array([getattr(memory, attr_name) for memory in batch])
 
-def fast_collate(batch, attr_name):
-    return torch.as_tensor(np.array([getattr(memory, attr_name) for memory in batch])).to(
+def send_to_gpu(batch,attr_name):
+    return torch.as_tensor(batch).to(
         non_blocking=True, device="cuda", memory_format=torch.channels_last if "img" in attr_name else torch.preserve_format
     )
 
+def fast_collate(batch, attr_name):
+    return send_to_gpu(fast_collate_cpu(batch,attr_name),attr_name)
 
 def buffer_collate_function(batch):
-    state_img, state_float, action, n_steps, rewards, next_state_img, next_state_float, gammas, terminal_actions = tuple(
+    state_img, state_float, action, rewards, next_state_img, next_state_float, gammas, terminal_actions, n_steps  = tuple(
         map(
-            lambda attr_name: fast_collate(batch, attr_name),
+            lambda attr_name: fast_collate_cpu(batch, attr_name),
             [
                 "state_img",
                 "state_float",
                 "action",
-                "n_steps",
                 "rewards",
                 "next_state_img",
                 "next_state_float",
                 "gammas",
                 "terminal_actions",
+                "n_steps"
             ],
         )
     )
@@ -53,14 +57,53 @@ def buffer_collate_function(batch):
         state_float = torch.where(use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(state_float), state_float)
         next_state_float = torch.where(use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(next_state_float), next_state_float)
 
+    new_xxx = (np.random.rand(len(state_img))* (misc.temporal_mini_race_duration_actions)).astype(int)
+
+    temporal_mini_race_current_time_actions = misc.temporal_mini_race_duration_actions - 1 - new_xxx
+    temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + n_steps
+
+    state_float[:, 0] = temporal_mini_race_current_time_actions
+    next_state_float[:, 0] = temporal_mini_race_next_time_actions
+
+    possibly_reduced_n_steps = (n_steps - (temporal_mini_race_next_time_actions - misc.temporal_mini_race_duration_actions).clip(min=0)).astype(int)
+
+    terminal = (possibly_reduced_n_steps>=terminal_actions) | (temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions)
+
+    gammas = np.take_along_axis(gammas,possibly_reduced_n_steps[:,None]-1,axis=1).squeeze(-1)
+    gammas = np.where(terminal,0,gammas)
+
+    rewards = np.take_along_axis(rewards,possibly_reduced_n_steps[:,None]-1,axis=1).squeeze(-1)
+
+    state_img, state_float, action, rewards, next_state_img, next_state_float, gammas  = tuple(
+        map(
+            lambda batch, attr_name: send_to_gpu(batch, attr_name),
+            [
+                state_img, 
+                state_float, 
+                action, 
+                rewards, 
+                next_state_img, 
+                next_state_float,
+                gammas,
+            ],
+            [
+                "state_img",
+                "state_float",
+                "action",
+                "rewards",
+                "next_state_img",
+                "next_state_float",
+                "gammas",
+            ],
+        )
+    )
+
     return (
         state_img,
         state_float,
         action,
-        n_steps,
         rewards,
         next_state_img,
         next_state_float,
         gammas,
-        terminal_actions,
     )
