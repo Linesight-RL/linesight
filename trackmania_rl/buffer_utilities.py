@@ -11,7 +11,7 @@ def fast_collate(batch, attr_name):
 
 
 def buffer_collate_function(batch):
-    state_img, state_float, action, n_steps, rewards, next_state_img, next_state_float, gammas, minirace_min_time_actions = tuple(
+    state_img, state_float, action, n_steps, rewards, next_state_img, next_state_float, gammas, terminal_actions = tuple(
         map(
             lambda attr_name: fast_collate(batch, attr_name),
             [
@@ -23,7 +23,7 @@ def buffer_collate_function(batch):
                 "next_state_img",
                 "next_state_float",
                 "gammas",
-                "minirace_min_time_actions",
+                "terminal_actions",
             ],
         )
     )
@@ -62,5 +62,5 @@ def buffer_collate_function(batch):
         next_state_img,
         next_state_float,
         gammas,
-        minirace_min_time_actions,
+        terminal_actions,
     )

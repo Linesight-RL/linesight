@@ -356,7 +356,7 @@ for loop_number in count(1):
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
+            f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
             "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],

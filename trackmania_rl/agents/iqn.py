@@ -10,6 +10,13 @@ from torchrl.data import ReplayBuffer
 from .. import misc  # TODO virer cet import
 from .. import nn_utilities
 
+class CReLU(torch.nn.Module):
+    def __init__(self, inplace:bool=False):
+        super(CReLU, self).__init__()
+        self.inplace = inplace
+    def forward(self, x):
+        x = torch.cat((x,-x),1)
+        return torch.nn.functional.relu(x, inplace=self.inplace)
 
 class Agent(torch.nn.Module):
     def __init__(
@@ -58,10 +65,8 @@ class Agent(torch.nn.Module):
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
         )
 
-        self.iqn_fc = torch.nn.Linear(
-            iqn_embedding_dimension, dense_input_dimension
-        )  # There is no word in the paper on how to init this layer?
-        self.lrelu = torch.nn.LeakyReLU()
+        self.iqn_fc = torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension)
+        self.lrelu = torch.nn.LeakyReLU() #Needs inplace?
         self.initialize_weights()
 
         self.n_actions = n_actions
@@ -71,23 +76,23 @@ class Agent(torch.nn.Module):
 
     def initialize_weights(self):
         lrelu_neg_slope = 1e-2
-        lrelu_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
+        activation_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
         for m in self.img_head:
             if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
+                nn_utilities.init_orthogonal(m, activation_gain)
         for m in self.float_feature_extractor:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
+                nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(
-            self.iqn_fc, np.sqrt(2) * lrelu_gain
+            self.iqn_fc, np.sqrt(2) * activation_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for m in self.A_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
+                nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(self.A_head[-1])
         for m in self.V_head[:-1]:
             if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
+                nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(self.V_head[-1])
 
     def forward(
@@ -194,7 +199,7 @@ class Trainer:
                     next_state_img_tensor,
                     next_state_float_tensor,
                     gammas_per_n_steps,
-                    minirace_min_time_actions,
+                    terminal_actions,
                 ) = batch
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
@@ -203,11 +208,10 @@ class Trainer:
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
                 new_actions = new_actions.to(dtype=torch.int64)
                 new_n_steps = new_n_steps.to(dtype=torch.int64)
-                minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
 
                 new_xxx = (
-                    torch.rand(size=minirace_min_time_actions.shape, device="cuda")
-                    * (misc.temporal_mini_race_duration_actions - minirace_min_time_actions)
+                    torch.rand(size=(len(state_img_tensor),), device="cuda")
+                    * (misc.temporal_mini_race_duration_actions)
                 ).to(dtype=torch.int64)
                 temporal_mini_race_current_time_actions = misc.temporal_mini_race_duration_actions - 1 - new_xxx
                 temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + new_n_steps
@@ -215,17 +219,17 @@ class Trainer:
                 state_float_tensor[:, 0] = temporal_mini_race_current_time_actions
                 next_state_float_tensor[:, 0] = temporal_mini_race_next_time_actions
 
-                new_done = temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions
                 possibly_reduced_n_steps = (
                     new_n_steps - (temporal_mini_race_next_time_actions - misc.temporal_mini_race_duration_actions).clip(min=0)
                 ).to(dtype=torch.int64)
+                terminal = (possibly_reduced_n_steps>=terminal_actions) | (temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions)
 
                 rewards = rewards_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat(
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 # (batch_size*iqn_n, 1)
                 gammas_pow_nsteps = gammas_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat([self.iqn_n, 1])
-                done = new_done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                terminal = terminal.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 actions = new_actions[:, None]  # (batch_size, 1)
                 actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
@@ -258,7 +262,7 @@ class Trainer:
                 #   Build IQN target on tau2 quantiles
                 #
                 outputs_target_tau2 = torch.where(
-                    done,
+                    terminal,
                     rewards,
                     target,
                 )  # (batch_size*iqn_n, 1)

@@ -1,4 +1,5 @@
 import random
+import math
 
 import numpy as np
 from torchrl.data import ReplayBuffer
@@ -31,7 +32,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
     reward_into = np.zeros(n_frames)
     for i in range(1,n_frames):
-        reward_into[i] += misc.constant_reward_per_ms * misc.ms_per_action
+        reward_into[i] += misc.constant_reward_per_ms * (misc.ms_per_action if (i<n_frames-1 or ("race_time" not in rollout_results)) else rollout_results['race_time']-(n_frames-2)*misc.ms_per_action )
         reward_into[i] += (rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i-1]) * misc.reward_per_m_advanced_along_centerline
         reward_into[i] += rollout_results["input_w"][i-1] * misc.reward_per_ms_press_forward_early_training * misc.ms_per_action
 
@@ -57,16 +58,12 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
         # Get action that was played
         action = rollout_results["actions"][i]
+        terminal_actions = (n_frames - 1) - i if "race_time" in rollout_results else math.inf
 
         if i + n_steps < n_frames - 1:
-            # next_step is not the final frame of the rollout, we do not need to force the transition to be final in the minirace
-            minirace_min_time_actions = 0
-
             next_state_img = rollout_results["frames"][i + n_steps]
             next_state_float = rollout_results["state_float"][i + n_steps]
         else:
-            # next_step is the final frame of the rollout, we do need to force the transition to be final in the minirace
-            minirace_min_time_actions = misc.temporal_mini_race_duration_actions - n_steps
             # It doesn't matter what next_state_img and next_state_float contain, as the transition will be forced to be final
             next_state_img = state_img
             next_state_float = state_float
@@ -81,7 +78,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_img,
                 next_state_float,
                 gammas,
-                minirace_min_time_actions,
+                terminal_actions,
             ),
         )
         number_memories_added += 1

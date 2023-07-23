@@ -202,18 +202,17 @@ class TMInterfaceManager:
         rollout_results = {
             "current_zone_idx": [],
             "frames": [],
-            "zone_entrance_time_ms": [],
             "input_w": [],
             "actions": [],
             "action_was_greedy": [],
             "car_gear_and_wheels": [],
             "q_values": [],
-            "fraction_time_in_previous_zone": [],
             "meters_advanced_along_centerline": [],
-            "state_float":[]
+            "state_float":[],
+            "furthest_zone_idx": 0,
         }
 
-        rollout_results["zone_entrance_time_ms"].append(0)  # We start the race in zone zero, and assume we just entered that zone
+        last_progress_improvement_ms = 0
 
         if (self.iface is None) or (not self.iface.registered):
             assert self.msgtype_response_to_wakeup_TMI is None
@@ -440,32 +439,32 @@ class TMInterfaceManager:
                                 ).astype(np.float32),
                             )
                         )
-                        d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-                        d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
-                        if (
-                            d1 <= d2
-                            and d1 <= misc.max_allowable_distance_to_checkpoint
-                            and current_zone_idx < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
-                            # We can never enter the final virtual zone
-                        ):
-                            # Move from one virtual zone to another
-                            rollout_results["fraction_time_in_previous_zone"].append(
-                                fraction_time_spent_in_current_zone(
-                                    zone_centers[current_zone_idx],
-                                    zone_centers[current_zone_idx + 1],
-                                    prev_sim_state_position,
-                                    sim_state_position,
-                                )
-                            )
+                        while True: #Emulate do while loop
+                            d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
+                            d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
+                            d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position) if current_zone_idx>=1 else -1
+                            if current_zone_idx>=1 and d3<d2 and d3<=misc.max_allowable_distance_to_checkpoint:
+                                pointA, pointB = current_zone_to_A_B(current_zone_idx-1, zone_centers)
+                                prev_zones_cumulative_distance -= np.linalg.norm(pointB - pointA)
 
-                            pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
-                            prev_zones_cumulative_distance += np.linalg.norm(pointB - pointA)
+                                current_zone_idx -= 1
+                            elif (
+                                d1 <= d2
+                                and d1 <= misc.max_allowable_distance_to_checkpoint
+                                and current_zone_idx < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
+                                # We can never enter the final virtual zone
+                            ):
+                                # Move from one virtual zone to another
+                                pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
+                                prev_zones_cumulative_distance += np.linalg.norm(pointB - pointA)
 
-                            current_zone_idx += 1
-                            rollout_results["zone_entrance_time_ms"].append(sim_state_race_time)
+                                current_zone_idx += 1
+                                if current_zone_idx > rollout_results["furthest_zone_idx"]:
+                                    last_progress_improvement_ms = sim_state_race_time
+                                    rollout_results["furthest_zone_idx"] = current_zone_idx
+                            else:
+                                break
 
-                        else:
-                            rollout_results["fraction_time_in_previous_zone"].append(np.nan)  # Won't be used
 
                         rollout_results["current_zone_idx"].append(current_zone_idx)
 
@@ -644,7 +643,7 @@ class TMInterfaceManager:
                         (
                             _time > self.max_overall_duration_ms
                             or _time
-                            > rollout_results["zone_entrance_time_ms"][max(0, current_zone_idx + 2 - misc.n_zone_centers_in_inputs)]
+                            > last_progress_improvement_ms
                             + self.max_minirace_duration_ms
                         )
                         and this_rollout_has_seen_t_negative
@@ -730,6 +729,7 @@ class TMInterfaceManager:
                         print(f"Z=({rollout_results['current_zone_idx'][-1]})", end="")
                         end_race_stats["race_finished"] = True
                         end_race_stats["race_time"] = simulation_state.race_time
+                        rollout_results["race_time"] = simulation_state.race_time
                         end_race_stats["race_time_for_ratio"] = simulation_state.race_time
                         end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
                         end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
@@ -768,42 +768,16 @@ class TMInterfaceManager:
                             # assert rollout_results["current_zone_idx"][-1] == len(zone_centers) - 2 - misc.n_zone_centers_in_inputs # This assertion broke on Hockolicious. Special case due to the diagonal ending ?
                             rollout_results["current_zone_idx"].append(len(zone_centers) - 1 - misc.n_zone_centers_in_inputs)
                             rollout_results["frames"].append(np.nan)
-                            rollout_results["zone_entrance_time_ms"].append(simulation_state.race_time)
 
                             rollout_results["input_w"].append(np.nan)
                             rollout_results["actions"].append(np.nan)
                             rollout_results["action_was_greedy"].append(np.nan)
                             rollout_results["car_gear_and_wheels"].append(np.nan)
-                            rollout_results["fraction_time_in_previous_zone"].append(
-                                (
-                                    simulation_state.race_time
-                                    - (len(rollout_results["fraction_time_in_previous_zone"]) - 1) * misc.ms_per_action
-                                )
-                                / misc.ms_per_action
-                            )
-
-                            temp_sim_state_position = np.array(
-                                last_known_simulation_state.dyna.current_state.position,
-                                dtype=np.float32,
-                            )  # (3,)
-                            temp_sim_state_velocity = np.array(
-                                last_known_simulation_state.dyna.current_state.linear_speed,
-                                dtype=np.float32,
-                            )
-                            meters_in_current_zone = (
-                                temp_sim_state_position
-                                + (1 - rollout_results["fraction_time_in_previous_zone"][-1]) * temp_sim_state_velocity
-                                - pointA
-                            ).dot(
-                                pointB - pointA
-                            ) / dist_pointB_pointA  # TODO UGLYYY
 
                             # assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : this assertion has been false once on hockolicious
                             rollout_results["meters_advanced_along_centerline"].append(
-                                prev_zones_cumulative_distance + meters_in_current_zone
+                                prev_zones_cumulative_distance + dist_pointB_pointA
                             )
-
-                            assert 0 <= rollout_results["fraction_time_in_previous_zone"][-1] <= 1
 
                 # ============================
                 # END ON CP COUNT
