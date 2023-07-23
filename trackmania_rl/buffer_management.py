@@ -51,7 +51,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
         rewards = np.empty(n_steps_max).astype(np.float32)
         for j in range(n_steps):
-            rewards[j] = reward_into[i+j+1] + (gamma*rewards[j-1] if j>=1 else 0)
+            rewards[j] = (gamma**j)*reward_into[i+j+1] + (rewards[j-1] if j>=1 else 0)
 
         state_img = rollout_results["frames"][i]
         state_float = rollout_results["state_float"][i]
