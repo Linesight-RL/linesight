@@ -1,5 +1,4 @@
 import importlib
-import math
 import random
 import shutil
 import time
@@ -31,7 +30,7 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
 layout = {
-    "89": {
+    "84": {
         "eval_race_time_finished": [
             "Multiline",
             [
@@ -44,10 +43,16 @@ layout = {
                 "explo_race_time_finished",
             ],
         ],
-        "loss": ["Multiline", ["loss$", "loss_test$"]],
+        "loss_Q": ["Multiline", ["loss_Q$", "loss_Q_test$"]],
+        "loss_policy": ["Multiline", ["loss_policy$", "loss_policy_test$"]],
+        "loss_alpha": ["Multiline", ["loss_alpha$", "loss_alpha_test$"]],
         "values_starting_frame": [
             "Multiline",
-            [f"q_value_{i}_starting_frame" for i in range(len(misc.inputs))],
+            [f"q_value_starting_frame_{i}" for i in range(len(misc.inputs))],
+        ],
+        "policy_starting_frame": [
+            "Multiline",
+            [f"policy_{i}_starting_frame" for i in range(len(misc.inputs))],
         ],
         "single_zone_reached": [
             "Multiline",
@@ -103,6 +108,19 @@ layout = {
                 "explo_race_time_[^_]*",
             ],
         ],
+        "sac_alpha": [
+            "Multiline",
+            [
+                "sac_alpha",
+            ],
+        ],
+        "policy_entropy": [
+            "Multiline",
+            [
+                "policy_entropy",
+                "policy_entropy",
+            ],
+        ],
     },
 }
 tensorboard_writer.add_custom_scalars(layout)
@@ -116,13 +134,14 @@ torch.manual_seed(random_seed)
 random.seed(random_seed)
 np.random.seed(random_seed)
 
+
 # ========================================================
 # Create new stuff
 # ========================================================
 
 
-def make_untrained_agent():
-    return iqn.Agent(
+def make_untrained_SoftIQNQNetwork():
+    return iqn.SoftIQNQNetwork(
         float_inputs_dim=misc.float_input_dim,
         float_hidden_dim=misc.float_hidden_dim,
         conv_head_output_dim=misc.conv_head_output_dim,
@@ -134,22 +153,39 @@ def make_untrained_agent():
     )
 
 
-model1 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last)
-model2 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last)
+def make_untrained_PolicyNetwork():
+    return iqn.LogPolicyNetwork(
+        float_inputs_dim=misc.float_input_dim,
+        float_hidden_dim=misc.float_hidden_dim,
+        conv_head_output_dim=misc.conv_head_output_dim,
+        dense_hidden_dimension=misc.dense_hidden_dimension,
+        n_actions=len(misc.inputs),
+        float_inputs_mean=misc.float_inputs_mean,
+        float_inputs_std=misc.float_inputs_std,
+    )
 
-print(model1)
+
+soft_Q_model1 = torch.jit.script(make_untrained_SoftIQNQNetwork()).to("cuda", memory_format=torch.channels_last)
+soft_Q_model2 = torch.jit.script(make_untrained_SoftIQNQNetwork()).to("cuda", memory_format=torch.channels_last)
+policy_model = torch.jit.script(make_untrained_PolicyNetwork()).to("cuda", memory_format=torch.channels_last)
+logalpha_model = torch.jit.script(iqn.LogAlphaSingletonNetwork()).to("cuda", memory_format=torch.channels_last)
+
+print(soft_Q_model1)
+print(policy_model)
+print(logalpha_model)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
-
 
 # ========================================================
 # Load existing stuff
 # ========================================================
 # noinspection PyBroadException
 try:
-    model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
-    model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
+    soft_Q_model1.load_state_dict(torch.load(save_dir / "soft_Q_weights1.torch"))
+    soft_Q_model2.load_state_dict(torch.load(save_dir / "soft_Q_weights2.torch"))
+    policy_model.load_state_dict(torch.load(save_dir / "policy_weights.torch"))
+    logalpha_model.load_state_dict(torch.load(save_dir / "logalpha_weights.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
     print(" Could not load weights")
@@ -165,32 +201,39 @@ accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumu
 accumulated_stats["reset_counter"] = 0
 accumulated_stats["single_reset_counter"] = misc.single_reset_counter
 
+soft_Q_optimizer = torch_optimizer.Lookahead(
+    torch.optim.RAdam(
+        soft_Q_model1.parameters(),
+        lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+        eps=misc.adam_epsilon,
+        betas=(0.9, 0.95),
+    ),
+    k=5,
+    alpha=0.5,
+)
+policy_optimizer = torch_optimizer.Lookahead(
+    torch.optim.RAdam(
+        policy_model.parameters(),
+        lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+        eps=misc.adam_epsilon,
+        betas=(0.9, 0.95),
+    ),
+    k=5,
+    alpha=0.5,
+)
 
-optimizer1 = torch.optim.RAdam(
-    model1.parameters(),
+logalpha_optimizer = torch.optim.RAdam(
+    logalpha_model.parameters(),
     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
     betas=(0.9, 0.95),
 )
-# optimizer1 = torch.optim.AdamW(
-#     model1.parameters(),
-#     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
-#     eps=misc.adam_epsilon,
-#     betas=(0.9, 0.95),
-#     weight_decay=0.1,
-# )
-# optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
-# optimizer1 = torch_optimizer.Lamb(
-#     model1.parameters(),
-#     lr= 5e-5,
-#     betas=(0.9, 0.999),
-#     eps=1e-4,
-#     weight_decay=0,
-# )
-optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
-scaler = torch.cuda.amp.GradScaler()
+
+soft_Q_scaler = torch.cuda.amp.GradScaler()
+policy_scaler = torch.cuda.amp.GradScaler()
+logalpha_scaler = torch.cuda.amp.GradScaler()
+
 buffer = ReplayBuffer(
     storage=ListStorage(misc.memory_size),
     batch_size=misc.batch_size,
@@ -211,14 +254,24 @@ buffer_test = ReplayBuffer(
 
 # noinspection PyBroadException
 try:
-    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
-    scaler.load_state_dict(torch.load(save_dir / "scaler.torch"))
+    soft_Q_optimizer.load_state_dict(torch.load(save_dir / "soft_Q_optimizer.torch"))
+    soft_Q_scaler.load_state_dict(torch.load(save_dir / "soft_Q_scaler.torch"))
+    policy_optimizer.load_state_dict(torch.load(save_dir / "policy_optimizer.torch"))
+    policy_scaler.load_state_dict(torch.load(save_dir / "policy_scaler.torch"))
+    # logalpha_optimizer.load_state_dict(torch.load(save_dir / "logalpha_optimizer.torch"))
+    # logalpha_scaler.load_state_dict(torch.load(save_dir / "logalpha_scaler.torch"))
     print(" =========================     Optimizer loaded !     ================================")
 except:
     print(" Could not load optimizer")
 
-loss_history = []
-loss_test_history = []
+loss_Q_history = []
+loss_Q_test_history = []
+loss_policy_history = []
+loss_policy_test_history = []
+loss_alpha_history = []
+loss_alpha_test_history = []
+policy_entropy_history = []
+policy_entropy_test_history = []
 train_on_batch_duration_history = []
 grad_norm_history = []
 layer_grad_norm_history = defaultdict(list)
@@ -227,25 +280,32 @@ layer_grad_norm_history = defaultdict(list)
 # Make the trainer
 # ========================================================
 trainer = iqn.Trainer(
-    model=model1,
-    model2=model2,
-    optimizer=optimizer1,
-    scaler=scaler,
+    soft_Q_model=soft_Q_model1,
+    soft_Q_model2=soft_Q_model2,
+    soft_Q_optimizer=soft_Q_optimizer,
+    soft_Q_scaler=soft_Q_scaler,
+    policy_model=policy_model,
+    policy_optimizer=policy_optimizer,
+    policy_scaler=policy_scaler,
+    logalpha_model=logalpha_model,
+    logalpha_optimizer=logalpha_optimizer,
+    logalpha_scaler=logalpha_scaler,
     batch_size=misc.batch_size,
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
     iqn_kappa=misc.iqn_kappa,
-    epsilon=misc.epsilon,
-    epsilon_boltzmann=misc.epsilon_boltzmann,
     gamma=misc.gamma,
-    tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann,
-    tau_greedy_boltzmann=misc.tau_greedy_boltzmann,
+    truncation_amplitude=misc.truncation_amplitude,
+    target_entropy=misc.target_entropy,  # This parameter is typically set to dim(action_space)
+    epsilon=nn_utilities.lr_from_schedule(misc.epsilon_schedule, accumulated_stats["cumul_number_memories_generated"]),
 )
 
 # ========================================================
 # Training loop
 # ========================================================
-model1.train()
+soft_Q_model1.train()
+policy_model.train()
+logalpha_model.train()
 time_last_save = time.time()
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
@@ -299,17 +359,22 @@ for loop_number in count(1):
 
     # LR and weight_decay calculation
     learning_rate = nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+    epsilon = nn_utilities.lr_from_schedule(misc.epsilon_schedule, accumulated_stats["cumul_number_memories_generated"])
     weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
     # ===============================================
     #   RELOAD
     # ===============================================
 
-    for param_group in optimizer1.param_groups:
+    for param_group in soft_Q_optimizer.param_groups:
         param_group["lr"] = learning_rate
+    for param_group in policy_optimizer.param_groups:
+        param_group["lr"] = learning_rate * misc.lr_policy_ratio
+    for param_group in logalpha_optimizer.param_groups:
+        param_group["lr"] = learning_rate * misc.lr_alpha_ratio
     trainer.gamma = misc.gamma
-    trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-    trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
+    trainer.target_entropy = misc.target_entropy
+    trainer.truncation_amplitude = misc.truncation_amplitude
 
     if isinstance(buffer._sampler, PrioritizedSampler):
         buffer._sampler._alpha = misc.prio_alpha
@@ -317,19 +382,9 @@ for loop_number in count(1):
         buffer._sampler._eps = misc.prio_epsilon
 
     if is_explo:
-        trainer.epsilon = (
-            misc.high_exploration_ratio * misc.epsilon
-            if accumulated_stats["cumul_number_memories_generated"] < misc.number_memories_generated_high_exploration_early_training
-            else misc.epsilon
-        )
-        trainer.epsilon_boltzmann = (
-            misc.high_exploration_ratio * misc.epsilon_boltzmann
-            if accumulated_stats["cumul_number_memories_generated"] < misc.number_memories_generated_high_exploration_early_training
-            else misc.epsilon_boltzmann
-        )
+        trainer.epsilon = epsilon
     else:
-        trainer.epsilon = 0
-        trainer.epsilon_boltzmann = 0
+        trainer.epsilon = -1
         print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
 
     # ===============================================
@@ -343,7 +398,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results["q_values"]) > 0:
+    if len(rollout_results["policy"]) > 0:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
@@ -353,9 +408,9 @@ for loop_number in count(1):
             f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
             f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
             f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
-            f"mean_action_gap_{map_name}": -(
-                np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
-            ).mean(),
+            # f"mean_action_gap_{map_name}": -(
+            #     np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
+            # ).mean(),
             f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
@@ -376,7 +431,7 @@ for loop_number in count(1):
         if end_race_stats["race_finished"]:
             race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
         for i in range(len(misc.inputs)):
-            race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
+            race_stats_to_write[f"policy_{i}_starting_frame_{map_name}"] = end_race_stats[f"policy_{i}_starting_frame"]
 
         walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
         for tag, value in race_stats_to_write.items():
@@ -403,25 +458,52 @@ for loop_number in count(1):
             save_dir / "best_runs" / sub_folder_name / f"actions.joblib",
         )
         joblib.dump(
-            rollout_results["q_values"],
-            save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
+            rollout_results["policy"],
+            save_dir / "best_runs" / sub_folder_name / f"policy.joblib",
         )
         torch.save(
-            model1.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "weights1.torch",
+            soft_Q_model1.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "soft_Q_weights1.torch",
         )
         torch.save(
-            model2.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "weights2.torch",
+            soft_Q_model2.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "soft_Q_weights2.torch",
         )
         torch.save(
-            optimizer1.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
+            soft_Q_optimizer.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "soft_Q_optimizer.torch",
         )
         torch.save(
-            scaler.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "scaler.torch",
+            soft_Q_scaler.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "soft_Q_scaler.torch",
         )
+
+        torch.save(
+            policy_model.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "policy_weights.torch",
+        )
+        torch.save(
+            policy_optimizer.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "policy_optimizer.torch",
+        )
+        torch.save(
+            policy_scaler.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "policy_scaler.torch",
+        )
+
+        torch.save(
+            logalpha_model.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "logalpha_weights.torch",
+        )
+        torch.save(
+            logalpha_optimizer.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "logalpha_optimizer.torch",
+        )
+        torch.save(
+            logalpha_scaler.state_dict(),
+            save_dir / "best_runs" / sub_folder_name / "logalpha_scaler.torch",
+        )
+
         shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
     # ===============================================
@@ -455,43 +537,43 @@ for loop_number in count(1):
         #   PERIODIC RESET ?
         # ===============================================
 
-        if (
-            accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated
-            or accumulated_stats["single_reset_counter"] != misc.single_reset_counter
-        ):
-            accumulated_stats["reset_counter"] = 0
-            accumulated_stats["single_reset_counter"] = misc.single_reset_counter
-            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
-
-            model3 = make_untrained_agent().to("cuda", memory_format=torch.channels_last)
-            nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
-
-            with torch.no_grad():
-                # for name, param in model1.named_parameters():
-                #     param *= misc.overall_reset_mul_factor
-                model1.A_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].weight
-
-                model1.A_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].bias
-
-                model1.A_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].weight
-
-                model1.A_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].bias
-
-                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].weight
-
-                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].bias
-
-                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].weight
-
-                model1.V_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].bias
+        # if (
+        #     accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated
+        #     or accumulated_stats["single_reset_counter"] != misc.single_reset_counter
+        # ):
+        #     accumulated_stats["reset_counter"] = 0
+        #     accumulated_stats["single_reset_counter"] = misc.single_reset_counter
+        #     accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
+        #
+        #     model3 = make_untrained_agent().to("cuda", memory_format=torch.channels_last)
+        #     nn_utilities.soft_copy_param(soft_Q_model1, model3, misc.overall_reset_mul_factor)
+        #
+        #     with torch.no_grad():
+        #         # for name, param in model1.named_parameters():
+        #         #     param *= misc.overall_reset_mul_factor
+        #         soft_Q_model1.A_head[0].weight *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.A_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].weight
+        #
+        #         soft_Q_model1.A_head[0].bias *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.A_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].bias
+        #
+        #         soft_Q_model1.A_head[2].weight *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.A_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].weight
+        #
+        #         soft_Q_model1.A_head[2].bias *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.A_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].bias
+        #
+        #         soft_Q_model1.V_head[0].weight *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.V_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].weight
+        #
+        #         soft_Q_model1.V_head[0].bias *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.V_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].bias
+        #
+        #         soft_Q_model1.V_head[2].weight *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.V_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].weight
+        #
+        #         soft_Q_model1.V_head[2].bias *= misc.a_v_reset_mul_factor
+        #         soft_Q_model1.V_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].bias
 
         # ===============================================
         #   LEARN ON BATCH
@@ -503,25 +585,32 @@ for loop_number in count(1):
             <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
         ):
             if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-                loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
-                loss_test_history.append(loss)
-                print(f"BT   {loss=:<8.2e}")
+                loss_Q, loss_policy, loss_alpha, policy_entropy = trainer.train_on_batch(buffer_test, do_learn=False)
+                loss_Q_test_history.append(loss_Q)
+                loss_policy_test_history.append(loss_policy)
+                loss_alpha_test_history.append(loss_alpha)
+                policy_entropy_test_history.append(policy_entropy)
+                print(f"BT   {loss_Q=:<8.2e} {loss_policy=:<8.2e} {loss_alpha=:<8.2e}")
             else:
                 train_start_time = time.time()
-                loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
+                loss_Q, loss_policy, loss_alpha, policy_entropy = trainer.train_on_batch(buffer, do_learn=True)
                 accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
                 train_on_batch_duration_history.append(time.time() - train_start_time)
-                loss_history.append(loss)
-                if not math.isinf(grad_norm):
-                    grad_norm_history.append(grad_norm)
-                    for name, param in model1.named_parameters():
-                        layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
-                        layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
+                loss_Q_history.append(loss_Q)
+                loss_policy_history.append(loss_policy)
+                loss_alpha_history.append(loss_alpha)
+                policy_entropy_history.append(policy_entropy)
+                # if not math.isinf(grad_norm):
+                #     grad_norm_history.append(grad_norm)
+                #     for name, param in soft_Q_model1.named_parameters():
+                #         layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
+                #         layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
 
                 accumulated_stats["cumul_number_batches_done"] += 1
-                print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
+                print(f"B    {loss_Q=:<8.2e} {loss_policy=:<8.2e} {loss_alpha=:<8.2e}")
 
-                nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
+                nn_utilities.custom_weight_decay(soft_Q_model1, 1 - weight_decay)
+                nn_utilities.custom_weight_decay(policy_model, 1 - weight_decay)
 
                 # ===============================================
                 #   UPDATE TARGET NETWORK
@@ -535,7 +624,7 @@ for loop_number in count(1):
                         "cumul_number_single_memories_used_next_target_network_update"
                     ] += misc.number_memories_trained_on_between_target_network_updates
                     print("UPDATE")
-                    nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
+                    nn_utilities.soft_copy_param(soft_Q_model2, soft_Q_model1, misc.soft_update_tau)
         print("")
 
     # ===============================================
@@ -551,41 +640,45 @@ for loop_number in count(1):
         step_stats = {
             "gamma": misc.gamma,
             "n_steps": misc.n_steps,
-            "epsilon": misc.epsilon,
-            "epsilon_boltzmann": misc.epsilon_boltzmann,
-            "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
-            "tau_greedy_boltzmann": misc.tau_greedy_boltzmann,
+            "epsilon": epsilon,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
             "reward_per_ms_press_forward": misc.reward_per_ms_press_forward_early_training,
             "memory_size": len(buffer),
             "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
+            "sac_alpha": logalpha_model().exp().item(),
         }
-        if len(loss_history) > 0 and len(loss_test_history) > 0:
+        if len(loss_Q_history) > 0 and len(loss_Q_test_history) > 0:
             step_stats.update(
                 {
-                    "loss": np.mean(loss_history),
-                    "loss_test": np.mean(loss_test_history),
+                    "loss_Q": np.mean(loss_Q_history),
+                    "loss_Q_test": np.mean(loss_Q_test_history),
+                    "loss_policy": np.mean(loss_policy_history),
+                    "loss_policy_test": np.mean(loss_policy_test_history),
+                    "loss_alpha": np.mean(loss_alpha_history),
+                    "loss_alpha_test": np.mean(loss_alpha_test_history),
+                    "policy_entropy": np.mean(policy_entropy_history),
+                    "policy_entropy_test": np.mean(policy_entropy_test_history),
                     "train_on_batch_duration": np.median(train_on_batch_duration_history),
-                    "grad_norm_history_q1": np.quantile(grad_norm_history, 0.25),
-                    "grad_norm_history_median": np.quantile(grad_norm_history, 0.5),
-                    "grad_norm_history_q3": np.quantile(grad_norm_history, 0.75),
-                    "grad_norm_history_d9": np.quantile(grad_norm_history, 0.9),
-                    "grad_norm_history_d98": np.quantile(grad_norm_history, 0.98),
-                    "grad_norm_history_max": np.max(grad_norm_history),
+                    # "grad_norm_history_q1": np.quantile(grad_norm_history, 0.25),
+                    # "grad_norm_history_median": np.quantile(grad_norm_history, 0.5),
+                    # "grad_norm_history_q3": np.quantile(grad_norm_history, 0.75),
+                    # "grad_norm_history_d9": np.quantile(grad_norm_history, 0.9),
+                    # "grad_norm_history_d98": np.quantile(grad_norm_history, 0.98),
+                    # "grad_norm_history_max": np.max(grad_norm_history),
                 }
             )
-            for key, val in layer_grad_norm_history.items():
-                step_stats.update(
-                    {
-                        f"{key}_median": np.quantile(val, 0.5),
-                        f"{key}_q3": np.quantile(val, 0.75),
-                        f"{key}_d9": np.quantile(val, 0.9),
-                        f"{key}_d98": np.quantile(val, 0.98),
-                        f"{key}_max": np.max(val),
-                    }
-                )
+            # for key, val in layer_grad_norm_history.items():
+            #     step_stats.update(
+            #         {
+            #             f"{key}_median": np.quantile(val, 0.5),
+            #             f"{key}_q3": np.quantile(val, 0.75),
+            #             f"{key}_d9": np.quantile(val, 0.9),
+            #             f"{key}_d98": np.quantile(val, 0.98),
+            #             f"{key}_max": np.max(val),
+            #         }
+            #     )
 
         for key, value in accumulated_stats.items():
             if key != "alltime_min_ms":
@@ -593,8 +686,14 @@ for loop_number in count(1):
         for key, value in accumulated_stats["alltime_min_ms"].items():
             step_stats[f"alltime_min_ms_{map_name}"] = value
 
-        loss_history = []
-        loss_test_history = []
+        loss_Q_history = []
+        loss_Q_test_history = []
+        loss_policy_history = []
+        loss_policy_test_history = []
+        loss_alpha_history = []
+        loss_alpha_test_history = []
+        policy_entropy_history = []
+        policy_entropy_test_history = []
         train_on_batch_duration_history = []
         grad_norm_history = []
         layer_grad_norm_history = defaultdict(list)
@@ -614,7 +713,8 @@ for loop_number in count(1):
                 np.hstack(
                     (
                         0,
-                        np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
+                        np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),
+                        # NEW
                         rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
                         rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
                         rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
@@ -631,28 +731,31 @@ for loop_number in count(1):
         # Désactiver noisy, tirer des tau équitablement répartis
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
-                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
+                per_quantile_output = soft_Q_model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
+
+        for i, mean in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).mean(axis=0))):
+            step_stats[f"q_value_starting_frame_{i}"] = mean
 
         for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
             step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-        model1.train()
+        soft_Q_model1.train()
 
         # ===============================================
         #   WRITE TO TENSORBOARD
         # ===============================================
 
         walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
-        for name, param in model1.named_parameters():
+        for name, param in soft_Q_model1.named_parameters():
             tensorboard_writer.add_scalar(
                 tag=f"layer_{name}_L2",
                 scalar_value=np.sqrt((param**2).mean().detach().cpu().item()),
                 global_step=accumulated_stats["cumul_number_frames_played"],
                 walltime=walltime_tb,
             )
-        assert len(optimizer1.param_groups) == 1
+        assert len(soft_Q_optimizer.param_groups) == 1
         try:
-            for p, (name, _) in zip(optimizer1.param_groups[0]["params"], model1.named_parameters()):
-                state = optimizer1.state[p]
+            for p, (name, _) in zip(soft_Q_optimizer.param_groups[0]["params"], soft_Q_model1.named_parameters()):
+                state = soft_Q_optimizer.state[p]
                 exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
                 mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
                 tensorboard_writer.add_scalar(
@@ -713,8 +816,15 @@ for loop_number in count(1):
         #   SAVE
         # ===============================================
 
-        torch.save(model1.state_dict(), save_dir / "weights1.torch")
-        torch.save(model2.state_dict(), save_dir / "weights2.torch")
-        torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
-        torch.save(scaler.state_dict(), save_dir / "scaler.torch")
+        torch.save(soft_Q_model1.state_dict(), save_dir / "soft_Q_weights1.torch")
+        torch.save(soft_Q_model2.state_dict(), save_dir / "soft_Q_weights2.torch")
+        torch.save(soft_Q_optimizer.state_dict(), save_dir / "soft_Q_optimizer.torch")
+        torch.save(soft_Q_scaler.state_dict(), save_dir / "soft_Q_scaler.torch")
+        torch.save(policy_model.state_dict(), save_dir / "policy_weights.torch")
+        torch.save(policy_optimizer.state_dict(), save_dir / "policy_optimizer.torch")
+        torch.save(policy_scaler.state_dict(), save_dir / "policy_scaler.torch")
+        torch.save(logalpha_model.state_dict(), save_dir / "logalpha_weights.torch")
+        torch.save(logalpha_optimizer.state_dict(), save_dir / "logalpha_optimizer.torch")
+        torch.save(logalpha_scaler.state_dict(), save_dir / "logalpha_scaler.torch")
+
         joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")

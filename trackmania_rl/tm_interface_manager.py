@@ -196,7 +196,7 @@ class TMInterfaceManager:
             "car_velocity": [],
             "car_angular_speed": [],
             "car_gear_and_wheels": [],
-            "q_values": [],
+            "policy": [],
             "fraction_time_in_previous_zone": [],
             "meters_advanced_along_centerline": [],
         }
@@ -568,8 +568,8 @@ class TMInterfaceManager:
                         (
                             action_idx,
                             action_was_greedy,
-                            q_value,
-                            q_values,
+                            max_policy,
+                            policy,
                         ) = exploration_policy(rollout_results["frames"][-1], floats)
 
                         time_exploration_policy += time.perf_counter_ns() - pc2
@@ -577,8 +577,8 @@ class TMInterfaceManager:
 
                         # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
                         # action_was_greedy = True
-                        # q_value = 0
-                        # q_values = np.zeros(len(misc.inputs))
+                        # max_policy = 0
+                        # policy = np.zeros(len(misc.inputs))
 
                         # import random
                         # action_idx = random.randint(0, 8)
@@ -591,9 +591,9 @@ class TMInterfaceManager:
                         pc2 = time.perf_counter_ns()
 
                         if n_th_action_we_compute == 0:
-                            end_race_stats["value_starting_frame"] = q_value
-                            for i, val in enumerate(np.nditer(q_values)):
-                                end_race_stats[f"q_value_{i}_starting_frame"] = val
+                            end_race_stats["max_policy_starting_frame"] = max_policy
+                            for i, val in enumerate(np.nditer(policy)):
+                                end_race_stats[f"policy_{i}_starting_frame"] = val
                         rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
                         rollout_results["display_speed"].append(sim_state_display_speed)
                         rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
@@ -604,7 +604,7 @@ class TMInterfaceManager:
                         rollout_results["car_velocity"].append(sim_state_velocity)
                         rollout_results["car_angular_speed"].append(sim_state_angular_speed)
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
-                        rollout_results["q_values"].append(q_values)
+                        rollout_results["policy"].append(policy)
 
                         compute_action_asap = False
                         n_th_action_we_compute += 1

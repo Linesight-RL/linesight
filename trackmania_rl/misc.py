@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "119"
+run_name = "209"
 running_speed = 50
 
 tm_engine_step_per_action = 5
@@ -27,14 +27,10 @@ temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
-epsilon = 0.03
-epsilon_boltzmann = 0.03
-tau_epsilon_boltzmann = 0.01
-tau_greedy_boltzmann = 0
-discard_non_greedy_actions_in_nsteps = True
+discard_non_greedy_actions_in_nsteps = False
 buffer_test_ratio = 0.05
 
-n_steps = 3
+n_steps = 1
 constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
@@ -48,14 +44,13 @@ iqn_embedding_dimension = 64
 iqn_n = 8
 iqn_k = 32
 iqn_kappa = 1
-use_ddqn = True
 
 prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 50_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 1
+memory_size = 800_000 if is_pb_desktop else 50_000
+memory_size_start_learn = 40_000
 number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 offset_cumul_number_single_memories_used = (
     memory_size_start_learn * 32
@@ -63,7 +58,7 @@ offset_cumul_number_single_memories_used = (
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
-number_memories_generated_high_exploration_early_training = 100_000
+
 apply_horizontal_flip_augmentation = False
 flip_augmentation_ratio = 0.5
 flip_pair_indices_to_swap = [
@@ -98,14 +93,22 @@ indices_floats_sign_inversion = [
     59,  # state_y_map_vector_in_car_reference_system.x
 ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
-high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
     (0, 2.5e-4),
     (1_000_000, 2.5e-4),
     (3_500_000, 5e-5),
 ]
+epsilon_schedule = [
+    (0, 1),
+    (10_000, 1),
+    (100_000, 0.01),
+]
 weight_decay_lr_ratio = 0 * 1 / 50
+
+lr_policy_ratio = 0.1
+lr_alpha_ratio = 1
+
 adam_epsilon = 1e-4
 
 single_reset_counter = 0
@@ -589,8 +592,8 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 600_000_000 if is_pb_desktop else 600_000
-tmi_protection_timeout_s = 500 if is_pb_desktop else 60
+timeout_between_runs_ms = 300_000 if is_pb_desktop else 600_000
+tmi_protection_timeout_s = 60 if is_pb_desktop else 60
 
 
 map_cycle = [
@@ -622,3 +625,14 @@ map_cycle = [
 #         False), 4),
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
+
+# target_entropy = len(inputs)
+
+typical_target_policy = np.array([90, 8, 1, 0.1, 0.05, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001, 0.00000001])
+typical_target_policy /= typical_target_policy.sum()
+entropy_of_typical_target_policy = -(np.log(typical_target_policy) * typical_target_policy).sum()
+
+# target_entropy = 0.98 * (-np.log(1 / len(inputs)))  # approx 2.435 #as per SAC Discrete paper
+target_entropy = entropy_of_typical_target_policy
+truncation_amplitude = 0.92
+sac_alpha = 0.01
