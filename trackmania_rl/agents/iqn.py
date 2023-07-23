@@ -291,6 +291,7 @@ class Trainer:
                     next_state_float_tensor,
                     gammas_per_n_steps,
                     minirace_min_time_actions,
+                    entropies_per_n_steps,
                 ) = batch
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
@@ -317,6 +318,9 @@ class Trainer:
                 ).to(dtype=torch.int64)
 
                 rewards = rewards_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat(
+                    [self.iqn_n, 1]
+                )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+                entropies = entropies_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat(
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 # (batch_size*iqn_n, 1)
@@ -348,7 +352,8 @@ class Trainer:
                 #   Use model to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
-                target = rewards + gammas_pow_nsteps * (
+                rewards_and_entropy = rewards + sac_alpha * entropies
+                target = rewards_and_entropy + gammas_pow_nsteps * (
                     (q__stpo__model2__quantiles_tau2 - (sac_alpha * log_pi_stpo).repeat(self.iqn_n, 1))
                     * log_pi_stpo.exp().repeat(self.iqn_n, 1)
                 ).sum(dim=1, keepdim=True)
@@ -359,7 +364,7 @@ class Trainer:
                 #
                 outputs_target_tau2 = torch.where(
                     done,
-                    rewards,
+                    rewards_and_entropy,
                     target,
                 )  # (batch_size*iqn_n, 1)
 
@@ -463,18 +468,20 @@ class Trainer:
             if random.random() < self.epsilon:
                 # Choose a random action
                 action_chosen_idx = random.randrange(len(misc.inputs))
+                action_followed_stochastic_policy = False
             else:
                 action_dist = Categorical(policy)
                 action_chosen_idx = action_dist.sample().item()
-            greedy_action_idx = np.argmax(policy)
+                action_followed_stochastic_policy = True
         else:
             # Eval
             action_chosen_idx = np.argmax(policy)
             greedy_action_idx = action_chosen_idx
+            action_followed_stochastic_policy = False #TODO should I put True here ?
 
         return (
             action_chosen_idx,
-            action_chosen_idx == greedy_action_idx,
+            action_followed_stochastic_policy,
             policy.max().item(),  # TODO change name in tensorboard
             policy.numpy(),  # TODO change name in tensorboard
         )

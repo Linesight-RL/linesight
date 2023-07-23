@@ -27,10 +27,10 @@ temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
-discard_non_greedy_actions_in_nsteps = False
+discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
-n_steps = 1
+n_steps = 3
 constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
@@ -50,7 +50,7 @@ prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
 memory_size = 800_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 40_000
+memory_size_start_learn = 1
 number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 offset_cumul_number_single_memories_used = (
     memory_size_start_learn * 32

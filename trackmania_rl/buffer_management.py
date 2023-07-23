@@ -28,6 +28,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     gammas = (gamma ** np.linspace(1, n_steps_max, n_steps_max)).astype(
         np.float32
     )  # Discount factor that will be placed in front of next_step in Bellman equation, depending on n_steps chosen
+    # TODO FIXME There is an off-by-one mistake in the gammas used !!!
 
     for i in range(n_frames - 1):
         # Loop over all frames that were generated
@@ -80,7 +81,13 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 * misc.ms_per_action
             )
 
-            rewards[j - 1] = reward
+            rewards[j - 1] = reward   
+            
+        #===========
+        entropies = np.zeros(n_steps_max).astype(np.float32)
+        for j in range(2, 1 + n_steps):         
+            entropies[j - 1] = entropies[j-2] - gammas[j-2] * np.sum(np.log(rollout_results["policy"][i + j-1]) * rollout_results["policy"][i + j-1])
+        #===========
 
         # Construct state description
         current_zone_idx = rollout_results["current_zone_idx"][i]
@@ -191,6 +198,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_float,
                 gammas,
                 minirace_min_time_actions,
+                entropies,
             ),
         )
         number_memories_added += 1
