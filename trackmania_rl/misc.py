@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "209"
+run_name = "210"
 running_speed = 50
 
 tm_engine_step_per_action = 5

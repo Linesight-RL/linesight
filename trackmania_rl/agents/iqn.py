@@ -332,7 +332,8 @@ class Trainer:
                 #
                 #   Use policy_model
                 #
-                log_pi_stpo = self.policy_model(next_state_img_tensor, next_state_float_tensor)
+                # log_pi_stpo = self.policy_model(next_state_img_tensor, next_state_float_tensor)
+                
 
                 """
                 If we want to "truncate" the target distribution as in TQC, this is where we would do it. Force tau2 to be sampled for [0 ; 0.9 [ instead of [0 ; 1 [ for example.
@@ -352,6 +353,18 @@ class Trainer:
                 #   Use model to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
+                q__stpo__model__reduced = (
+                    self.model(
+                        next_state_img_tensor,
+                        next_state_float_tensor,
+                        self.iqn_n,
+                        tau=None,
+                    )[0]
+                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0) # (batch_size, n_actions)
+                )
+                log_pi_stpo = torch.nn.functional.log_softmax(q__stpo__model__reduced / sac_alpha, dim=-1) # (batch_size, n_actions)
+
                 rewards_and_entropy = rewards + sac_alpha * entropies
                 target = rewards_and_entropy + gammas_pow_nsteps * (
                     (q__stpo__model2__quantiles_tau2 - (sac_alpha * log_pi_stpo).repeat(self.iqn_n, 1))
@@ -400,15 +413,25 @@ class Trainer:
             total_loss_Q_network = torch.sum(IS_weights * loss_Q_network if misc.prio_alpha > 0 else loss_Q_network)
 
             # ===============================
-            log_pi_st = self.policy_model(state_img_tensor, state_float_tensor)  # (batch_size, n_actions)
+            # log_pi_st = self.policy_model(state_img_tensor, state_float_tensor)  # (batch_size, n_actions)
+            # pi_st = log_pi_st.exp()
+            # q__st__model__averaged_over_quantiles = q__st__model__quantiles_tau3.reshape(
+            #     [self.iqn_n, self.batch_size, self.soft_Q_model.n_actions]
+            # ).mean(
+            #     dim=0
+            # )  # (batch_size, n_actions)
+            # loss_policy = ((sac_alpha * log_pi_st - q__st__model__averaged_over_quantiles) * pi_st).sum(axis=1)  # (batch_size, )
+            # total_loss_policy = torch.sum(IS_weights * loss_policy if misc.prio_alpha > 0 else loss_policy)
+            # ===============================
+
+            q__st__model__reduced = (
+                    q__st__model__quantiles_tau3
+                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0) # (batch_size, n_actions)
+                )
+            log_pi_st = torch.nn.functional.log_softmax(q__st__model__reduced / sac_alpha, dim=-1) # (batch_size, n_actions)
             pi_st = log_pi_st.exp()
-            q__st__model__averaged_over_quantiles = q__st__model__quantiles_tau3.reshape(
-                [self.iqn_n, self.batch_size, self.soft_Q_model.n_actions]
-            ).mean(
-                dim=0
-            )  # (batch_size, n_actions)
-            loss_policy = ((sac_alpha * log_pi_st - q__st__model__averaged_over_quantiles) * pi_st).sum(axis=1)  # (batch_size, )
-            total_loss_policy = torch.sum(IS_weights * loss_policy if misc.prio_alpha > 0 else loss_policy)
+
             # ===============================
 
             # Apparently optimizing the log of alpha instead of alpha is standard
@@ -426,13 +449,13 @@ class Trainer:
                 self.soft_Q_scaler.step(self.soft_Q_optimizer)
                 self.soft_Q_scaler.update()
 
-                self.policy_scaler.scale(total_loss_policy).backward()
-                # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
-                self.policy_scaler.unscale_(self.policy_optimizer)
-                _ = torch.nn.utils.clip_grad_norm_(self.policy_model.parameters(), misc.clip_grad_norm).detach().cpu().item()
-                torch.nn.utils.clip_grad_value_(self.policy_model.parameters(), misc.clip_grad_value)
-                self.policy_scaler.step(self.policy_optimizer)
-                self.policy_scaler.update()
+                # self.policy_scaler.scale(total_loss_policy).backward()
+                # # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
+                # self.policy_scaler.unscale_(self.policy_optimizer)
+                # _ = torch.nn.utils.clip_grad_norm_(self.policy_model.parameters(), misc.clip_grad_norm).detach().cpu().item()
+                # torch.nn.utils.clip_grad_value_(self.policy_model.parameters(), misc.clip_grad_value)
+                # self.policy_scaler.step(self.policy_optimizer)
+                # self.policy_scaler.update()
 
                 self.logalpha_scaler.scale(total_loss_entropy).backward()
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
@@ -443,24 +466,28 @@ class Trainer:
                 self.logalpha_scaler.update()
 
             total_loss_Q_network = total_loss_Q_network.detach().cpu()
-            total_loss_policy = total_loss_policy.detach().cpu()
+            # total_loss_policy = total_loss_policy.detach().cpu()
             total_loss_entropy = total_loss_entropy.detach().cpu()
             if misc.prio_alpha > 0:
                 buffer.update_priority(batch_info["index"], loss_Q_network.detach().cpu().type(torch.float64))
-        return total_loss_Q_network, total_loss_policy, total_loss_entropy, policy_entropy.cpu().mean()
+        return total_loss_Q_network, 0, total_loss_entropy, policy_entropy.cpu().mean()
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.no_grad():
             state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
             policy = (
-                self.policy_model(
-                    state_img_tensor,
-                    state_float_tensor,
-                    use_fp32=True,
+                torch.nn.functional.softmax(
+                    (self.soft_Q_model(
+                        state_img_tensor,
+                        state_float_tensor,
+                        use_fp32=True,
+                    )[0]
+                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .mean(dim=0)) / self.logalpha_model().exp().item() # (batch_size, n_actions)
+                    , dim=-1
                 )
                 .cpu()
-                .exp()
             )
 
         if self.epsilon >= 0:
