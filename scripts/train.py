@@ -584,24 +584,9 @@ for loop_number in count(1):
 
         if not tmi.last_rollout_crashed:
             tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-            state_img_tensor = torch.as_tensor(
-                np.expand_dims(rollout_results["frames"][0], axis=0)
-            ).to(  # TODO : remove as_tensor and expand dims, because this is already pinned memory
-                "cuda", memory_format=torch.channels_last, non_blocking=True
-            )
-            state_float_tensor = torch.as_tensor(
-                np.expand_dims(
-                    rollout_results["state_float"][0],
-                    axis=0
-                )
-            ).to("cuda", non_blocking=True)
-
-            # Désactiver noisy, tirer des tau équitablement répartis
-            with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-                with torch.no_grad():
-                    per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
-
-            for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
+            per_quantile_output = trainer.infer_model(rollout_results["frames"][0],rollout_results["state_float"][0],tau
+)
+            for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                 step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
             model1.train()
 

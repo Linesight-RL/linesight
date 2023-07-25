@@ -279,7 +279,7 @@ class Trainer:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
 
-    def get_exploration_action(self, img_inputs, float_inputs):
+    def infer_model(self, img_inputs, float_inputs, tau=None):
         with torch.no_grad():
             state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
@@ -288,14 +288,17 @@ class Trainer:
                     state_img_tensor,
                     state_float_tensor,
                     self.iqn_k,
-                    tau=None,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
+                    tau=tau,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
                     use_fp32=True,
                 )[0]
                 .cpu()
                 .numpy()
                 .astype(np.float32)
-                .mean(axis=0)
             )
+            return q_values
+
+    def get_exploration_action(self, img_inputs, float_inputs):
+        q_values = self.infer_model(img_inputs, float_inputs).mean(axis=0)
         r = random.random()
 
         if r < self.epsilon:
