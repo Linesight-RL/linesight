@@ -116,7 +116,7 @@ def current_zone_to_A_B(current_zone_idx, zone_centers):
         )  # TODO : handle jitter
         pointA = 0.5 * (previous_zone_center + current_zone_center)
         pointB = 0.5 * (current_zone_center + next_zone_center)
-        return pointA, pointB
+        return pointA, pointB, np.linalg.norm(pointB - pointA)
 
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
@@ -412,8 +412,8 @@ class TMInterfaceManager:
                             d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
                             d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position) if current_zone_idx>=1 else -1
                             if current_zone_idx>=1 and d3<d2 and d3<=misc.max_allowable_distance_to_checkpoint:
-                                pointA, pointB = current_zone_to_A_B(current_zone_idx-1, zone_centers)
-                                prev_zones_cumulative_distance -= np.linalg.norm(pointB - pointA)
+                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx-1, zone_centers)
+                                prev_zones_cumulative_distance -= dist_pointB_pointA
 
                                 current_zone_idx -= 1
                             elif (
@@ -423,8 +423,8 @@ class TMInterfaceManager:
                                 # We can never enter the final virtual zone
                             ):
                                 # Move from one virtual zone to another
-                                pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
-                                prev_zones_cumulative_distance += np.linalg.norm(pointB - pointA)
+                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx, zone_centers)
+                                prev_zones_cumulative_distance += dist_pointB_pointA
 
                                 current_zone_idx += 1
                                 if current_zone_idx > rollout_results["furthest_zone_idx"]:
@@ -436,9 +436,8 @@ class TMInterfaceManager:
 
                         rollout_results["current_zone_idx"].append(current_zone_idx)
 
-                        pointA, pointB = current_zone_to_A_B(current_zone_idx, zone_centers)
+                        pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx, zone_centers)
 
-                        dist_pointB_pointA = np.linalg.norm(pointB - pointA)
                         meters_in_current_zone = np.clip(
                             (sim_state_position - pointA).dot(pointB - pointA) / dist_pointB_pointA, 0, dist_pointB_pointA
                         )
@@ -504,18 +503,8 @@ class TMInterfaceManager:
                         floats = np.hstack(
                             (
                                 0,
-                                np.hstack(
-                                    [
-                                        np.array(
-                                            [
-                                                previous_action["accelerate"],
-                                                previous_action["brake"],
-                                                previous_action["left"],
-                                                previous_action["right"],
-                                            ]
-                                        )
-                                        for previous_action in previous_actions
-                                    ]
+                                np.array(
+                                    [previous_action[input_str] for previous_action in previous_actions for input_str in ["accelerate","brake","left","right"]]
                                 ),  # NEW
                                 sim_state_car_gear_and_wheels.ravel(),  # NEW
                                 state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
