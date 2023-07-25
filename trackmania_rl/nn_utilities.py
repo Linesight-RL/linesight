@@ -55,19 +55,19 @@ def custom_weight_decay(target_link, decay_factor):
         target_value.mul_(decay_factor)
 
 
-def lr_from_schedule(lr_schedule, current_step):
-    lr_schedule = sorted(lr_schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
-    assert lr_schedule[0][0] == 0
-    lr_schedule_end_index = next((idx for idx, p in enumerate(lr_schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
-    if lr_schedule_end_index == -1:
-        return lr_schedule[-1][1]
+def from_schedule(schedule, current_step):
+    schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
+    assert schedule[0][0] == 0
+    schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
+    if schedule_end_index == -1:
+        return schedule[-1][1]
     else:
-        assert lr_schedule_end_index >= 1
-        lr_schedule_end_step = lr_schedule[lr_schedule_end_index][0]
-        lr_schedule_begin_step = lr_schedule[lr_schedule_end_index - 1][0]
-        lr_annealing_period = lr_schedule_end_step - lr_schedule_begin_step
-        lr_end_value = lr_schedule[lr_schedule_end_index][1]
-        lr_begin_value = lr_schedule[lr_schedule_end_index - 1][1]
-        lr_ratio = lr_begin_value / lr_end_value
-        assert lr_annealing_period > 0
-        return lr_begin_value * math.exp(-math.log(lr_ratio) * (current_step - lr_schedule_begin_step) / lr_annealing_period)
+        assert schedule_end_index >= 1
+        schedule_end_step = schedule[schedule_end_index][0]
+        schedule_begin_step = schedule[schedule_end_index - 1][0]
+        annealing_period = schedule_end_step - schedule_begin_step
+        end_value = schedule[schedule_end_index][1]
+        begin_value = schedule[schedule_end_index - 1][1]
+        ratio = begin_value / end_value
+        assert annealing_period > 0
+        return begin_value * math.exp(-math.log(ratio) * (current_step - schedule_begin_step) / annealing_period)

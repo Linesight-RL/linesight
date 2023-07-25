@@ -168,19 +168,19 @@ accumulated_stats["single_reset_counter"] = misc.single_reset_counter
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
-    lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+    lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
     betas=(0.9, 0.95),
 )
 # optimizer1 = torch.optim.AdamW(
 #     model1.parameters(),
-#     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+#     lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
 #     eps=misc.adam_epsilon,
 #     betas=(0.9, 0.95),
 #     weight_decay=0.1,
 # )
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
 # optimizer1 = torch_optimizer.Lamb(
 #     model1.parameters(),
 #     lr= 5e-5,
@@ -298,7 +298,7 @@ for loop_number in count(1):
         misc.reward_per_ms_press_forward_early_training = 0
 
     # LR and weight_decay calculation
-    learning_rate = nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+    learning_rate = nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
     weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
     # ===============================================
