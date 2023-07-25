@@ -15,10 +15,12 @@ import torch_optimizer
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import ReplayBuffer
 from torchrl.data.replay_buffers import ListStorage
-from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampler
+from torchrl.data.replay_buffers.samplers import (PrioritizedSampler,
+                                                  RandomSampler)
 
 import trackmania_rl.agents.iqn as iqn
-from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager
+from trackmania_rl import (buffer_management, misc, nn_utilities,
+                           tm_interface_manager)
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
 from trackmania_rl.time_parsing import DigitsLibrary, parse_time
@@ -398,7 +400,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results["policy"]) > 0:
+    if len(rollout_results["log_policy"]) > 0:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
@@ -458,7 +460,7 @@ for loop_number in count(1):
             save_dir / "best_runs" / sub_folder_name / f"actions.joblib",
         )
         joblib.dump(
-            rollout_results["policy"],
+            rollout_results["log_policy"],
             save_dir / "best_runs" / sub_folder_name / f"policy.joblib",
         )
         torch.save(

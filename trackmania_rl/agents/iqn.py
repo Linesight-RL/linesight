@@ -354,18 +354,18 @@ class Trainer:
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
                 q__stpo__model__reduced = (
-                    self.model(
+                    self.soft_Q_model(
                         next_state_img_tensor,
                         next_state_float_tensor,
                         self.iqn_n,
                         tau=None,
                     )[0]
-                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .reshape([self.iqn_n, self.batch_size, self.soft_Q_model.n_actions])
                     .mean(dim=0) # (batch_size, n_actions)
                 )
                 log_pi_stpo = torch.nn.functional.log_softmax(q__stpo__model__reduced / sac_alpha, dim=-1) # (batch_size, n_actions)
 
-                rewards_and_entropy = rewards + sac_alpha * entropies
+                rewards_and_entropy = rewards + sac_alpha * entropies # FIXME
                 target = rewards_and_entropy + gammas_pow_nsteps * (
                     (q__stpo__model2__quantiles_tau2 - (sac_alpha * log_pi_stpo).repeat(self.iqn_n, 1))
                     * log_pi_stpo.exp().repeat(self.iqn_n, 1)
@@ -426,7 +426,7 @@ class Trainer:
 
             q__st__model__reduced = (
                     q__st__model__quantiles_tau3
-                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                    .reshape([self.iqn_n, self.batch_size, self.soft_Q_model.n_actions])
                     .mean(dim=0) # (batch_size, n_actions)
                 )
             log_pi_st = torch.nn.functional.log_softmax(q__st__model__reduced / sac_alpha, dim=-1) # (batch_size, n_actions)
@@ -470,25 +470,26 @@ class Trainer:
             total_loss_entropy = total_loss_entropy.detach().cpu()
             if misc.prio_alpha > 0:
                 buffer.update_priority(batch_info["index"], loss_Q_network.detach().cpu().type(torch.float64))
+
         return total_loss_Q_network, 0, total_loss_entropy, policy_entropy.cpu().mean()
 
     def get_exploration_action(self, img_inputs, float_inputs):
         with torch.no_grad():
             state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
-            policy = (
-                torch.nn.functional.softmax(
+            log_policy = torch.clamp(
+                torch.nn.functional.log_softmax(
                     (self.soft_Q_model(
                         state_img_tensor,
                         state_float_tensor,
+                        num_quantiles=self.iqn_k,
                         use_fp32=True,
                     )[0]
-                    .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
-                    .mean(dim=0)) / self.logalpha_model().exp().item() # (batch_size, n_actions)
+                    .mean(dim=0)) / self.logalpha_model().exp().item()
                     , dim=-1
                 )
                 .cpu()
-            )
+            , min=-23)
 
         if self.epsilon >= 0:
             # Train
@@ -497,18 +498,17 @@ class Trainer:
                 action_chosen_idx = random.randrange(len(misc.inputs))
                 action_followed_stochastic_policy = False
             else:
-                action_dist = Categorical(policy)
+                action_dist = Categorical(log_policy.exp())
                 action_chosen_idx = action_dist.sample().item()
                 action_followed_stochastic_policy = True
         else:
             # Eval
-            action_chosen_idx = np.argmax(policy)
-            greedy_action_idx = action_chosen_idx
+            action_chosen_idx = np.argmax(log_policy)
             action_followed_stochastic_policy = False #TODO should I put True here ?
 
         return (
             action_chosen_idx,
             action_followed_stochastic_policy,
-            policy.max().item(),  # TODO change name in tensorboard
-            policy.numpy(),  # TODO change name in tensorboard
+            log_policy.exp().max().item(),  # TODO change name in tensorboard
+            log_policy.numpy(),  # TODO change name in tensorboard
         )

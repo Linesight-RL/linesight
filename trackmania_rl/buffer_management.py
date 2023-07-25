@@ -86,7 +86,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         #===========
         entropies = np.zeros(n_steps_max).astype(np.float32)
         for j in range(2, 1 + n_steps):         
-            entropies[j - 1] = entropies[j-2] - gammas[j-2] * np.sum(np.log(rollout_results["policy"][i + j-1]) * rollout_results["policy"][i + j-1])
+            entropies[j - 1] = entropies[j-2] - gammas[j-2] * np.sum(rollout_results["log_policy"][i + j-1] * np.exp(rollout_results["log_policy"][i + j-1]))
+        assert np.isnan(entropies).sum() == 0
         #===========
 
         # Construct state description

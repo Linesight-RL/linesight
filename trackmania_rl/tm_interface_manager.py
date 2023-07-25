@@ -8,7 +8,6 @@ import numpy.typing as npt
 import psutil
 import win32.lib.win32con as win32con
 import win32com.client
-
 # noinspection PyPackageRequirements
 import win32gui
 from ReadWriteMemory import ReadWriteMemory
@@ -196,7 +195,7 @@ class TMInterfaceManager:
             "car_velocity": [],
             "car_angular_speed": [],
             "car_gear_and_wheels": [],
-            "policy": [],
+            "log_policy": [],
             "fraction_time_in_previous_zone": [],
             "meters_advanced_along_centerline": [],
         }
@@ -569,7 +568,7 @@ class TMInterfaceManager:
                             action_idx,
                             action_was_greedy,
                             max_policy,
-                            policy,
+                            log_policy,
                         ) = exploration_policy(rollout_results["frames"][-1], floats)
 
                         time_exploration_policy += time.perf_counter_ns() - pc2
@@ -592,7 +591,7 @@ class TMInterfaceManager:
 
                         if n_th_action_we_compute == 0:
                             end_race_stats["max_policy_starting_frame"] = max_policy
-                            for i, val in enumerate(np.nditer(policy)):
+                            for i, val in enumerate(np.nditer(np.exp(log_policy))):
                                 end_race_stats[f"policy_{i}_starting_frame"] = val
                         rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
                         rollout_results["display_speed"].append(sim_state_display_speed)
@@ -604,7 +603,7 @@ class TMInterfaceManager:
                         rollout_results["car_velocity"].append(sim_state_velocity)
                         rollout_results["car_angular_speed"].append(sim_state_angular_speed)
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
-                        rollout_results["policy"].append(policy)
+                        rollout_results["log_policy"].append(log_policy)
 
                         compute_action_asap = False
                         n_th_action_we_compute += 1
