@@ -375,7 +375,7 @@ class TMInterfaceManager:
                             sim_state_dyna_current.position,
                             dtype=np.float32,
                         )  # (3,)
-                        sim_state_orientation = sim_state_dyna_current.rotation.to_numpy()  # (3, 3)
+                        sim_state_orientation = sim_state_dyna_current.rotation.to_numpy().T  # (3, 3)
                         sim_state_velocity = np.array(
                             sim_state_dyna_current.linear_speed,
                             dtype=np.float32,
@@ -479,7 +479,7 @@ class TMInterfaceManager:
                         prev_sim_state_position = sim_state_position
 
                         # ==== Construct features
-                        state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.T.dot(
+                        state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
                             (
                                 zone_centers[
                                     current_zone_idx : current_zone_idx + misc.n_zone_centers_in_inputs,
@@ -488,9 +488,9 @@ class TMInterfaceManager:
                                 - sim_state_position
                             ).T
                         ).T  # (n_zone_centers_in_inputs, 3)
-                        state_y_map_vector_in_car_reference_system = sim_state_orientation.T.dot(np.array([0, 1, 0]))
-                        state_car_velocity_in_car_reference_system = sim_state_orientation.T.dot(sim_state_velocity)
-                        state_car_angular_velocity_in_car_reference_system = sim_state_orientation.T.dot(sim_state_angular_speed)
+                        state_y_map_vector_in_car_reference_system = sim_state_orientation.dot(np.array([0, 1, 0]))
+                        state_car_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_velocity)
+                        state_car_angular_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_angular_speed)
 
                         previous_actions = [
                             misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
