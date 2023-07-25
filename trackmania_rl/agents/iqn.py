@@ -77,23 +77,15 @@ class Agent(torch.nn.Module):
     def initialize_weights(self):
         lrelu_neg_slope = 1e-2
         activation_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
-        for m in self.img_head:
-            if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_orthogonal(m, activation_gain)
-        for m in self.float_feature_extractor:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, activation_gain)
+        for module in [self.img_head, self.float_feature_extractor, self.A_head[:-1], self.V_head[:-1]]:
+            for m in module:
+                if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+                    nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(
             self.iqn_fc, np.sqrt(2) * activation_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
-        for m in self.A_head[:-1]:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, activation_gain)
-        nn_utilities.init_orthogonal(self.A_head[-1])
-        for m in self.V_head[:-1]:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, activation_gain)
-        nn_utilities.init_orthogonal(self.V_head[-1])
+        for module in [self.A_head[-1], self.V_head[-1]]:
+            nn_utilities.init_orthogonal(module)
 
     def forward(
         self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
@@ -204,11 +196,10 @@ class Trainer:
                 if misc.prio_alpha > 0:
                     self.IS_average.append(batch_info["_weight"].mean())
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
-                actions = actions.to(dtype=torch.int64)
 
                 rewards = rewards.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
                 gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])# (batch_size*iqn_n, 1)
-                actions = actions[:, None].repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                actions = actions.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
                 #   Use model2 to evaluate the action chosen, per quantile.
                 #
