@@ -394,26 +394,9 @@ class TMInterfaceManager:
                             (
                                 np.array(
                                     [
-                                        wheel_state[0].is_sliding,
-                                        # Bool
-                                        wheel_state[1].is_sliding,
-                                        # Bool
-                                        wheel_state[2].is_sliding,
-                                        # Bool
-                                        wheel_state[3].is_sliding,
-                                        # Bool
-                                        wheel_state[0].has_ground_contact,
-                                        # Bool
-                                        wheel_state[1].has_ground_contact,
-                                        # Bool
-                                        wheel_state[2].has_ground_contact,
-                                        # Bool
-                                        wheel_state[3].has_ground_contact,
-                                        # Bool
-                                        wheel_state[0].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        wheel_state[1].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        wheel_state[2].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
-                                        wheel_state[3].damper_absorb,  # 0.005 min, 0.15 max, 0.01 typically
+                                        *(ws.is_sliding for ws in wheel_state),# Bool
+                                        *(ws.has_ground_contact for ws in wheel_state),# Bool
+                                        *(ws.damper_absorb for ws in wheel_state),# 0.005 min, 0.15 max, 0.01 typically
                                         gearbox_state,  # Bool, except 2 at startup
                                         sim_state_mobil_engine.gear,  # 0 -> 5 approx
                                         sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
@@ -421,22 +404,7 @@ class TMInterfaceManager:
                                     ],
                                     dtype=np.float32,
                                 ),
-                                (
-                                    np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[wheel_state[0].contact_material_id & 0xFFFF]
-                                ).astype(np.float32),
-                                (
-                                    np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[wheel_state[1].contact_material_id & 0xFFFF]
-                                ).astype(np.float32),
-                                (
-                                    np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[wheel_state[2].contact_material_id & 0xFFFF]
-                                ).astype(np.float32),
-                                (
-                                    np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[wheel_state[3].contact_material_id & 0xFFFF]
-                                ).astype(np.float32),
+                                *((np.arange(misc.n_contact_material_physics_behavior_types) == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]).astype(np.float32) for ws in wheel_state)
                             )
                         )
                         while True: #Emulate do while loop
