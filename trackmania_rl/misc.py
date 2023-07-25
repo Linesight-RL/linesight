@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "67_MoveComplexityToCollate"
+run_name = "72_EndRewardFixAttempt6"
 running_speed = 100
 
 tm_engine_step_per_action = 5
@@ -24,7 +24,7 @@ cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
 cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
 
 temporal_mini_race_duration_ms = 7000
-temporal_mini_race_duration_actions = temporal_mini_race_duration_ms / ms_per_action
+temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
 epsilon = 0.03
