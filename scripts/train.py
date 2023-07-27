@@ -170,7 +170,7 @@ optimizer1 = torch.optim.RAdam(
     model1.parameters(),
     lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
-    betas=(0.9, 0.95),
+    betas=(misc.adam_beta1,misc.adam_beta2),
 )
 # optimizer1 = torch.optim.AdamW(
 #     model1.parameters(),
@@ -307,6 +307,8 @@ for loop_number in count(1):
 
     for param_group in optimizer1.param_groups:
         param_group["lr"] = learning_rate
+        param_group["epsilon"] = misc.adam_epsilon
+        param_group["betas"] = (misc.adam_beta1,misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann

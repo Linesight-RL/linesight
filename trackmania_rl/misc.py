@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "72_EndRewardFixAttempt6"
+run_name = "73_EndRewardFixAttempt7"
 running_speed = 100
 
 tm_engine_step_per_action = 5
@@ -35,7 +35,7 @@ discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
 n_steps = 3
-constant_reward_per_ms = -6 / 5000
+constant_reward_per_ms = -3 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
@@ -54,8 +54,8 @@ prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER pa
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 800_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 20_000
+memory_size = 800_000 if is_pb_desktop else 800_000
+memory_size_start_learn = 50_000
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
     64 - 4
@@ -106,6 +106,8 @@ lr_schedule = [
 ]
 weight_decay_lr_ratio = 0
 adam_epsilon = 1e-4
+adam_beta1=0.9
+adam_beta2=0.999
 
 single_reset_counter = 0
 reset_every_n_frames_generated = 400_000_00000000
