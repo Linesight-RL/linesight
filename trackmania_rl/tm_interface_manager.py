@@ -1,6 +1,7 @@
 import ctypes
 import math
 import time
+import os
 
 import cv2
 import numpy as np
@@ -69,44 +70,11 @@ def _get_window_position(trackmania_window):
     bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
 
-
-camera = None
-
-
-def recreate_dxcam():
-    global camera
-    print("RECREATE")
-    if 'camera' in locals() or 'camera' in globals():
-        del camera
-    try:
-        create_dxcam()
-    except Exception as e:
-        print(e)
-        time.sleep(1)
-
-
-def create_dxcam():
-    global camera
-    trackmania_window = win32gui.FindWindow("TmForever", None)
-    ensure_not_minimized(trackmania_window)
-    region, output_idx = _get_window_position(trackmania_window)
-    print(f"CREATE {region=}, {output_idx=}")
-    camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
-
 def grab_screen2():
     frame = None
     while frame is None:
         frame = camera.grab()
     return frame
-
-def grab_screen():
-    global camera
-    try:
-        return grab_screen2()
-    except:
-        pass
-    recreate_dxcam()
-    return grab_screen()
 
 def current_zone_to_A_B(current_zone_idx, zone_centers):
         next_zone_center = zone_centers[current_zone_idx + 1]
@@ -132,10 +100,6 @@ class TMInterfaceCustom(TMInterface):
         if clear:
             self._clear_buffer()
 
-
-create_dxcam()
-
-
 class TMInterfaceManager:
     def __init__(
         self,
@@ -158,12 +122,56 @@ class TMInterfaceManager:
         self.timeout_has_been_set = False
         self.interface_name = interface_name
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
-        remove_fps_cap()
-        remove_map_begin_camera_zoom_in()
-        _set_window_focus(win32gui.FindWindow("TmForever", None))
         self.msgtype_response_to_wakeup_TMI = None
         self.latest_map_path_requested = None
         self.last_rollout_crashed = False
+        self.last_game_reboot = time.perf_counter()
+
+    def launch_game(self):
+        os.system("start .\\TMInterface.lnk")
+        time.sleep(5)
+        process_prepare()
+        self.latest_map_path_requested = -1
+
+    def close_game(self):
+        os.system("taskkill /IM TmForever.exe /f")
+        time.sleep(5)
+
+    def ensure_game_launched(self):
+        if "TmForever.exe" not in (p.name() for p in psutil.process_iter()):
+            if os.path.exists(".\\TMInterface.lnk"):
+                print("Game not found. Restarting TMInterface.")
+                self.launch_game()
+            else:
+                print("Game needs to be restarted but cannot be. Add TMInterface shortcut to directory.")
+
+    def create_dxcam(self):
+        global camera
+        trackmania_window = win32gui.FindWindow("TmForever", None)
+        ensure_not_minimized(trackmania_window)
+        region, output_idx = _get_window_position(trackmania_window)
+        print(f"CREATE {region=}, {output_idx=}")
+        camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
+
+    def recreate_dxcam(self):
+        global camera
+        print("RECREATE")
+        if 'camera' in locals() or 'camera' in globals():
+            del camera
+        try:
+            self.create_dxcam()
+        except Exception as e:
+            print(e)
+            time.sleep(1)
+
+    def grab_screen(self):
+        global camera
+        try:
+            return grab_screen2()
+        except:
+            pass
+        self.recreate_dxcam()
+        return self.grab_screen()
 
     def rewind_to_state(self, state):
         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
@@ -181,7 +189,17 @@ class TMInterfaceManager:
         ):  # Small performance trick, don't update input_state if it doesn't need to be updated
             self.iface.set_input_state(**misc.inputs[action_idx])
 
+    def request_map(self, map_path):
+        self.iface.execute_command(f"map {map_path}")
+        # self.iface.execute_command("press delete")
+        self.latest_map_path_requested = map_path
+
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
+        self.ensure_game_launched()
+        if time.perf_counter()-self.last_game_reboot>misc.game_reboot_interval and is_fullscreen(win32gui.FindWindow("TmForever", None)): #If the game is windowed, user may be using the machine and would not want the game to open and close
+            self.close_game()
+            self.launch_game()
+
         end_race_stats = {}
 
         time_to_answer_normal_step = 0
@@ -239,6 +257,10 @@ class TMInterfaceManager:
                 self.msgtype_response_to_wakeup_TMI = None
 
         assert self.iface._ensure_connected()
+
+        if 'camera' not in globals():
+            self.create_dxcam()
+            process_prepare()
 
         self.last_rollout_crashed = False
 
@@ -334,6 +356,10 @@ class TMInterfaceManager:
                     )
                     n_frames_tmi_protection_triggered += 1
 
+                if self.latest_map_path_requested==-1:#Game was relaunched and is in the main menu
+                    self.iface.execute_command("toggle_console")
+                    self.request_map(map_path)
+
                 if (
                     compute_action_asap
                     and give_up_signal_has_been_sent
@@ -356,7 +382,7 @@ class TMInterfaceManager:
 
                         pc2 = time.perf_counter_ns()
 
-                        frame = grab_screen()
+                        frame = self.grab_screen()
                         iterations = 1
                         parsed_time = time_parsing.parse_time(frame, self.digits_library)
 
@@ -448,11 +474,11 @@ class TMInterfaceManager:
                         pc2 = time.perf_counter_ns()
 
                         while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
-                            frame = grab_screen()
+                            frame = self.grab_screen()
                             iterations += 1
                             parsed_time = time_parsing.parse_time(frame, self.digits_library)
                         if iterations > 10 :
-                            recreate_dxcam()
+                            self.recreate_dxcam()
                         if iterations >= misc.tmi_protection_timeout_s:
                             print("Cutoff rollout due to",iterations,"failed attempts to OCR",sim_state_race_time,". Got",parsed_time,"instead")
                             do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
@@ -589,9 +615,7 @@ class TMInterfaceManager:
 
                 if not give_up_signal_has_been_sent:
                     if map_path != self.latest_map_path_requested:
-                        self.iface.execute_command(f"map {map_path}")
-                        # self.iface.execute_command("press delete")
-                        self.latest_map_path_requested = map_path
+                        self.request_map(map_path)
                     else:
                         self.iface.give_up()
                     give_up_signal_has_been_sent = True
@@ -802,3 +826,8 @@ def remove_map_begin_camera_zoom_in():
         process.open()
         process.write(0x00CE8E9C, 0)
         process.close()
+
+def process_prepare():
+    remove_fps_cap()
+    remove_map_begin_camera_zoom_in()
+    _set_window_focus(win32gui.FindWindow("TmForever", None))

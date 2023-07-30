@@ -55,7 +55,7 @@ prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
 memory_size = 800_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 20_000
+memory_size_start_learn = 800_000
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
     64 - 4
@@ -104,7 +104,9 @@ lr_schedule = [
     (0, 1e-3),
     (1_500_000, 5e-5),
     (5_300_000, 1e-4),
-    (7_500_000, 5e-5)
+    (7_500_000, 5e-5),
+    (10_750_000, 5e-5),
+    (12_750_000, 1e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
@@ -594,6 +596,7 @@ zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 600_000_000 if is_pb_desktop else 600_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
+game_reboot_interval = 3600*4#In seconds
 
 frames_before_save_best_runs = 1_500_000
 
