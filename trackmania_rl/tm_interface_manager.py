@@ -131,6 +131,7 @@ class TMInterfaceManager:
         os.system("start .\\TMInterface.lnk")
         time.sleep(5)
         process_prepare()
+        self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
 
     def close_game(self):
