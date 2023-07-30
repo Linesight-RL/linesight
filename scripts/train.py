@@ -188,7 +188,7 @@ optimizer1 = torch.optim.RAdam(
 #     eps=1e-4,
 #     weight_decay=0,
 # )
-optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
+#optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(
