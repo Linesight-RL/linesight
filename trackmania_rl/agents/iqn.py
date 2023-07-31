@@ -178,7 +178,7 @@ class Trainer:
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
-
+        
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 batch, batch_info = buffer.sample(self.batch_size, return_info=True)
@@ -191,8 +191,6 @@ class Trainer:
                     next_state_float_tensor,
                     gammas_terminal,
                 ) = batch
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
                 if misc.prio_alpha > 0:
                     self.IS_average.append(batch_info["_weight"].mean())
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
