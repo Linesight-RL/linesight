@@ -12,15 +12,14 @@ to_torch_dtype = {
 }
 
 def fast_collate_cpu(batch,attr_name):
-    '''elem = getattr(batch[0], attr_name)
+    elem = getattr(batch[0], attr_name)
     elem_array = hasattr(elem, "__len__")
     shape = (len(batch),) + (elem.shape if elem_array else ())
     data_type = elem.flat[0].dtype if elem_array else type(elem).__name__
     data_type = to_torch_dtype[str(data_type)]
     buffer = torch.empty(size=shape,dtype=data_type,pin_memory=True).numpy()
     np.copyto(buffer,[getattr(memory, attr_name) for memory in batch])
-    return buffer'''
-    return np.array([getattr(memory, attr_name) for memory in batch])
+    return buffer
 
 def send_to_gpu(batch,attr_name):
     return torch.as_tensor(batch).to(
