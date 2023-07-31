@@ -133,6 +133,7 @@ class TMInterfaceManager:
         process_prepare()
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
+        self.msgtype_response_to_wakeup_TMI = None
 
     def close_game(self):
         os.system("taskkill /IM TmForever.exe /f")
@@ -199,6 +200,7 @@ class TMInterfaceManager:
         self.ensure_game_launched()
         if time.perf_counter()-self.last_game_reboot>misc.game_reboot_interval and is_fullscreen(win32gui.FindWindow("TmForever", None)): #If the game is windowed, user may be using the machine and would not want the game to open and close
             self.close_game()
+            self.iface = None
             self.launch_game()
 
         end_race_stats = {}
@@ -356,10 +358,6 @@ class TMInterfaceManager:
                         "TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER         TMI PROTECTION TRIGGER "
                     )
                     n_frames_tmi_protection_triggered += 1
-
-                if self.latest_map_path_requested==-1:#Game was relaunched and is in the main menu
-                    self.iface.execute_command("toggle_console")
-                    self.request_map(map_path)
 
                 if (
                     compute_action_asap
@@ -781,6 +779,9 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
+                if self.latest_map_path_requested==-1:#Game was relaunched and is in the main menu
+                    self.iface.execute_command("toggle_console")
+                    self.request_map(map_path)
                 self.iface._respond_to_call(msgtype)
             elif msgtype == MessageType.S_ON_CUSTOM_COMMAND:
                 print("msg_on_custom_command")
