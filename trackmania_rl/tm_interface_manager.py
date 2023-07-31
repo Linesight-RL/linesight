@@ -377,15 +377,6 @@ class TMInterfaceManager:
                         self.request_inputs(misc.action_forward_idx, rollout_results)
                         self.request_speed(self.running_speed)
                     else:
-                        # ===================================================================================================
-
-                        pc2 = time.perf_counter_ns()
-
-                        frame = self.grab_screen()
-                        iterations = 1
-                        parsed_time = time_parsing.parse_time(frame, self.digits_library)
-
-                        time_to_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
 
                         # ===================================================================================================
@@ -471,6 +462,9 @@ class TMInterfaceManager:
 
                         time_between_grab_frame += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
+
+                        iterations = 0
+                        parsed_time = None
 
                         while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
                             frame = self.grab_screen()
