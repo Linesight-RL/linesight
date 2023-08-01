@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "77_NoLookahead_RegularBetas"
+run_name = "78_77_Lookahead"
 running_speed = 100
 
 tm_engine_step_per_action = 5
