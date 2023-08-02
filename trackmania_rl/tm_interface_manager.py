@@ -278,7 +278,6 @@ class TMInterfaceManager:
         this_rollout_is_finished = False
         n_th_action_we_compute = 0
 
-        n_ors_light_desynchro = 0
         n_two_consecutive_frames_equal = 0
         n_frames_tmi_protection_triggered = 0
 
@@ -300,7 +299,6 @@ class TMInterfaceManager:
             end_race_stats["race_finished"] = False
             end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
             end_race_stats["race_time_for_ratio"] = race_time
-            end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
             end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
             end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
             end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
@@ -640,11 +638,6 @@ class TMInterfaceManager:
                             self.request_speed(0)
                             compute_action_asap = True
                             do_not_compute_action_before_time = time.perf_counter_ns() + 1_000_000
-
-                        elif (
-                            _time >= 0 and this_rollout_has_seen_t_negative and self.latest_tm_engine_speed_requested == 0
-                        ):  # TODO for next run : switch to elif instead of if
-                            n_ors_light_desynchro += 1
                 # ============================
                 # END ON RUN STEP
                 # ============================
@@ -704,7 +697,6 @@ class TMInterfaceManager:
                         end_race_stats["race_time"] = simulation_state.race_time
                         rollout_results["race_time"] = simulation_state.race_time
                         end_race_stats["race_time_for_ratio"] = simulation_state.race_time
-                        end_race_stats["n_ors_light_desynchro"] = n_ors_light_desynchro
                         end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
                         end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
                         end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
