@@ -31,16 +31,15 @@ def _set_window_focus(
     shell.SendKeys("%")
     win32gui.SetForegroundWindow(trackmania_window)
 
-
 def is_fullscreen(trackmania_window):
     rect = win32gui.GetWindowPlacement(trackmania_window)[4]
     return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
 
-
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
         win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
-
+        if is_fullscreen(trackmania_window):
+            _set_window_focus(trackmania_window)
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
@@ -470,8 +469,8 @@ class TMInterfaceManager:
                             frame = self.grab_screen()
                             iterations += 1
                             parsed_time = time_parsing.parse_time(frame, self.digits_library)
-                        if iterations > 10 :
-                            self.recreate_dxcam()
+                            if iterations > 10:
+                                self.recreate_dxcam()
                         if iterations >= misc.tmi_protection_timeout_s:
                             print("Cutoff rollout due to",iterations,"failed attempts to OCR",sim_state_race_time,". Got",parsed_time,"instead")
                             do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
