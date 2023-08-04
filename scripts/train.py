@@ -188,7 +188,7 @@ optimizer1 = torch.optim.RAdam(
 #     eps=1e-4,
 #     weight_decay=0,
 # )
-optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
+#optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(
@@ -473,7 +473,7 @@ for loop_number in count(1):
                 model1.A_head[2].weight = nn_utilities.linear_combination(model1.A_head[2].weight,model3.A_head[2].weight,misc.last_layer_reset_factor)
                 model1.A_head[2].bias = nn_utilities.linear_combination(model1.A_head[2].bias,model3.A_head[2].bias,misc.last_layer_reset_factor)
                 model1.V_head[2].weight = nn_utilities.linear_combination(model1.V_head[2].weight,model3.V_head[2].weight,misc.last_layer_reset_factor)
-                model1.V_head[2].bias = nn_utilities.linear_combination(model1.A_head[2].bias,model3.A_head[2].bias,misc.last_layer_reset_factor)
+                model1.V_head[2].bias = nn_utilities.linear_combination(model1.V_head[2].bias,model3.V_head[2].bias,misc.last_layer_reset_factor)
 
         # ===============================================
         #   LEARN ON BATCH
