@@ -280,7 +280,6 @@ class TMInterfaceManager:
         _time = -3000
         cpcount = 0
         current_zone_idx = 0
-        prev_sim_state_position = zone_centers[0, :]
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -487,8 +486,6 @@ class TMInterfaceManager:
 
                         time_A_rgb2gray += time.perf_counter_ns() - pc2
                         pc2 = time.perf_counter_ns()
-
-                        prev_sim_state_position = sim_state_position
 
                         # ==== Construct features
                         state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
