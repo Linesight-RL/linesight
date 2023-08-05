@@ -168,19 +168,19 @@ accumulated_stats["single_reset_counter"] = misc.single_reset_counter
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
-    lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+    lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
-    betas=(0.9, 0.95),
+    betas=(misc.adam_beta1, misc.adam_beta2),
 )
 # optimizer1 = torch.optim.AdamW(
 #     model1.parameters(),
-#     lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+#     lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
 #     eps=misc.adam_epsilon,
 #     betas=(0.9, 0.95),
 #     weight_decay=0.1,
 # )
 # optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
+# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
 # optimizer1 = torch_optimizer.Lamb(
 #     model1.parameters(),
 #     lr= 5e-5,
@@ -188,7 +188,7 @@ optimizer1 = torch.optim.RAdam(
 #     eps=1e-4,
 #     weight_decay=0,
 # )
-optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
+# optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(
@@ -298,7 +298,7 @@ for loop_number in count(1):
         misc.reward_per_ms_press_forward_early_training = 0
 
     # LR and weight_decay calculation
-    learning_rate = nn_utilities.lr_from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+    learning_rate = nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
     weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
     # ===============================================
@@ -307,6 +307,8 @@ for loop_number in count(1):
 
     for param_group in optimizer1.param_groups:
         param_group["lr"] = learning_rate
+        param_group["epsilon"] = misc.adam_epsilon
+        param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
@@ -343,7 +345,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if len(rollout_results["q_values"]) > 0:
+    if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
@@ -356,7 +358,8 @@ for loop_number in count(1):
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            f"single_zone_reached_{map_name}": len(rollout_results["zone_entrance_time_ms"]) - 1,
+            "avg_Q": np.mean(rollout_results["q_values"]),
+            f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
             "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],
@@ -391,7 +394,11 @@ for loop_number in count(1):
     #   SAVE STUFF IF THIS WAS A GOOD RACE
     # ===============================================
 
-    if end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999):
+    if (
+        not tmi.last_rollout_crashed
+        and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999)
+        and accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs
+    ):
         # This is a new alltime_minimum
         accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
         print("\a")
@@ -428,7 +435,7 @@ for loop_number in count(1):
     #   FILL BUFFER WITH (S, A, R, S') transitions
     # ===============================================
 
-    if fill_buffer:
+    if fill_buffer and not tmi.last_rollout_crashed:
         (
             buffer,
             buffer_test,
@@ -467,31 +474,18 @@ for loop_number in count(1):
             nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
-                # for name, param in model1.named_parameters():
-                #     param *= misc.overall_reset_mul_factor
-                model1.A_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].weight
-
-                model1.A_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[0].bias
-
-                model1.A_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.A_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].weight
-
-                model1.A_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.A_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.A_head[2].bias
-
-                model1.V_head[0].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[0].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].weight
-
-                model1.V_head[0].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[0].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[0].bias
-
-                model1.V_head[2].weight *= misc.a_v_reset_mul_factor
-                model1.V_head[2].weight += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].weight
-
-                model1.V_head[2].bias *= misc.a_v_reset_mul_factor
-                model1.V_head[2].bias += (1 - misc.a_v_reset_mul_factor) * model3.V_head[2].bias
+                model1.A_head[2].weight = nn_utilities.linear_combination(
+                    model1.A_head[2].weight, model3.A_head[2].weight, misc.last_layer_reset_factor
+                )
+                model1.A_head[2].bias = nn_utilities.linear_combination(
+                    model1.A_head[2].bias, model3.A_head[2].bias, misc.last_layer_reset_factor
+                )
+                model1.V_head[2].weight = nn_utilities.linear_combination(
+                    model1.V_head[2].weight, model3.V_head[2].weight, misc.last_layer_reset_factor
+                )
+                model1.V_head[2].bias = nn_utilities.linear_combination(
+                    model1.V_head[2].bias, model3.V_head[2].bias, misc.last_layer_reset_factor
+                )
 
         # ===============================================
         #   LEARN ON BATCH
@@ -534,7 +528,7 @@ for loop_number in count(1):
                     accumulated_stats[
                         "cumul_number_single_memories_used_next_target_network_update"
                     ] += misc.number_memories_trained_on_between_target_network_updates
-                    print("UPDATE")
+                    # print("UPDATE")
                     nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
         print("")
 
@@ -603,39 +597,12 @@ for loop_number in count(1):
         #   COLLECT IQN SPREAD
         # ===============================================
 
-        tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-        state_img_tensor = torch.as_tensor(
-            np.expand_dims(rollout_results["frames"][0], axis=0)
-        ).to(  # TODO : remove as_tensor and expand dims, because this is already pinned memory
-            "cuda", memory_format=torch.channels_last, non_blocking=True
-        )
-        state_float_tensor = torch.as_tensor(
-            np.expand_dims(
-                np.hstack(
-                    (
-                        0,
-                        np.hstack([np.array([True, False, False, False]) for _ in range(misc.n_prev_actions_in_inputs)]),  # NEW
-                        rollout_results["car_gear_and_wheels"][0].ravel(),  # NEW
-                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_angular_speed"][0]),  # NEW
-                        rollout_results["car_orientation"][0].T.dot(rollout_results["car_velocity"][0]),
-                        rollout_results["car_orientation"][0].T.dot(np.array([0, 1, 0])),
-                        rollout_results["car_orientation"][0]
-                        .T.dot((zone_centers[0 : misc.n_zone_centers_in_inputs, :] - rollout_results["car_position"][0]).T)
-                        .T.ravel(),
-                    )
-                ).astype(np.float32),
-                axis=0,
-            )
-        ).to("cuda", non_blocking=True)
-
-        # Désactiver noisy, tirer des tau équitablement répartis
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
-                per_quantile_output = model1(state_img_tensor, state_float_tensor, misc.iqn_k, tau=tau)[0]
-
-        for i, std in enumerate(list(per_quantile_output.cpu().numpy().astype(np.float32).std(axis=0))):
-            step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-        model1.train()
+        if not tmi.last_rollout_crashed:
+            tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+            per_quantile_output = trainer.infer_model(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
+            for i, std in enumerate(list(per_quantile_output.std(axis=0))):
+                step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+            model1.train()
 
         # ===============================================
         #   WRITE TO TENSORBOARD

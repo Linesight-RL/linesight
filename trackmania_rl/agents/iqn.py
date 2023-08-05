@@ -11,6 +11,16 @@ from .. import misc  # TODO virer cet import
 from .. import nn_utilities
 
 
+class CReLU(torch.nn.Module):
+    def __init__(self, inplace: bool = False):
+        super(CReLU, self).__init__()
+        self.inplace = inplace
+
+    def forward(self, x):
+        x = torch.cat((x, -x), 1)
+        return torch.nn.functional.relu(x, inplace=self.inplace)
+
+
 class Agent(torch.nn.Module):
     def __init__(
         self,
@@ -58,10 +68,8 @@ class Agent(torch.nn.Module):
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
         )
 
-        self.iqn_fc = torch.nn.Linear(
-            iqn_embedding_dimension, dense_input_dimension
-        )  # There is no word in the paper on how to init this layer?
-        self.lrelu = torch.nn.LeakyReLU()
+        self.iqn_fc = torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension)
+        self.lrelu = torch.nn.LeakyReLU()  # Needs inplace?
         self.initialize_weights()
 
         self.n_actions = n_actions
@@ -71,24 +79,16 @@ class Agent(torch.nn.Module):
 
     def initialize_weights(self):
         lrelu_neg_slope = 1e-2
-        lrelu_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
-        for m in self.img_head:
-            if isinstance(m, torch.nn.Conv2d):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
-        for m in self.float_feature_extractor:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
+        activation_gain = torch.nn.init.calculate_gain("leaky_relu", lrelu_neg_slope)
+        for module in [self.img_head, self.float_feature_extractor, self.A_head[:-1], self.V_head[:-1]]:
+            for m in module:
+                if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+                    nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(
-            self.iqn_fc, np.sqrt(2) * lrelu_gain
+            self.iqn_fc, np.sqrt(2) * activation_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
-        for m in self.A_head[:-1]:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
-        nn_utilities.init_orthogonal(self.A_head[-1])
-        for m in self.V_head[:-1]:
-            if isinstance(m, torch.nn.Linear):
-                nn_utilities.init_orthogonal(m, lrelu_gain)
-        nn_utilities.init_orthogonal(self.V_head[-1])
+        for module in [self.A_head[-1], self.V_head[-1]]:
+            nn_utilities.init_orthogonal(module)
 
     def forward(
         self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
@@ -188,46 +188,21 @@ class Trainer:
                 (
                     state_img_tensor,
                     state_float_tensor,
-                    new_actions,
-                    new_n_steps,
-                    rewards_per_n_steps,
+                    actions,
+                    rewards,
                     next_state_img_tensor,
                     next_state_float_tensor,
-                    gammas_per_n_steps,
-                    minirace_min_time_actions,
+                    gammas_terminal,
                 ) = batch
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            with torch.no_grad():
                 if misc.prio_alpha > 0:
                     self.IS_average.append(batch_info["_weight"].mean())
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
-                new_actions = new_actions.to(dtype=torch.int64)
-                new_n_steps = new_n_steps.to(dtype=torch.int64)
-                minirace_min_time_actions = minirace_min_time_actions.to(dtype=torch.int64)
 
-                new_xxx = (
-                    torch.rand(size=minirace_min_time_actions.shape, device="cuda")
-                    * (misc.temporal_mini_race_duration_actions - minirace_min_time_actions)
-                ).to(dtype=torch.int64)
-                temporal_mini_race_current_time_actions = misc.temporal_mini_race_duration_actions - 1 - new_xxx
-                temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + new_n_steps
-
-                state_float_tensor[:, 0] = temporal_mini_race_current_time_actions
-                next_state_float_tensor[:, 0] = temporal_mini_race_next_time_actions
-
-                new_done = temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions
-                possibly_reduced_n_steps = (
-                    new_n_steps - (temporal_mini_race_next_time_actions - misc.temporal_mini_race_duration_actions).clip(min=0)
-                ).to(dtype=torch.int64)
-
-                rewards = rewards_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat(
+                rewards = rewards.unsqueeze(-1).repeat(
                     [self.iqn_n, 1]
                 )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
-                # (batch_size*iqn_n, 1)
-                gammas_pow_nsteps = gammas_per_n_steps.gather(1, (possibly_reduced_n_steps - 1).unsqueeze(-1)).repeat([self.iqn_n, 1])
-                done = new_done.reshape(-1, 1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
-                actions = new_actions[:, None]  # (batch_size, 1)
-                actions_n = actions.repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
+                actions = actions.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
                 #   Use model2 to evaluate the action chosen, per quantile.
                 #
@@ -251,17 +226,16 @@ class Trainer:
                         .argmax(dim=1, keepdim=True)
                         .repeat([self.iqn_n, 1])
                     )  # (iqn_n * batch_size, 1)
-                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated)
+                    #
+                    #   Build IQN target on tau2 quantiles
+                    #
+                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.gather(
+                        1, a__tpo__model__reduced_repeated
+                    )  # (batch_size*iqn_n, 1)
                 else:
-                    target = rewards + gammas_pow_nsteps * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
-                #
-                #   Build IQN target on tau2 quantiles
-                #
-                outputs_target_tau2 = torch.where(
-                    done,
-                    rewards,
-                    target,
-                )  # (batch_size*iqn_n, 1)
+                    outputs_target_tau2 = (
+                        rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
+                    )  # (batch_size*iqn_n, 1)
 
                 #
                 #   This is our target
@@ -269,13 +243,13 @@ class Trainer:
                 outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
                     0, 1
                 )  # (batch_size, iqn_n, 1)
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+
             q__st__model__quantiles_tau3, tau3 = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
 
             outputs_tau3 = (
-                q__st__model__quantiles_tau3.gather(1, actions_n).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
+                q__st__model__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
             TD_error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
@@ -312,7 +286,7 @@ class Trainer:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
 
-    def get_exploration_action(self, img_inputs, float_inputs):
+    def infer_model(self, img_inputs, float_inputs, tau=None):
         with torch.no_grad():
             state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
@@ -321,14 +295,17 @@ class Trainer:
                     state_img_tensor,
                     state_float_tensor,
                     self.iqn_k,
-                    tau=None,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
+                    tau=tau,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
                     use_fp32=True,
                 )[0]
                 .cpu()
                 .numpy()
                 .astype(np.float32)
-                .mean(axis=0)
             )
+            return q_values
+
+    def get_exploration_action(self, img_inputs, float_inputs):
+        q_values = self.infer_model(img_inputs, float_inputs).mean(axis=0)
         r = random.random()
 
         if r < self.epsilon:

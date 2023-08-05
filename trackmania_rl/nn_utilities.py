@@ -28,6 +28,13 @@ def init_normal(layer, mean, std):
     torch.nn.init.zeros_(layer.bias)
 
 
+def linear_combination(a, b, alpha):
+    assert a.shape == b.shape
+    a.mul_(1 - alpha)
+    a.add_(alpha * b)
+    return a
+
+
 # From https://github.com/pfnet/pfrl/blob/2ad3d51a7a971f3fe7f2711f024be11642990d61/pfrl/utils/copy_param.py#L37
 def soft_copy_param(target_link, source_link, tau):
     """Soft-copy parameters of a link to another link."""
@@ -36,9 +43,7 @@ def soft_copy_param(target_link, source_link, tau):
     for k, target_value in target_dict.items():
         source_value = source_dict[k]
         if source_value.dtype in [torch.float32, torch.float64, torch.float16]:
-            assert target_value.shape == source_value.shape
-            target_value.mul_(1 - tau)
-            target_value.add_(tau * source_value)
+            target_value = linear_combination(target_value, source_value, tau)
         else:
             # Scalar type
             # Some modules such as BN has scalar value `num_batches_tracked`
@@ -52,19 +57,19 @@ def custom_weight_decay(target_link, decay_factor):
         target_value.mul_(decay_factor)
 
 
-def lr_from_schedule(lr_schedule, current_step):
-    lr_schedule = sorted(lr_schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
-    assert lr_schedule[0][0] == 0
-    lr_schedule_end_index = next((idx for idx, p in enumerate(lr_schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
-    if lr_schedule_end_index == -1:
-        return lr_schedule[-1][1]
+def from_schedule(schedule, current_step):
+    schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
+    assert schedule[0][0] == 0
+    schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
+    if schedule_end_index == -1:
+        return schedule[-1][1]
     else:
-        assert lr_schedule_end_index >= 1
-        lr_schedule_end_step = lr_schedule[lr_schedule_end_index][0]
-        lr_schedule_begin_step = lr_schedule[lr_schedule_end_index - 1][0]
-        lr_annealing_period = lr_schedule_end_step - lr_schedule_begin_step
-        lr_end_value = lr_schedule[lr_schedule_end_index][1]
-        lr_begin_value = lr_schedule[lr_schedule_end_index - 1][1]
-        lr_ratio = lr_begin_value / lr_end_value
-        assert lr_annealing_period > 0
-        return lr_begin_value * math.exp(-math.log(lr_ratio) * (current_step - lr_schedule_begin_step) / lr_annealing_period)
+        assert schedule_end_index >= 1
+        schedule_end_step = schedule[schedule_end_index][0]
+        schedule_begin_step = schedule[schedule_end_index - 1][0]
+        annealing_period = schedule_end_step - schedule_begin_step
+        end_value = schedule[schedule_end_index][1]
+        begin_value = schedule[schedule_end_index - 1][1]
+        ratio = begin_value / end_value
+        assert annealing_period > 0
+        return begin_value * math.exp(-math.log(ratio) * (current_step - schedule_begin_step) / annealing_period)
