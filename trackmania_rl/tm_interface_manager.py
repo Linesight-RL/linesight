@@ -15,9 +15,8 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-# from . import dxcam   # UNCOMMENT HERE TO USE DXCAM
+from . import dxcam
 from . import contact_materials
-from . import dxshot as dxcam  # UNCOMMENT HERE TO USE DXSHOT
 from . import misc, time_parsing
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
@@ -75,7 +74,7 @@ def _get_window_position(trackmania_window):
 def grab_screen2():
     frame = None
     while frame is None:
-        frame = camera.grab()
+        frame = camera.grab(frame_timeout=500)
     return frame
 
 
@@ -173,12 +172,12 @@ class TMInterfaceManager:
 
     def grab_screen(self):
         global camera
-        try:
-            return grab_screen2()
-        except:
-            pass
-        self.recreate_dxcam()
-        return self.grab_screen()
+        while True:
+            try:
+                return grab_screen2()
+            except:
+                pass
+            self.recreate_dxcam()
 
     def rewind_to_state(self, state):
         msg = Message(MessageType.C_SIM_REWIND_TO_STATE)
