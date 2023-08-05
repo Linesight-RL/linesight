@@ -12,7 +12,7 @@ W_downsized = 160
 H_downsized = 120
 
 run_name = "78_77_Lookahead"
-running_speed = 100
+running_speed = 50 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -594,7 +594,7 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 
 timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 600_000_000 if is_pb_desktop else 600_000
+timeout_between_runs_ms = 600_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
 game_reboot_interval = 3600 * 4  # In seconds
 
