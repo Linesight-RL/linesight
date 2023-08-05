@@ -234,7 +234,7 @@ class Trainer:
                 outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
                     0, 1
                 )  # (batch_size, iqn_n, 1)
-        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            
             q__st__model__quantiles_tau3, tau3 = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
