@@ -394,7 +394,7 @@ for loop_number in count(1):
     #   SAVE STUFF IF THIS WAS A GOOD RACE
     # ===============================================
 
-    if end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999) and accumulated_stats["cumul_number_frames_played"]>misc.frames_before_save_best_runs:
+    if not tmi.last_rollout_crashed and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999) and accumulated_stats["cumul_number_frames_played"]>misc.frames_before_save_best_runs:
         # This is a new alltime_minimum
         accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
         print("\a")

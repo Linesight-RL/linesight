@@ -291,36 +291,6 @@ class TMInterfaceManager:
         time_first_message0 = time.perf_counter_ns()
         time_last_on_run_step = time.perf_counter()
 
-        def cutoff_rollout(end_race_stats, msgtype, tmi_protection_cutoff):
-            simulation_state = self.iface.get_simulation_state()
-            print(f"      --- {simulation_state.race_time:>6} ", end="")
-            race_time = max(simulation_state.race_time,1e-12) #Epsilon trick to avoid division by zero
-
-            end_race_stats["race_finished"] = False
-            end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
-            end_race_stats["race_time_for_ratio"] = race_time
-            end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
-            end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
-            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
-            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
-            end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
-            end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
-            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
-            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
-            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
-            end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
-            end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
-            end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
-            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
-            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
-            end_race_stats["tmi_protection_cutoff"] = tmi_protection_cutoff
-
-            self.msgtype_response_to_wakeup_TMI = msgtype
-            if msgtype != None:
-                self.iface.set_timeout(misc.timeout_between_runs_ms)
-                self.rewind_to_state(simulation_state)
-            return time.perf_counter_ns() + 120_000_000, True, end_race_stats
-
         print("L ", end="")
         while not (this_rollout_is_finished and time.perf_counter_ns() > do_not_exit_main_loop_before_time):
             if not self.iface._ensure_connected():
@@ -333,7 +303,9 @@ class TMInterfaceManager:
             if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
                 print("Cutoff rollout due to TMI timeout")
                 self.iface.registered = False
-                do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
+                this_rollout_is_finished = True
+                do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                end_race_stats["tmi_protection_cutoff"] = True
                 self.last_rollout_crashed = True
                 ensure_not_minimized(win32gui.FindWindow("TmForever", None))
                 break
@@ -471,7 +443,9 @@ class TMInterfaceManager:
                                 self.recreate_dxcam()
                         if iterations >= misc.tmi_protection_timeout_s:
                             print("Cutoff rollout due to",iterations,"failed attempts to OCR",sim_state_race_time,". Got",parsed_time,"instead")
-                            do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(end_race_stats, None, True)
+                            this_rollout_is_finished = True
+                            do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                            end_race_stats["tmi_protection_cutoff"] = True
                             self.last_rollout_crashed = True
                             break
 
@@ -621,9 +595,34 @@ class TMInterfaceManager:
                         and not this_rollout_is_finished
                     ):
                         # FAILED TO FINISH IN TIME
-                        do_not_exit_main_loop_before_time, this_rollout_is_finished, end_race_stats = cutoff_rollout(
-                            end_race_stats, msgtype, False
-                        )
+                        simulation_state = self.iface.get_simulation_state()
+                        print(f"      --- {simulation_state.race_time:>6} ", end="")
+                        race_time = max(simulation_state.race_time,1e-12) #Epsilon trick to avoid division by zero
+
+                        end_race_stats["race_finished"] = False
+                        end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
+                        end_race_stats["race_time_for_ratio"] = race_time
+                        end_race_stats["n_two_consecutive_frames_equal"] = n_two_consecutive_frames_equal
+                        end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
+                        end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
+                        end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
+                        end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
+                        end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
+                        end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
+                        end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
+                        end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
+                        end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
+                        end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
+                        end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
+                        end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
+                        end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
+                        end_race_stats["tmi_protection_cutoff"] = False
+
+                        self.msgtype_response_to_wakeup_TMI = msgtype
+                        self.iface.set_timeout(misc.timeout_between_runs_ms)
+                        self.rewind_to_state(simulation_state)
+                        do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
+                        this_rollout_is_finished = True
 
                     if not this_rollout_is_finished:
                         this_rollout_has_seen_t_negative |= _time < 0
@@ -814,7 +813,21 @@ def remove_map_begin_camera_zoom_in():
         process.write(0x00CE8E9C, 0)
         process.close()
 
+def custom_resolution(width, height): #@aijundi TMI-discord
+    process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
+    rwm = ReadWriteMemory()
+    for p in process:
+        pid = int(p.pid)
+        process = rwm.get_process_by_id(pid)
+        process.open()
+        address = process.read(0xD66FF8) + 0x60
+        address = process.read(address) + 0x9C0
+        process.write(address, width)
+        process.write(address + 4, height)
+        process.close()
+
 def process_prepare():
     remove_fps_cap()
     remove_map_begin_camera_zoom_in()
+    #custom_resolution(misc.W_screen, misc.H_screen)
     _set_window_focus(win32gui.FindWindow("TmForever", None))
