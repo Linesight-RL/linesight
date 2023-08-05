@@ -19,7 +19,6 @@ from tminterface.interface import Message, MessageType, TMInterface
 from . import contact_materials
 from . import dxshot as dxcam  # UNCOMMENT HERE TO USE DXSHOT
 from . import misc, time_parsing
-from .geometry import fraction_time_spent_in_current_zone
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 
@@ -311,8 +310,6 @@ class TMInterfaceManager:
             if time.perf_counter() - time_last_on_run_step > misc.tmi_protection_timeout_s and self.latest_tm_engine_speed_requested > 0:
                 print("Cutoff rollout due to TMI timeout")
                 self.iface.registered = False
-                this_rollout_is_finished = True
-                do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
                 end_race_stats["tmi_protection_cutoff"] = True
                 self.last_rollout_crashed = True
                 ensure_not_minimized(win32gui.FindWindow("TmForever", None))
@@ -447,6 +444,7 @@ class TMInterfaceManager:
 
                         iterations = 0
                         parsed_time = None
+                        frame = None
 
                         while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
                             frame = self.grab_screen()
@@ -464,8 +462,6 @@ class TMInterfaceManager:
                                 parsed_time,
                                 "instead",
                             )
-                            this_rollout_is_finished = True
-                            do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
                             end_race_stats["tmi_protection_cutoff"] = True
                             self.last_rollout_crashed = True
                             break
@@ -615,7 +611,7 @@ class TMInterfaceManager:
                         # FAILED TO FINISH IN TIME
                         simulation_state = self.iface.get_simulation_state()
                         print(f"      --- {simulation_state.race_time:>6} ", end="")
-                        race_time = max(simulation_state.race_time, 1e-12)  # Epsilon trick to avoid division by zero
+                        race_time = max([simulation_state.race_time, 1e-12])  # Epsilon trick to avoid division by zero
 
                         end_race_stats["race_finished"] = False
                         end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
