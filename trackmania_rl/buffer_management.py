@@ -1,5 +1,5 @@
-import random
 import math
+import random
 
 import numpy as np
 from torchrl.data import ReplayBuffer
@@ -31,27 +31,33 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     )  # Discount factor that will be placed in front of next_step in Bellman equation, depending on n_steps chosen
 
     reward_into = np.zeros(n_frames)
-    for i in range(1,n_frames):
-        reward_into[i] += misc.constant_reward_per_ms * (misc.ms_per_action if (i<n_frames-1 or ("race_time" not in rollout_results)) else rollout_results['race_time']-(n_frames-2)*misc.ms_per_action )
-        reward_into[i] += (rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i-1]) * misc.reward_per_m_advanced_along_centerline
-        reward_into[i] += rollout_results["input_w"][i-1] * misc.reward_per_ms_press_forward_early_training * misc.ms_per_action
+    for i in range(1, n_frames):
+        reward_into[i] += misc.constant_reward_per_ms * (
+            misc.ms_per_action
+            if (i < n_frames - 1 or ("race_time" not in rollout_results))
+            else rollout_results["race_time"] - (n_frames - 2) * misc.ms_per_action
+        )
+        reward_into[i] += (
+            rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
+        ) * misc.reward_per_m_advanced_along_centerline
+        reward_into[i] += rollout_results["input_w"][i - 1] * misc.reward_per_ms_press_forward_early_training * misc.ms_per_action
 
-    for i in range(n_frames - 1):# Loop over all frames that were generated
+    for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
         if random.random() < 0.1:
             buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
 
-        n_steps = min(n_steps_max,n_frames-1-i)
+        n_steps = min(n_steps_max, n_frames - 1 - i)
         if discard_non_greedy_actions_in_nsteps:
             try:
                 first_non_greedy = rollout_results["action_was_greedy"][i + 1 : i + n_steps].index(False) + 1
-                n_steps = min(n_steps,first_non_greedy)
+                n_steps = min(n_steps, first_non_greedy)
             except ValueError:
                 pass
 
         rewards = np.empty(n_steps_max).astype(np.float32)
         for j in range(n_steps):
-            rewards[j] = (gamma**j)*reward_into[i+j+1] + (rewards[j-1] if j>=1 else 0)
+            rewards[j] = (gamma**j) * reward_into[i + j + 1] + (rewards[j - 1] if j >= 1 else 0)
 
         state_img = rollout_results["frames"][i]
         state_float = rollout_results["state_float"][i]

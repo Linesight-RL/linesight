@@ -27,11 +27,13 @@ def init_normal(layer, mean, std):
     torch.nn.init.normal_(layer.weight, mean=mean, std=std)
     torch.nn.init.zeros_(layer.bias)
 
-def linear_combination(a,b,alpha):
+
+def linear_combination(a, b, alpha):
     assert a.shape == b.shape
-    a.mul_(1-alpha)
-    a.add_(alpha*b)
+    a.mul_(1 - alpha)
+    a.add_(alpha * b)
     return a
+
 
 # From https://github.com/pfnet/pfrl/blob/2ad3d51a7a971f3fe7f2711f024be11642990d61/pfrl/utils/copy_param.py#L37
 def soft_copy_param(target_link, source_link, tau):
@@ -41,7 +43,7 @@ def soft_copy_param(target_link, source_link, tau):
     for k, target_value in target_dict.items():
         source_value = source_dict[k]
         if source_value.dtype in [torch.float32, torch.float64, torch.float16]:
-            target_value = linear_combination(target_value,source_value,tau)
+            target_value = linear_combination(target_value, source_value, tau)
         else:
             # Scalar type
             # Some modules such as BN has scalar value `num_batches_tracked`

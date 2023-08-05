@@ -1,7 +1,7 @@
 import ctypes
 import math
-import time
 import os
+import time
 
 import cv2
 import numpy as np
@@ -31,15 +31,18 @@ def _set_window_focus(
     shell.SendKeys("%")
     win32gui.SetForegroundWindow(trackmania_window)
 
+
 def is_fullscreen(trackmania_window):
     rect = win32gui.GetWindowPlacement(trackmania_window)[4]
     return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
+
 
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
         win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
         if is_fullscreen(trackmania_window):
             _set_window_focus(trackmania_window)
+
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
@@ -69,21 +72,24 @@ def _get_window_position(trackmania_window):
     bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
 
+
 def grab_screen2():
     frame = None
     while frame is None:
         frame = camera.grab()
     return frame
 
+
 def current_zone_to_A_B(current_zone_idx, zone_centers):
-        next_zone_center = zone_centers[current_zone_idx + 1]
-        current_zone_center = zone_centers[current_zone_idx]
-        previous_zone_center = (
-            zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
-        )  # TODO : handle jitter
-        pointA = 0.5 * (previous_zone_center + current_zone_center)
-        pointB = 0.5 * (current_zone_center + next_zone_center)
-        return pointA, pointB, np.linalg.norm(pointB - pointA)
+    next_zone_center = zone_centers[current_zone_idx + 1]
+    current_zone_center = zone_centers[current_zone_idx]
+    previous_zone_center = (
+        zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
+    )  # TODO : handle jitter
+    pointA = 0.5 * (previous_zone_center + current_zone_center)
+    pointB = 0.5 * (current_zone_center + next_zone_center)
+    return pointA, pointB, np.linalg.norm(pointB - pointA)
+
 
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
@@ -98,6 +104,7 @@ class TMInterfaceCustom(TMInterface):
 
         if clear:
             self._clear_buffer()
+
 
 class TMInterfaceManager:
     def __init__(
@@ -157,7 +164,7 @@ class TMInterfaceManager:
     def recreate_dxcam(self):
         global camera
         print("RECREATE")
-        if 'camera' in locals() or 'camera' in globals():
+        if "camera" in locals() or "camera" in globals():
             del camera
         try:
             self.create_dxcam()
@@ -197,7 +204,9 @@ class TMInterfaceManager:
 
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         self.ensure_game_launched()
-        if time.perf_counter()-self.last_game_reboot>misc.game_reboot_interval and is_fullscreen(win32gui.FindWindow("TmForever", None)): #If the game is windowed, user may be using the machine and would not want the game to open and close
+        if time.perf_counter() - self.last_game_reboot > misc.game_reboot_interval and is_fullscreen(
+            win32gui.FindWindow("TmForever", None)
+        ):  # If the game is windowed, user may be using the machine and would not want the game to open and close
             self.close_game()
             self.iface = None
             self.launch_game()
@@ -228,7 +237,7 @@ class TMInterfaceManager:
             "car_gear_and_wheels": [],
             "q_values": [],
             "meters_advanced_along_centerline": [],
-            "state_float":[],
+            "state_float": [],
             "furthest_zone_idx": 0,
         }
 
@@ -260,7 +269,7 @@ class TMInterfaceManager:
 
         assert self.iface._ensure_connected()
 
-        if 'camera' not in globals():
+        if "camera" not in globals():
             self.create_dxcam()
             process_prepare()
 
@@ -379,9 +388,9 @@ class TMInterfaceManager:
                             (
                                 np.array(
                                     [
-                                        *(ws.is_sliding for ws in wheel_state),# Bool
-                                        *(ws.has_ground_contact for ws in wheel_state),# Bool
-                                        *(ws.damper_absorb for ws in wheel_state),# 0.005 min, 0.15 max, 0.01 typically
+                                        *(ws.is_sliding for ws in wheel_state),  # Bool
+                                        *(ws.has_ground_contact for ws in wheel_state),  # Bool
+                                        *(ws.damper_absorb for ws in wheel_state),  # 0.005 min, 0.15 max, 0.01 typically
                                         gearbox_state,  # Bool, except 2 at startup
                                         sim_state_mobil_engine.gear,  # 0 -> 5 approx
                                         sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
@@ -389,15 +398,21 @@ class TMInterfaceManager:
                                     ],
                                     dtype=np.float32,
                                 ),
-                                *((np.arange(misc.n_contact_material_physics_behavior_types) == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]).astype(np.float32) for ws in wheel_state)
+                                *(
+                                    (
+                                        np.arange(misc.n_contact_material_physics_behavior_types)
+                                        == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
+                                    ).astype(np.float32)
+                                    for ws in wheel_state
+                                ),
                             )
                         )
-                        while True: #Emulate do while loop
+                        while True:  # Emulate do while loop
                             d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
                             d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
-                            d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position) if current_zone_idx>=1 else -1
-                            if current_zone_idx>=1 and d3<d2 and d3<=misc.max_allowable_distance_to_checkpoint:
-                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx-1, zone_centers)
+                            d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position) if current_zone_idx >= 1 else -1
+                            if current_zone_idx >= 1 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
+                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx - 1, zone_centers)
                                 prev_zones_cumulative_distance -= dist_pointB_pointA
 
                                 current_zone_idx -= 1
@@ -417,7 +432,6 @@ class TMInterfaceManager:
                                     rollout_results["furthest_zone_idx"] = current_zone_idx
                             else:
                                 break
-
 
                         rollout_results["current_zone_idx"].append(current_zone_idx)
 
@@ -442,7 +456,15 @@ class TMInterfaceManager:
                             if iterations > 10:
                                 self.recreate_dxcam()
                         if iterations >= misc.tmi_protection_timeout_s:
-                            print("Cutoff rollout due to",iterations,"failed attempts to OCR",sim_state_race_time,". Got",parsed_time,"instead")
+                            print(
+                                "Cutoff rollout due to",
+                                iterations,
+                                "failed attempts to OCR",
+                                sim_state_race_time,
+                                ". Got",
+                                parsed_time,
+                                "instead",
+                            )
                             this_rollout_is_finished = True
                             do_not_exit_main_loop_before_time = time.perf_counter_ns() + 120_000_000
                             end_race_stats["tmi_protection_cutoff"] = True
@@ -494,7 +516,11 @@ class TMInterfaceManager:
                             (
                                 0,
                                 np.array(
-                                    [previous_action[input_str] for previous_action in previous_actions for input_str in ["accelerate","brake","left","right"]]
+                                    [
+                                        previous_action[input_str]
+                                        for previous_action in previous_actions
+                                        for input_str in ["accelerate", "brake", "left", "right"]
+                                    ]
                                 ),  # NEW
                                 sim_state_car_gear_and_wheels.ravel(),  # NEW
                                 state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
@@ -585,19 +611,14 @@ class TMInterfaceManager:
                     give_up_signal_has_been_sent = True
                 else:
                     if (
-                        (
-                            _time > self.max_overall_duration_ms
-                            or _time
-                            > last_progress_improvement_ms
-                            + self.max_minirace_duration_ms
-                        )
+                        (_time > self.max_overall_duration_ms or _time > last_progress_improvement_ms + self.max_minirace_duration_ms)
                         and this_rollout_has_seen_t_negative
                         and not this_rollout_is_finished
                     ):
                         # FAILED TO FINISH IN TIME
                         simulation_state = self.iface.get_simulation_state()
                         print(f"      --- {simulation_state.race_time:>6} ", end="")
-                        race_time = max(simulation_state.race_time,1e-12) #Epsilon trick to avoid division by zero
+                        race_time = max(simulation_state.race_time, 1e-12)  # Epsilon trick to avoid division by zero
 
                         end_race_stats["race_finished"] = False
                         end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
@@ -739,9 +760,7 @@ class TMInterfaceManager:
                             rollout_results["car_gear_and_wheels"].append(np.nan)
 
                             # assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : this assertion has been false once on hockolicious
-                            rollout_results["meters_advanced_along_centerline"].append(
-                                prev_zones_cumulative_distance + dist_pointB_pointA
-                            )
+                            rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + dist_pointB_pointA)
 
                 # ============================
                 # END ON CP COUNT
@@ -763,7 +782,7 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
-                if self.latest_map_path_requested==-1:#Game was relaunched and is in the main menu
+                if self.latest_map_path_requested == -1:  # Game was relaunched and is in the main menu
                     self.iface.execute_command("toggle_console")
                     self.request_map(map_path)
                 self.iface._respond_to_call(msgtype)
@@ -813,7 +832,8 @@ def remove_map_begin_camera_zoom_in():
         process.write(0x00CE8E9C, 0)
         process.close()
 
-def custom_resolution(width, height): #@aijundi TMI-discord
+
+def custom_resolution(width, height):  # @aijundi TMI-discord
     process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
     rwm = ReadWriteMemory()
     for p in process:
@@ -826,8 +846,9 @@ def custom_resolution(width, height): #@aijundi TMI-discord
         process.write(address + 4, height)
         process.close()
 
+
 def process_prepare():
     remove_fps_cap()
     remove_map_begin_camera_zoom_in()
-    #custom_resolution(misc.W_screen, misc.H_screen)
+    # custom_resolution(misc.W_screen, misc.H_screen)
     _set_window_focus(win32gui.FindWindow("TmForever", None))

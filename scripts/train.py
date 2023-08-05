@@ -170,7 +170,7 @@ optimizer1 = torch.optim.RAdam(
     model1.parameters(),
     lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
-    betas=(misc.adam_beta1,misc.adam_beta2),
+    betas=(misc.adam_beta1, misc.adam_beta2),
 )
 # optimizer1 = torch.optim.AdamW(
 #     model1.parameters(),
@@ -188,7 +188,7 @@ optimizer1 = torch.optim.RAdam(
 #     eps=1e-4,
 #     weight_decay=0,
 # )
-#optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
+# optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
 scaler = torch.cuda.amp.GradScaler()
 buffer = ReplayBuffer(
@@ -308,7 +308,7 @@ for loop_number in count(1):
     for param_group in optimizer1.param_groups:
         param_group["lr"] = learning_rate
         param_group["epsilon"] = misc.adam_epsilon
-        param_group["betas"] = (misc.adam_beta1,misc.adam_beta2)
+        param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
     trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
@@ -358,7 +358,7 @@ for loop_number in count(1):
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            "avg_Q":np.mean(rollout_results["q_values"]),
+            "avg_Q": np.mean(rollout_results["q_values"]),
             f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
@@ -394,7 +394,11 @@ for loop_number in count(1):
     #   SAVE STUFF IF THIS WAS A GOOD RACE
     # ===============================================
 
-    if not tmi.last_rollout_crashed and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999) and accumulated_stats["cumul_number_frames_played"]>misc.frames_before_save_best_runs:
+    if (
+        not tmi.last_rollout_crashed
+        and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999)
+        and accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs
+    ):
         # This is a new alltime_minimum
         accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
         print("\a")
@@ -470,10 +474,18 @@ for loop_number in count(1):
             nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
-                model1.A_head[2].weight = nn_utilities.linear_combination(model1.A_head[2].weight,model3.A_head[2].weight,misc.last_layer_reset_factor)
-                model1.A_head[2].bias = nn_utilities.linear_combination(model1.A_head[2].bias,model3.A_head[2].bias,misc.last_layer_reset_factor)
-                model1.V_head[2].weight = nn_utilities.linear_combination(model1.V_head[2].weight,model3.V_head[2].weight,misc.last_layer_reset_factor)
-                model1.V_head[2].bias = nn_utilities.linear_combination(model1.V_head[2].bias,model3.V_head[2].bias,misc.last_layer_reset_factor)
+                model1.A_head[2].weight = nn_utilities.linear_combination(
+                    model1.A_head[2].weight, model3.A_head[2].weight, misc.last_layer_reset_factor
+                )
+                model1.A_head[2].bias = nn_utilities.linear_combination(
+                    model1.A_head[2].bias, model3.A_head[2].bias, misc.last_layer_reset_factor
+                )
+                model1.V_head[2].weight = nn_utilities.linear_combination(
+                    model1.V_head[2].weight, model3.V_head[2].weight, misc.last_layer_reset_factor
+                )
+                model1.V_head[2].bias = nn_utilities.linear_combination(
+                    model1.V_head[2].bias, model3.V_head[2].bias, misc.last_layer_reset_factor
+                )
 
         # ===============================================
         #   LEARN ON BATCH
@@ -516,7 +528,7 @@ for loop_number in count(1):
                     accumulated_stats[
                         "cumul_number_single_memories_used_next_target_network_update"
                     ] += misc.number_memories_trained_on_between_target_network_updates
-                    #print("UPDATE")
+                    # print("UPDATE")
                     nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
         print("")
 
@@ -587,8 +599,7 @@ for loop_number in count(1):
 
         if not tmi.last_rollout_crashed:
             tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-            per_quantile_output = trainer.infer_model(rollout_results["frames"][0],rollout_results["state_float"][0],tau
-)
+            per_quantile_output = trainer.infer_model(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
             for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                 step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
             model1.train()

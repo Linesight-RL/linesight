@@ -10,13 +10,16 @@ from torchrl.data import ReplayBuffer
 from .. import misc  # TODO virer cet import
 from .. import nn_utilities
 
+
 class CReLU(torch.nn.Module):
-    def __init__(self, inplace:bool=False):
+    def __init__(self, inplace: bool = False):
         super(CReLU, self).__init__()
         self.inplace = inplace
+
     def forward(self, x):
-        x = torch.cat((x,-x),1)
+        x = torch.cat((x, -x), 1)
         return torch.nn.functional.relu(x, inplace=self.inplace)
+
 
 class Agent(torch.nn.Module):
     def __init__(
@@ -66,7 +69,7 @@ class Agent(torch.nn.Module):
         )
 
         self.iqn_fc = torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension)
-        self.lrelu = torch.nn.LeakyReLU() #Needs inplace?
+        self.lrelu = torch.nn.LeakyReLU()  # Needs inplace?
         self.initialize_weights()
 
         self.n_actions = n_actions
@@ -178,7 +181,7 @@ class Trainer:
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
-        
+
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
             with torch.no_grad():
                 batch, batch_info = buffer.sample(self.batch_size, return_info=True)
@@ -195,8 +198,10 @@ class Trainer:
                     self.IS_average.append(batch_info["_weight"].mean())
                     IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
 
-                rewards = rewards.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
-                gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])# (batch_size*iqn_n, 1)
+                rewards = rewards.unsqueeze(-1).repeat(
+                    [self.iqn_n, 1]
+                )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+                gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 actions = actions.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
                 #   Use model2 to evaluate the action chosen, per quantile.
@@ -224,9 +229,13 @@ class Trainer:
                     #
                     #   Build IQN target on tau2 quantiles
                     #
-                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.gather(1, a__tpo__model__reduced_repeated) # (batch_size*iqn_n, 1)
+                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.gather(
+                        1, a__tpo__model__reduced_repeated
+                    )  # (batch_size*iqn_n, 1)
                 else:
-                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0] # (batch_size*iqn_n, 1)
+                    outputs_target_tau2 = (
+                        rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
+                    )  # (batch_size*iqn_n, 1)
 
                 #
                 #   This is our target
@@ -234,7 +243,7 @@ class Trainer:
                 outputs_target_tau2 = outputs_target_tau2.reshape([self.iqn_n, self.batch_size, 1]).transpose(
                     0, 1
                 )  # (batch_size, iqn_n, 1)
-            
+
             q__st__model__quantiles_tau3, tau3 = self.model(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)

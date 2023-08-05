@@ -110,8 +110,8 @@ lr_schedule = [
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
-adam_beta1=0.9
-adam_beta2=0.999
+adam_beta1 = 0.9
+adam_beta2 = 0.999
 
 single_reset_counter = 0
 reset_every_n_frames_generated = 400_000_00000000
@@ -596,7 +596,7 @@ zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 timeout_during_run_ms = 2_100
 timeout_between_runs_ms = 600_000_000 if is_pb_desktop else 600_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
-game_reboot_interval = 3600*4#In seconds
+game_reboot_interval = 3600 * 4  # In seconds
 
 frames_before_save_best_runs = 1_500_000
 
