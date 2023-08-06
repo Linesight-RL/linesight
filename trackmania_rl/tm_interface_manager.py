@@ -15,7 +15,7 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-from . import dxcam
+import dxcam
 from . import contact_materials
 from . import misc, time_parsing
 

@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "78_77_Lookahead"
+run_name = "86_FixFinish6"
 running_speed = 50 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -35,7 +35,7 @@ discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
 n_steps = 3
-constant_reward_per_ms = -3 / 5000
+constant_reward_per_ms = -6 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
@@ -102,11 +102,9 @@ high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
     (0, 1e-3),
-    (1_500_000, 5e-5),
-    (5_300_000, 1e-4),
-    (7_500_000, 5e-5),
-    (10_750_000, 5e-5),
-    (12_750_000, 1e-5),
+    (2_000_000, 5e-5),
+    (6_700_000, 5e-5),
+    (9_000_000, 1e-5)
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
