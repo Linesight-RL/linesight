@@ -71,7 +71,8 @@ def make_widget_video_from_q_values_on_disk(q_values_path: Path, video_path: Pat
 
 def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_gap):
     with tempfile.TemporaryDirectory() as zou_dir:
-        temp_dir = Path(r"C:\Users\chopi\projects\trackmania_rl\temp")
+        path_str = "C:\\Users\\chopi\\projects\\trackmania_rl\\temp"
+        temp_dir = Path(path_str)
         # Place the keys where they should be
         key_reorder = [1, 0, 2, 4, 3, 5, 10, 9, 11, 7, 6, 8]
 
@@ -259,7 +260,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 "-start_number",
                 "000000000",
                 "-i",
-                "./temp/frame_%09d.png",
+                path_str+"\\frame_%09d.png",
                 "-pix_fmt",
                 "yuva420p",
                 "-vcodec",
