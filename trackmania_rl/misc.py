@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "86_FixFinish6"
+run_name = "87_FixFinish6_Clip"
 running_speed = 50 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -118,7 +118,7 @@ last_layer_reset_factor = 0.8  # 0 : full reset, 1 : nothing happens
 overall_reset_mul_factor = 0.01  # 0 : nothing happens ; 1 : full reset
 
 clip_grad_value = 1000
-clip_grad_norm = 3000
+clip_grad_norm = 30
 
 number_memories_trained_on_between_target_network_updates = 512
 soft_update_tau = 0.005
