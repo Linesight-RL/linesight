@@ -447,8 +447,6 @@ for loop_number in count(1):
             misc.n_steps,
             misc.gamma,
             misc.discard_non_greedy_actions_in_nsteps,
-            misc.n_zone_centers_in_inputs,
-            zone_centers,
         )
 
         accumulated_stats["cumul_number_memories_generated"] += number_memories_added

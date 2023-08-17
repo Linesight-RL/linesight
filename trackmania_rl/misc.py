@@ -18,6 +18,8 @@ tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
 ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 40
+one_every_n_zone_centers_in_inputs = 20
+n_zone_centers_extrapolate_after_end_of_map = 1000
 n_prev_actions_in_inputs = 5
 n_contact_material_physics_behavior_types = 4  # See contact_materials.py
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
@@ -100,7 +102,14 @@ indices_floats_sign_inversion = [
 
 high_exploration_ratio = 3
 batch_size = 512
-lr_schedule = [(0, 1e-3), (2_000_000, 5e-5), (6_700_000, 5e-5), (9_000_000, 1e-5)]
+lr_schedule = [
+    (0, 1e-3),
+    (1_500_000, 5e-5),
+    (5_300_000, 1e-4),
+    (7_500_000, 5e-5),
+    (10_750_000, 5e-5),
+    (12_750_000, 1e-5),
+]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 adam_beta1 = 0.9
@@ -595,8 +604,8 @@ frames_before_save_best_runs = 1_500_000
 
 
 map_cycle = [
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", True, True, False), 4),
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_10m_cl.npy", False, True, True), 1),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True, False), 4),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True, True), 1),
     # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", True, True, False), 4),
     # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", False, True, False), 1),
     # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", True, True, False), 4),
@@ -609,8 +618,8 @@ map_cycle = [
     # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True, False), 1),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True, False), 4),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True, False), 1),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl_2.npy", True, True, False), 4),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_10m_cl_2.npy", False, True, False), 1),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True, False), 4),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True, True), 1),
     # repeat(("A02", '"Official Maps\White\A02-Race.Challenge.Gbx"', "A02-Race_10m_cl.npy", False, False, False), 1),
     # repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_10m_cl.npy", False, False, True), 1),
 ]

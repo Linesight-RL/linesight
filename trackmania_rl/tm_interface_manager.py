@@ -77,17 +77,6 @@ def grab_screen2():
     return frame
 
 
-def current_zone_to_A_B(current_zone_idx, zone_centers):
-    next_zone_center = zone_centers[current_zone_idx + 1]
-    current_zone_center = zone_centers[current_zone_idx]
-    previous_zone_center = (
-        zone_centers[current_zone_idx - 1] if current_zone_idx > 0 else (2 * zone_centers[0] - zone_centers[1])
-    )  # TODO : handle jitter
-    pointA = 0.5 * (previous_zone_center + current_zone_center)
-    pointB = 0.5 * (current_zone_center + next_zone_center)
-    return pointA, pointB, np.linalg.norm(pointB - pointA)
-
-
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
         if self.mfile is None:
@@ -200,6 +189,13 @@ class TMInterfaceManager:
         self.latest_map_path_requested = map_path
 
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
+        (
+            zone_transitions,
+            distance_between_zone_transitions,
+            distance_from_start_track_to_prev_zone_transition,
+            normalized_vector_along_track_axis,
+        ) = map_loader.precalculate_virtual_checkpoints_information(zone_centers)
+
         self.ensure_game_launched()
         if time.perf_counter() - self.last_game_reboot > misc.game_reboot_interval and is_fullscreen(
             win32gui.FindWindow("TmForever", None)
@@ -276,7 +272,7 @@ class TMInterfaceManager:
 
         _time = -3000
         cpcount = 0
-        current_zone_idx = 0
+        current_zone_idx = 1
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -289,8 +285,6 @@ class TMInterfaceManager:
         do_not_exit_main_loop_before_time = 0
         do_not_compute_action_before_time = 0
         last_known_simulation_state = None
-
-        prev_zones_cumulative_distance = 0
 
         prev_msgtype = 0
         time_first_message0 = time.perf_counter_ns()
@@ -343,228 +337,216 @@ class TMInterfaceManager:
                     # We need to calculate a move AND we have left enough time for the set_speed(0) to have been properly applied
                     # print("Compute action")
 
-                    if current_zone_idx == len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
-                        # This might happen if the car enters my last virtual zone, but has not finished the race yet.
-                        # Just press forward and do not record any experience
-                        self.request_inputs(misc.action_forward_idx, rollout_results)
-                        self.request_speed(self.running_speed)
-                    else:
-                        pc2 = time.perf_counter_ns()
+                    pc2 = time.perf_counter_ns()
 
-                        # ===================================================================================================
+                    # ===================================================================================================
 
-                        sim_state_race_time = last_known_simulation_state.race_time
-                        sim_state_dyna_current = last_known_simulation_state.dyna.current_state
-                        sim_state_mobil = last_known_simulation_state.scene_mobil
-                        sim_state_mobil_engine = sim_state_mobil.engine
-                        simulation_wheels = last_known_simulation_state.simulation_wheels
-                        wheel_state = [simulation_wheels[i].real_time_state for i in range(4)]
-                        sim_state_position = np.array(
-                            sim_state_dyna_current.position,
-                            dtype=np.float32,
-                        )  # (3,)
-                        sim_state_orientation = sim_state_dyna_current.rotation.to_numpy().T  # (3, 3)
-                        sim_state_velocity = np.array(
-                            sim_state_dyna_current.linear_speed,
-                            dtype=np.float32,
-                        )  # (3,)
-                        sim_state_angular_speed = np.array(
-                            sim_state_dyna_current.angular_speed,
-                            dtype=np.float32,
-                        )  # (3,)
+                    sim_state_race_time = last_known_simulation_state.race_time
+                    sim_state_dyna_current = last_known_simulation_state.dyna.current_state
+                    sim_state_mobil = last_known_simulation_state.scene_mobil
+                    sim_state_mobil_engine = sim_state_mobil.engine
+                    simulation_wheels = last_known_simulation_state.simulation_wheels
+                    wheel_state = [simulation_wheels[i].real_time_state for i in range(4)]
+                    sim_state_position = np.array(
+                        sim_state_dyna_current.position,
+                        dtype=np.float32,
+                    )  # (3,)
+                    sim_state_orientation = sim_state_dyna_current.rotation.to_numpy().T  # (3, 3)
+                    sim_state_velocity = np.array(
+                        sim_state_dyna_current.linear_speed,
+                        dtype=np.float32,
+                    )  # (3,)
+                    sim_state_angular_speed = np.array(
+                        sim_state_dyna_current.angular_speed,
+                        dtype=np.float32,
+                    )  # (3,)
 
-                        gearbox_state = sim_state_mobil.gearbox_state
-                        counter_gearbox_state = 0
-                        if gearbox_state != 0 and len(rollout_results["car_gear_and_wheels"]) > 0:
-                            counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
+                    gearbox_state = sim_state_mobil.gearbox_state
+                    counter_gearbox_state = 0
+                    if gearbox_state != 0 and len(rollout_results["car_gear_and_wheels"]) > 0:
+                        counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
 
-                        sim_state_car_gear_and_wheels = np.hstack(
-                            (
-                                np.array(
-                                    [
-                                        *(ws.is_sliding for ws in wheel_state),  # Bool
-                                        *(ws.has_ground_contact for ws in wheel_state),  # Bool
-                                        *(ws.damper_absorb for ws in wheel_state),  # 0.005 min, 0.15 max, 0.01 typically
-                                        gearbox_state,  # Bool, except 2 at startup
-                                        sim_state_mobil_engine.gear,  # 0 -> 5 approx
-                                        sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
-                                        counter_gearbox_state,  # Up to typically 28 when changing gears
-                                    ],
-                                    dtype=np.float32,
-                                ),
-                                *(
-                                    (
-                                        np.arange(misc.n_contact_material_physics_behavior_types)
-                                        == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
-                                    ).astype(np.float32)
-                                    for ws in wheel_state
-                                ),
-                            )
+                    sim_state_car_gear_and_wheels = np.hstack(
+                        (
+                            np.array(
+                                [
+                                    *(ws.is_sliding for ws in wheel_state),  # Bool
+                                    *(ws.has_ground_contact for ws in wheel_state),  # Bool
+                                    *(ws.damper_absorb for ws in wheel_state),  # 0.005 min, 0.15 max, 0.01 typically
+                                    gearbox_state,  # Bool, except 2 at startup
+                                    sim_state_mobil_engine.gear,  # 0 -> 5 approx
+                                    sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
+                                    counter_gearbox_state,  # Up to typically 28 when changing gears
+                                ],
+                                dtype=np.float32,
+                            ),
+                            *(
+                                (
+                                    np.arange(misc.n_contact_material_physics_behavior_types)
+                                    == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
+                                ).astype(np.float32)
+                                for ws in wheel_state
+                            ),
                         )
-                        while True:  # Emulate do while loop
-                            d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-                            d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
-                            d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position) if current_zone_idx >= 1 else -1
-                            if current_zone_idx >= 1 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
-                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx - 1, zone_centers)
-                                prev_zones_cumulative_distance -= dist_pointB_pointA
-
-                                current_zone_idx -= 1
-                            elif (
-                                d1 <= d2
-                                and d1 <= misc.max_allowable_distance_to_checkpoint
-                                and current_zone_idx < len(zone_centers) - 2 - misc.n_zone_centers_in_inputs
-                                # We can never enter the final virtual zone
-                            ):
-                                # Move from one virtual zone to another
-                                pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx, zone_centers)
-                                prev_zones_cumulative_distance += dist_pointB_pointA
-
-                                current_zone_idx += 1
-                                if current_zone_idx > rollout_results["furthest_zone_idx"]:
-                                    last_progress_improvement_ms = sim_state_race_time
-                                    rollout_results["furthest_zone_idx"] = current_zone_idx
-                            else:
-                                break
-
-                        rollout_results["current_zone_idx"].append(current_zone_idx)
-
-                        pointA, pointB, dist_pointB_pointA = current_zone_to_A_B(current_zone_idx, zone_centers)
-
-                        meters_in_current_zone = np.clip(
-                            (sim_state_position - pointA).dot(pointB - pointA) / dist_pointB_pointA, 0, dist_pointB_pointA
-                        )
-
-                        # ===================================================================================================
-
-                        time_between_grab_frame += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
-
-                        iterations = 0
-                        parsed_time = None
-                        frame = None
-
-                        while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
-                            frame = self.grab_screen()
-                            iterations += 1
-                            parsed_time = time_parsing.parse_time(frame, self.digits_library)
-                            if iterations > 10:
-                                self.recreate_dxcam()
-                        if iterations >= misc.tmi_protection_timeout_s:
-                            print(
-                                "Cutoff rollout due to",
-                                iterations,
-                                "failed attempts to OCR",
-                                sim_state_race_time,
-                                ". Got",
-                                parsed_time,
-                                "instead",
-                            )
-                            end_race_stats["tmi_protection_cutoff"] = True
-                            self.last_rollout_crashed = True
+                    )
+                    while True:  # Emulate do while loop
+                        d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
+                        d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
+                        d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
+                        if current_zone_idx >= 1 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
+                            current_zone_idx -= 1
+                        elif (
+                            d1 <= d2
+                            and d1 <= misc.max_allowable_distance_to_checkpoint
+                            and current_zone_idx < len(zone_centers) - 1 - misc.n_zone_centers_extrapolate_after_end_of_map
+                            # We can never enter the final virtual zone
+                        ):
+                            # Move from one virtual zone to another
+                            current_zone_idx += 1
+                            if current_zone_idx > rollout_results["furthest_zone_idx"]:
+                                last_progress_improvement_ms = sim_state_race_time
+                                rollout_results["furthest_zone_idx"] = current_zone_idx
+                        else:
                             break
 
-                        time_to_grab_frame += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
+                    rollout_results["current_zone_idx"].append(current_zone_idx)
 
-                        frame = np.expand_dims(
-                            cv2.resize(
-                                cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
-                                (misc.W_downsized, misc.H_downsized),
-                                interpolation=cv2.INTER_AREA,
-                            ),
-                            0,
+                    meters_in_current_zone = np.clip(
+                        (sim_state_position - zone_transitions[current_zone_idx - 1]).dot(
+                            normalized_vector_along_track_axis[current_zone_idx - 1]
+                        ),
+                        0,
+                        distance_between_zone_transitions[current_zone_idx - 1],
+                    )
+
+                    # ===================================================================================================
+
+                    time_between_grab_frame += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
+
+                    iterations = 0
+                    parsed_time = None
+                    frame = None
+
+                    while parsed_time != sim_state_race_time and iterations < misc.tmi_protection_timeout_s:
+                        frame = self.grab_screen()
+                        iterations += 1
+                        parsed_time = time_parsing.parse_time(frame, self.digits_library)
+                        if iterations > 10:
+                            self.recreate_dxcam()
+                    if iterations >= misc.tmi_protection_timeout_s:
+                        print(
+                            f"Cutoff rollout due to {iterations} failed attempts to OCR {sim_state_race_time}. Got {parsed_time} instead."
                         )
+                        end_race_stats["tmi_protection_cutoff"] = True
+                        self.last_rollout_crashed = True
+                        break
 
-                        rollout_results["frames"].append(frame)
+                    time_to_grab_frame += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
 
-                        time_A_rgb2gray += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
+                    frame = np.expand_dims(
+                        cv2.resize(
+                            cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
+                            (misc.W_downsized, misc.H_downsized),
+                            interpolation=cv2.INTER_AREA,
+                        ),
+                        0,
+                    )
 
-                        # ==== Construct features
-                        state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
-                            (
-                                zone_centers[
-                                    current_zone_idx : current_zone_idx + misc.n_zone_centers_in_inputs,
-                                    :,
-                                ]
-                                - sim_state_position
-                            ).T
-                        ).T  # (n_zone_centers_in_inputs, 3)
-                        state_y_map_vector_in_car_reference_system = sim_state_orientation.dot(np.array([0, 1, 0]))
-                        state_car_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_velocity)
-                        state_car_angular_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_angular_speed)
+                    rollout_results["frames"].append(frame)
 
-                        previous_actions = [
-                            misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
-                            for k in range(len(rollout_results["actions"]) - misc.n_prev_actions_in_inputs, len(rollout_results["actions"]))
-                        ]
+                    time_A_rgb2gray += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
 
-                        time_A_geometry += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
-
-                        floats = np.hstack(
-                            (
-                                0,
-                                np.array(
-                                    [
-                                        previous_action[input_str]
-                                        for previous_action in previous_actions
-                                        for input_str in ["accelerate", "brake", "left", "right"]
-                                    ]
-                                ),  # NEW
-                                sim_state_car_gear_and_wheels.ravel(),  # NEW
-                                state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
-                                state_car_velocity_in_car_reference_system.ravel(),
-                                state_y_map_vector_in_car_reference_system.ravel(),
-                                state_zone_center_coordinates_in_car_reference_system.ravel(),
-                            )
-                        ).astype(np.float32)
-
-                        time_A_stack += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
-
+                    # ==== Construct features
+                    state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
                         (
-                            action_idx,
-                            action_was_greedy,
-                            q_value,
-                            q_values,
-                        ) = exploration_policy(rollout_results["frames"][-1], floats)
+                            zone_centers[
+                                current_zone_idx : current_zone_idx
+                                + misc.one_every_n_zone_centers_in_inputs
+                                * misc.n_zone_centers_in_inputs : misc.one_every_n_zone_centers_in_inputs,
+                                :,
+                            ]
+                            - sim_state_position
+                        ).T
+                    ).T  # (n_zone_centers_in_inputs, 3)
+                    state_y_map_vector_in_car_reference_system = sim_state_orientation.dot(np.array([0, 1, 0]))
+                    state_car_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_velocity)
+                    state_car_angular_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_angular_speed)
 
-                        time_exploration_policy += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
+                    previous_actions = [
+                        misc.inputs[rollout_results["actions"][k] if k >= 0 else misc.action_forward_idx]
+                        for k in range(len(rollout_results["actions"]) - misc.n_prev_actions_in_inputs, len(rollout_results["actions"]))
+                    ]
 
-                        # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
-                        # action_was_greedy = True
-                        # q_value = 0
-                        # q_values = np.zeros(len(misc.inputs))
+                    time_A_geometry += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
 
-                        # import random
-                        # action_idx = random.randint(0, 8)
+                    floats = np.hstack(
+                        (
+                            0,
+                            np.array(
+                                [
+                                    previous_action[input_str]
+                                    for previous_action in previous_actions
+                                    for input_str in ["accelerate", "brake", "left", "right"]
+                                ]
+                            ),  # NEW
+                            sim_state_car_gear_and_wheels.ravel(),  # NEW
+                            state_car_angular_velocity_in_car_reference_system.ravel(),  # NEW
+                            state_car_velocity_in_car_reference_system.ravel(),
+                            state_y_map_vector_in_car_reference_system.ravel(),
+                            state_zone_center_coordinates_in_car_reference_system.ravel(),
+                        )
+                    ).astype(np.float32)
 
-                        # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
-                        self.request_inputs(action_idx, rollout_results)
-                        self.request_speed(self.running_speed)
+                    time_A_stack += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
 
-                        time_to_iface_set_set += time.perf_counter_ns() - pc2
-                        pc2 = time.perf_counter_ns()
+                    (
+                        action_idx,
+                        action_was_greedy,
+                        q_value,
+                        q_values,
+                    ) = exploration_policy(rollout_results["frames"][-1], floats)
 
-                        if n_th_action_we_compute == 0:
-                            end_race_stats["value_starting_frame"] = q_value
-                            for i, val in enumerate(np.nditer(q_values)):
-                                end_race_stats[f"q_value_{i}_starting_frame"] = val
-                        rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + meters_in_current_zone)
-                        rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
-                        rollout_results["actions"].append(action_idx)
-                        rollout_results["action_was_greedy"].append(action_was_greedy)
-                        rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
-                        rollout_results["q_values"].append(q_values)
-                        rollout_results["state_float"].append(floats)
+                    time_exploration_policy += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
 
-                        compute_action_asap = False
-                        n_th_action_we_compute += 1
+                    # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
+                    # action_was_greedy = True
+                    # q_value = 0
+                    # q_values = np.zeros(len(misc.inputs))
 
-                        time_after_iface_set_set += time.perf_counter_ns() - pc2
+                    # import random
+                    # action_idx = random.randint(0, 8)
+
+                    # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
+                    self.request_inputs(action_idx, rollout_results)
+                    self.request_speed(self.running_speed)
+
+                    time_to_iface_set_set += time.perf_counter_ns() - pc2
+                    pc2 = time.perf_counter_ns()
+
+                    if n_th_action_we_compute == 0:
+                        end_race_stats["value_starting_frame"] = q_value
+                        for i, val in enumerate(np.nditer(q_values)):
+                            end_race_stats[f"q_value_{i}_starting_frame"] = val
+                    rollout_results["meters_advanced_along_centerline"].append(
+                        distance_from_start_track_to_prev_zone_transition[current_zone_idx - 1] + meters_in_current_zone
+                    )
+                    rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
+                    rollout_results["actions"].append(action_idx)
+                    rollout_results["action_was_greedy"].append(action_was_greedy)
+                    rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
+                    rollout_results["q_values"].append(q_values)
+                    rollout_results["state_float"].append(floats)
+
+                    compute_action_asap = False
+                    n_th_action_we_compute += 1
+
+                    time_after_iface_set_set += time.perf_counter_ns() - pc2
 
                 continue
 
@@ -738,20 +720,17 @@ class TMInterfaceManager:
                         do_not_exit_main_loop_before_time = time.perf_counter_ns() + 150_000_000
                         print(f"+++    {simulation_state.race_time:>6} ", end="")
 
-                        if rollout_results["current_zone_idx"][-1] != len(zone_centers) - 1 - misc.n_zone_centers_in_inputs:
-                            # We have not captured a frame where the car has entered our final virtual zone
-                            # Let's put one in, artificially
-                            # assert rollout_results["current_zone_idx"][-1] == len(zone_centers) - 2 - misc.n_zone_centers_in_inputs # This assertion broke on Hockolicious. Special case due to the diagonal ending ?
-                            rollout_results["current_zone_idx"].append(len(zone_centers) - 1 - misc.n_zone_centers_in_inputs)
-                            rollout_results["frames"].append(np.nan)
-
-                            rollout_results["input_w"].append(np.nan)
-                            rollout_results["actions"].append(np.nan)
-                            rollout_results["action_was_greedy"].append(np.nan)
-                            rollout_results["car_gear_and_wheels"].append(np.nan)
-
-                            # assert meters_in_current_zone >= 0.8 * dist_pointB_pointA  # TODO : this assertion has been false once on hockolicious
-                            rollout_results["meters_advanced_along_centerline"].append(prev_zones_cumulative_distance + dist_pointB_pointA)
+                        rollout_results["current_zone_idx"].append(len(zone_centers) - misc.n_zone_centers_extrapolate_after_end_of_map)
+                        rollout_results["frames"].append(np.nan)
+                        rollout_results["input_w"].append(np.nan)
+                        rollout_results["actions"].append(np.nan)
+                        rollout_results["action_was_greedy"].append(np.nan)
+                        rollout_results["car_gear_and_wheels"].append(np.nan)
+                        rollout_results["meters_advanced_along_centerline"].append(
+                            distance_from_start_track_to_prev_zone_transition[
+                                len(zone_centers) - misc.n_zone_centers_extrapolate_after_end_of_map
+                            ]
+                        )
 
                 # ============================
                 # END ON CP COUNT

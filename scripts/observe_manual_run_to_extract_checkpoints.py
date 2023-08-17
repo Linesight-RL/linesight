@@ -12,8 +12,7 @@ class MainClient(Client):
         self.race_finished = False
         self.raw_position_list = []
         self.period_save_pos_ms = 10
-        # self.target_time_gap_between_cp_ms = 500
-        self.target_distance_between_cp_m = 10
+        self.target_distance_between_cp_m = 0.5
         self.zone_centers = None
 
     def on_registered(self, iface: TMInterface) -> None:

@@ -15,11 +15,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_steps_max: int,
     gamma: float,
     discard_non_greedy_actions_in_nsteps: bool,
-    n_zone_centers_in_inputs: int,
-    zone_centers,
 ):
-    assert n_zone_centers_in_inputs >= 2
-
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
 
