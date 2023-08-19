@@ -13,6 +13,8 @@
 /maps
 /trackmania_rl/dxcam
 *.txt
+!requirements_conda.txt
+!requirements_pip.txt
 *.mov
 *.mp4
 /temp
