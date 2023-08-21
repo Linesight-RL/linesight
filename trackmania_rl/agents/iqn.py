@@ -144,8 +144,8 @@ class Trainer:
         "epsilon_boltzmann",
         "gamma",
         "tau_epsilon_boltzmann",
-        "tau_greedy_boltzmann",
         "IS_average",
+        "is_explo",
     )
 
     def __init__(
@@ -158,11 +158,8 @@ class Trainer:
         iqn_k: int,
         iqn_n: int,
         iqn_kappa: float,
-        epsilon: float,
-        epsilon_boltzmann: float,
         gamma: float,
         tau_epsilon_boltzmann: float,
-        tau_greedy_boltzmann: float,
     ):
         self.model = model
         self.model2 = model2
@@ -172,12 +169,12 @@ class Trainer:
         self.iqn_k = iqn_k
         self.iqn_n = iqn_n
         self.iqn_kappa = iqn_kappa
-        self.epsilon = epsilon
-        self.epsilon_boltzmann = epsilon_boltzmann
+        self.epsilon = None
+        self.epsilon_boltzmann = None
         self.gamma = gamma
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
-        self.tau_greedy_boltzmann = tau_greedy_boltzmann
         self.IS_average = deque([], maxlen=100)
+        self.is_explo = None
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -308,15 +305,13 @@ class Trainer:
         q_values = self.infer_model(img_inputs, float_inputs).mean(axis=0)
         r = random.random()
 
-        if r < self.epsilon:
+        if self.is_explo and r < self.epsilon:
             # Choose a random action
             get_argmax_on = np.random.randn(*q_values.shape)
-        elif r < self.epsilon + self.epsilon_boltzmann:
+        elif self.is_explo and r < self.epsilon + self.epsilon_boltzmann:
             get_argmax_on = q_values + self.tau_epsilon_boltzmann * np.random.randn(*q_values.shape)
         else:
-            get_argmax_on = q_values + ((self.epsilon + self.epsilon_boltzmann) > 0) * self.tau_greedy_boltzmann * np.random.randn(
-                *q_values.shape
-            )
+            get_argmax_on = q_values
 
         action_chosen_idx = np.argmax(get_argmax_on)
         greedy_action_idx = np.argmax(q_values)

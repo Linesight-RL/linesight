@@ -15,6 +15,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_steps_max: int,
     gamma: float,
     discard_non_greedy_actions_in_nsteps: bool,
+    reward_per_ms_press_forward: float,
 ):
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
@@ -36,7 +37,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         reward_into[i] += (
             rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
         ) * misc.reward_per_m_advanced_along_centerline
-        reward_into[i] += rollout_results["input_w"][i - 1] * misc.reward_per_ms_press_forward_early_training * misc.ms_per_action
+        reward_into[i] += rollout_results["input_w"][i - 1] * reward_per_ms_press_forward * misc.ms_per_action
 
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes

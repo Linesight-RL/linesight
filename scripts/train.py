@@ -168,7 +168,7 @@ accumulated_stats["single_reset_counter"] = misc.single_reset_counter
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
-    lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+    lr=nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
     betas=(misc.adam_beta1, misc.adam_beta2),
 )
@@ -235,11 +235,8 @@ trainer = iqn.Trainer(
     iqn_k=misc.iqn_k,
     iqn_n=misc.iqn_n,
     iqn_kappa=misc.iqn_kappa,
-    epsilon=misc.epsilon,
-    epsilon_boltzmann=misc.epsilon_boltzmann,
     gamma=misc.gamma,
     tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann,
-    tau_greedy_boltzmann=misc.tau_greedy_boltzmann,
 )
 
 # ========================================================
@@ -294,11 +291,11 @@ for loop_number in count(1):
     #   VERY BASIC TRAINING ANNEALING
     # ===============================================
 
-    if accumulated_stats["cumul_number_memories_generated"] > 300_000:
-        misc.reward_per_ms_press_forward_early_training = 0
-
+    reward_per_ms_press_forward = nn_utilities.from_linear_schedule(
+        misc.reward_per_ms_press_forward_schedule, accumulated_stats["cumul_number_memories_generated"]
+    )
     # LR and weight_decay calculation
-    learning_rate = nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+    learning_rate = nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
     weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
     # ===============================================
@@ -311,28 +308,17 @@ for loop_number in count(1):
         param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-    trainer.tau_greedy_boltzmann = misc.tau_greedy_boltzmann
 
     if isinstance(buffer._sampler, PrioritizedSampler):
         buffer._sampler._alpha = misc.prio_alpha
         buffer._sampler._beta = misc.prio_beta
         buffer._sampler._eps = misc.prio_epsilon
 
-    if is_explo:
-        trainer.epsilon = (
-            misc.high_exploration_ratio * misc.epsilon
-            if accumulated_stats["cumul_number_memories_generated"] < misc.number_memories_generated_high_exploration_early_training
-            else misc.epsilon
-        )
-        trainer.epsilon_boltzmann = (
-            misc.high_exploration_ratio * misc.epsilon_boltzmann
-            if accumulated_stats["cumul_number_memories_generated"] < misc.number_memories_generated_high_exploration_early_training
-            else misc.epsilon_boltzmann
-        )
-    else:
-        trainer.epsilon = 0
-        trainer.epsilon_boltzmann = 0
-        print("EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL EVAL")
+    trainer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, accumulated_stats["cumul_number_memories_generated"])
+    trainer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(
+        misc.epsilon_boltzmann_schedule, accumulated_stats["cumul_number_memories_generated"]
+    )
+    trainer.is_explo = is_explo
 
     # ===============================================
     #   PLAY ONE ROUND
@@ -447,6 +433,7 @@ for loop_number in count(1):
             misc.n_steps,
             misc.gamma,
             misc.discard_non_greedy_actions_in_nsteps,
+            reward_per_ms_press_forward,
         )
 
         accumulated_stats["cumul_number_memories_generated"] += number_memories_added
@@ -543,14 +530,12 @@ for loop_number in count(1):
         step_stats = {
             "gamma": misc.gamma,
             "n_steps": misc.n_steps,
-            "epsilon": misc.epsilon,
-            "epsilon_boltzmann": misc.epsilon_boltzmann,
-            "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
-            "tau_greedy_boltzmann": misc.tau_greedy_boltzmann,
+            "epsilon": trainer.epsilon,
+            "epsilon_boltzmann": trainer.epsilon_boltzmann,
+            "tau_epsilon_boltzmann": trainer.tau_epsilon_boltzmann,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
-            "reward_per_ms_press_forward": misc.reward_per_ms_press_forward_early_training,
             "memory_size": len(buffer),
             "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
         }

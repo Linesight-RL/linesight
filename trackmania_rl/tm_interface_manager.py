@@ -16,7 +16,7 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-from . import contact_materials, misc, time_parsing
+from . import contact_materials, map_loader, misc, time_parsing
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 

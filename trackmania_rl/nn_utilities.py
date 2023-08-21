@@ -57,7 +57,7 @@ def custom_weight_decay(target_link, decay_factor):
         target_value.mul_(decay_factor)
 
 
-def from_schedule(schedule, current_step):
+def from_exponential_schedule(schedule, current_step):
     schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
     assert schedule[0][0] == 0
     schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
@@ -73,3 +73,20 @@ def from_schedule(schedule, current_step):
         ratio = begin_value / end_value
         assert annealing_period > 0
         return begin_value * math.exp(-math.log(ratio) * (current_step - schedule_begin_step) / annealing_period)
+
+
+def from_linear_schedule(schedule, current_step):
+    schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
+    assert schedule[0][0] == 0
+    schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
+    if schedule_end_index == -1:
+        return schedule[-1][1]
+    else:
+        assert schedule_end_index >= 1
+        schedule_end_step = schedule[schedule_end_index][0]
+        schedule_begin_step = schedule[schedule_end_index - 1][0]
+        annealing_period = schedule_end_step - schedule_begin_step
+        end_value = schedule[schedule_end_index][1]
+        begin_value = schedule[schedule_end_index - 1][1]
+        assert annealing_period > 0
+        return begin_value + ((end_value - begin_value) * (current_step - schedule_begin_step)) / annealing_period

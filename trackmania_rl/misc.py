@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "87_FixFinish6_Clip"
+run_name = "311"
 running_speed = 80 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -29,10 +29,15 @@ temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
 
-epsilon = 0.03
-epsilon_boltzmann = 0.03
+epsilon_schedule = [
+    (0, 0.1),
+    (1_000_000, 0.03),
+]
+epsilon_boltzmann_schedule = [
+    (0, 0.15),
+    (1_000_000, 0.03),
+]
 tau_epsilon_boltzmann = 0.01
-tau_greedy_boltzmann = 0
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
@@ -41,7 +46,9 @@ constant_reward_per_ms = -6 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward_early_training = 0 * 0.5 / 5000
+reward_per_ms_press_forward_schedule = [
+    (0, 0),
+]
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -56,8 +63,8 @@ prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER pa
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 800_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 800_000
+memory_size = 50_000 if is_pb_desktop else 800_000
+memory_size_start_learn = 1_000
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
     64 - 4
@@ -65,7 +72,6 @@ offset_cumul_number_single_memories_used = memory_size_start_learn * (
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
-number_memories_generated_high_exploration_early_training = 100_000
 apply_horizontal_flip_augmentation = False
 flip_augmentation_ratio = 0.5
 flip_pair_indices_to_swap = [
@@ -100,15 +106,11 @@ indices_floats_sign_inversion = [
     59,  # state_y_map_vector_in_car_reference_system.x
 ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
-high_exploration_ratio = 3
 batch_size = 512
 lr_schedule = [
     (0, 1e-3),
-    (1_500_000, 5e-5),
-    (5_300_000, 1e-4),
-    (7_500_000, 5e-5),
-    (10_750_000, 5e-5),
-    (12_750_000, 1e-5),
+    (1_000_000, 5e-4),
+    (3_000_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
@@ -604,8 +606,8 @@ frames_before_save_best_runs = 1_500_000
 
 
 map_cycle = [
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True, False), 4),
-    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True, True), 1),
+    # repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True, False), 4),
+    # repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True, True), 1),
     # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", True, True, False), 4),
     # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", False, True, False), 1),
     # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", True, True, False), 4),
@@ -618,8 +620,8 @@ map_cycle = [
     # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True, False), 1),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True, False), 4),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True, False), 1),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True, False), 4),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True, True), 1),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True, False), 4),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True, True), 1),
     # repeat(("A02", '"Official Maps\White\A02-Race.Challenge.Gbx"', "A02-Race_10m_cl.npy", False, False, False), 1),
     # repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_10m_cl.npy", False, False, True), 1),
 ]
