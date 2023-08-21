@@ -260,7 +260,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 "-start_number",
                 "000000000",
                 "-i",
-                path_str+"\\frame_%09d.png",
+                path_str + "\\frame_%09d.png",
                 "-pix_fmt",
                 "yuva420p",
                 "-vcodec",

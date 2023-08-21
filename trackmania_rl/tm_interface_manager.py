@@ -4,6 +4,7 @@ import os
 import time
 
 import cv2
+import dxcam
 import numpy as np
 import numpy.typing as npt
 import psutil
@@ -15,9 +16,7 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from tminterface.interface import Message, MessageType, TMInterface
 
-import dxcam
-from . import contact_materials
-from . import misc, time_parsing
+from . import contact_materials, misc, time_parsing
 
 # DXShot: https://github.com/AI-M-BOT/DXcam/releases/tag/1.0
 

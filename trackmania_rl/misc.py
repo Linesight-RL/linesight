@@ -12,7 +12,7 @@ W_downsized = 160
 H_downsized = 120
 
 run_name = "87_FixFinish6_Clip"
-running_speed = 50 if is_pb_desktop else 100
+running_speed = 80 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
 ms_per_tm_engine_step = 10
@@ -100,12 +100,7 @@ indices_floats_sign_inversion = [
 
 high_exploration_ratio = 3
 batch_size = 512
-lr_schedule = [
-    (0, 1e-3),
-    (2_000_000, 5e-5),
-    (6_700_000, 5e-5),
-    (9_000_000, 1e-5)
-]
+lr_schedule = [(0, 1e-3), (2_000_000, 5e-5), (6_700_000, 5e-5), (9_000_000, 1e-5)]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 adam_beta1 = 0.9
