@@ -366,6 +366,11 @@ for loop_number in count(1):
             race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
         for i in range(len(misc.inputs)):
             race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
+        if not is_explo:
+            for i, split_time in enumerate(
+                [(e - s) / 1000 for s, e in zip(end_race_stats["cp_time_ms"][:-1], end_race_stats["cp_time_ms"][1:])]
+            ):
+                race_stats_to_write[f"split_{map_name}_{i}"] = split_time
 
         walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
         for tag, value in race_stats_to_write.items():

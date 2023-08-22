@@ -204,7 +204,9 @@ class TMInterfaceManager:
             self.iface = None
             self.launch_game()
 
-        end_race_stats = {}
+        end_race_stats = {
+            "cp_time_ms": [0],
+        }
 
         time_to_answer_normal_step = 0
         time_to_answer_action_step = 0
@@ -661,17 +663,14 @@ class TMInterfaceManager:
                 current = self.iface._read_int32()
                 target = self.iface._read_int32()
                 cpcount += 1
+
+                simulation_state = self.iface.get_simulation_state()
+                end_race_stats["cp_time_ms"].append(simulation_state.race_time)
                 # ============================
                 # BEGIN ON CP COUNT
                 # ============================
 
-                print(
-                    f"CTNF=({current}, {target}, {this_rollout_has_seen_t_negative}, {this_rollout_is_finished})",
-                    end="",
-                )
                 if current == target:  # Finished the race !!
-                    simulation_state = self.iface.get_simulation_state()
-
                     cp_times_bug_handling_attempts = 0
                     while len(simulation_state.cp_data.cp_times) == 0 and cp_times_bug_handling_attempts < 5:
                         simulation_state = self.iface.get_simulation_state()
