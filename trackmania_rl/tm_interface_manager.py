@@ -421,6 +421,10 @@ class TMInterfaceManager:
                         distance_between_zone_transitions[current_zone_idx - 1],
                     )
 
+                    distance_since_track_begin = (
+                        distance_from_start_track_to_prev_zone_transition[current_zone_idx - 1] + meters_in_current_zone
+                    )
+
                     # ===================================================================================================
 
                     time_between_grab_frame += time.perf_counter_ns() - pc2
@@ -535,9 +539,7 @@ class TMInterfaceManager:
                         end_race_stats["value_starting_frame"] = q_value
                         for i, val in enumerate(np.nditer(q_values)):
                             end_race_stats[f"q_value_{i}_starting_frame"] = val
-                    rollout_results["meters_advanced_along_centerline"].append(
-                        distance_from_start_track_to_prev_zone_transition[current_zone_idx - 1] + meters_in_current_zone
-                    )
+                    rollout_results["meters_advanced_along_centerline"].append(distance_since_track_begin)
                     rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
                     rollout_results["actions"].append(action_idx)
                     rollout_results["action_was_greedy"].append(action_was_greedy)

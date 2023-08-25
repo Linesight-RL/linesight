@@ -31,11 +31,11 @@ save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
 layout = {
-    "89": {
-        "eval_race_time_finished": [
+    "80": {
+        "eval_race_time_robust": [
             "Multiline",
             [
-                "eval_race_time_finished",
+                "eval_race_time_robust",
             ],
         ],
         "explo_race_time_finished": [
@@ -45,9 +45,9 @@ layout = {
             ],
         ],
         "loss": ["Multiline", ["loss$", "loss_test$"]],
-        "values_starting_frame": [
+        "avg_Q": [
             "Multiline",
-            [f"q_value_{i}_starting_frame" for i in range(len(misc.inputs))],
+            ["avg_Q"],
         ],
         "single_zone_reached": [
             "Multiline",
@@ -55,54 +55,14 @@ layout = {
                 "single_zone_reached",
             ],
         ],
-        r"races_finished": ["Multiline", ["explo_race_finished", "eval_race_finished"]],
-        "iqn_std": [
+        "grad_norm_history": [
             "Multiline",
-            [f"std_within_iqn_quantiles_for_action{i}" for i in range(len(misc.inputs))],
+            [
+                "grad_norm_history_d9",
+                "grad_norm_history_d98",
+            ],
         ],
         "race_time_ratio": ["Multiline", ["race_time_ratio"]],
-        "mean_action_gap": [
-            "Multiline",
-            [
-                "mean_action_gap",
-            ],
-        ],
-        "layer_L2": [
-            "Multiline",
-            [
-                "layer_.*_L2",
-            ],
-        ],
-        "lr_ratio_L2": [
-            "Multiline",
-            [
-                "lr_ratio_.*_L2",
-            ],
-        ],
-        "exp_avg_L2": [
-            "Multiline",
-            [
-                "exp_avg_.*_L2",
-            ],
-        ],
-        "exp_avg_sq_L2": [
-            "Multiline",
-            [
-                "exp_avg_sq_.*_L2",
-            ],
-        ],
-        "eval_race_time": [
-            "Multiline",
-            [
-                "eval_race_time_[^_]*",
-            ],
-        ],
-        "explo_race_time": [
-            "Multiline",
-            [
-                "explo_race_time_[^_]*",
-            ],
-        ],
     },
 }
 tensorboard_writer.add_custom_scalars(layout)
@@ -141,6 +101,7 @@ print(model1)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
+accumulated_stats["rolling_mean_ms"] = {}
 
 
 # ========================================================
@@ -161,10 +122,13 @@ try:
 except:
     print(" Could not load stats")
 
-accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
-accumulated_stats["reset_counter"] = 0
-accumulated_stats["single_reset_counter"] = misc.single_reset_counter
+if "rolling_mean_ms" not in accumulated_stats.keys():
+    # Temporary to preserve compatibility with old runs that doesn't have this feature. To be removed later.
+    accumulated_stats["rolling_mean_ms"] = {}
 
+accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
+neural_net_reset_counter = 0
+single_reset_flag = misc.single_reset_flag
 
 optimizer1 = torch.optim.RAdam(
     model1.parameters(),
@@ -344,7 +308,7 @@ for loop_number in count(1):
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            "avg_Q": np.mean(rollout_results["q_values"]),
+            f"avg_Q_{map_name}": np.mean(rollout_results["q_values"]),
             f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
@@ -364,6 +328,16 @@ for loop_number in count(1):
 
         if end_race_stats["race_finished"]:
             race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
+            accumulated_stats["rolling_mean_ms"][map_name] = (
+                accumulated_stats["rolling_mean_ms"].get(map_name, misc.cutoff_rollout_if_race_not_finished_within_duration_ms) * 0.9
+                + end_race_stats["race_time"] * 0.1
+            )
+        if (
+            (not is_explo)
+            and end_race_stats["race_finished"]
+            and end_race_stats["race_time"] < 1.02 * accumulated_stats["rolling_mean_ms"][map_name]
+        ):
+            race_stats_to_write[f"eval_race_time_robust_{map_name}"] = end_race_stats["race_time"] / 1000
         for i in range(len(misc.inputs)):
             race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
         if not is_explo:
@@ -442,7 +416,7 @@ for loop_number in count(1):
         )
 
         accumulated_stats["cumul_number_memories_generated"] += number_memories_added
-        accumulated_stats["reset_counter"] += number_memories_added
+        neural_net_reset_counter += number_memories_added
         accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
             misc.number_times_single_memory_is_used_before_discard * number_memories_added
         )
@@ -452,12 +426,9 @@ for loop_number in count(1):
         #   PERIODIC RESET ?
         # ===============================================
 
-        if (
-            accumulated_stats["reset_counter"] >= misc.reset_every_n_frames_generated
-            or accumulated_stats["single_reset_counter"] != misc.single_reset_counter
-        ):
-            accumulated_stats["reset_counter"] = 0
-            accumulated_stats["single_reset_counter"] = misc.single_reset_counter
+        if neural_net_reset_counter >= misc.reset_every_n_frames_generated or single_reset_flag != misc.single_reset_flag:
+            neural_net_reset_counter = 0
+            single_reset_flag = misc.single_reset_flag
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
 
             model3 = make_untrained_agent().to("cuda", memory_format=torch.channels_last)
@@ -570,7 +541,7 @@ for loop_number in count(1):
                 )
 
         for key, value in accumulated_stats.items():
-            if key != "alltime_min_ms":
+            if key not in ["alltime_min_ms", "rolling_mean_ms"]:
                 step_stats[key] = value
         for key, value in accumulated_stats["alltime_min_ms"].items():
             step_stats[f"alltime_min_ms_{map_name}"] = value

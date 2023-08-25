@@ -117,7 +117,7 @@ adam_epsilon = 1e-4
 adam_beta1 = 0.9
 adam_beta2 = 0.999
 
-single_reset_counter = 0
+single_reset_flag = 0
 reset_every_n_frames_generated = 400_000_00000000
 additional_transition_after_reset = 1_600_000
 last_layer_reset_factor = 0.8  # 0 : full reset, 1 : nothing happens
