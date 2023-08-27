@@ -308,7 +308,6 @@ for loop_number in count(1):
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            f"avg_Q_{map_name}": np.mean(rollout_results["q_values"]),
             f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
@@ -326,12 +325,16 @@ for loop_number in count(1):
         }
         print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 
+        if not is_explo:
+            race_stats_to_write[f"avg_Q_{map_name}"] = np.mean(rollout_results["q_values"])
+
         if end_race_stats["race_finished"]:
             race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
-            accumulated_stats["rolling_mean_ms"][map_name] = (
-                accumulated_stats["rolling_mean_ms"].get(map_name, misc.cutoff_rollout_if_race_not_finished_within_duration_ms) * 0.9
-                + end_race_stats["race_time"] * 0.1
-            )
+            if not is_explo:
+                accumulated_stats["rolling_mean_ms"][map_name] = (
+                    accumulated_stats["rolling_mean_ms"].get(map_name, misc.cutoff_rollout_if_race_not_finished_within_duration_ms) * 0.9
+                    + end_race_stats["race_time"] * 0.1
+                )
         if (
             (not is_explo)
             and end_race_stats["race_finished"]
