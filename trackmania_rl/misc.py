@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "311"
+run_name = "315"
 running_speed = 80 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -109,8 +109,7 @@ indices_floats_sign_inversion = [
 batch_size = 512
 lr_schedule = [
     (0, 1e-3),
-    (1_000_000, 5e-4),
-    (3_000_000, 5e-5),
+    (2_000_000, 5e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4

@@ -395,7 +395,7 @@ class TMInterfaceManager:
                         d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
                         d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
                         d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
-                        if current_zone_idx >= 1 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
+                        if current_zone_idx >= 2 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
                             current_zone_idx -= 1
                         elif (
                             d1 <= d2
