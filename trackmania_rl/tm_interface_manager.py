@@ -37,25 +37,24 @@ def is_fullscreen(trackmania_window):
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
         win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
-        if is_fullscreen(trackmania_window):
-            _set_window_focus(trackmania_window)
+    if is_fullscreen(trackmania_window):
+        _set_window_focus(trackmania_window)
+
+def raw_rect_to_borderless_rect(rect,trackmania_window):# https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+    clientRect = win32gui.GetClientRect(trackmania_window)  
+    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
+    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
+    return (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
 
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    rect = win32gui.GetWindowPlacement(trackmania_window)[
-        4
-    ]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
+    rect = win32gui.GetWindowPlacement(trackmania_window)[4]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
     top = rect[1]
     left = rect[0]
     output_idx = 0
     if not is_fullscreen(trackmania_window):
-        clientRect = win32gui.GetClientRect(
-            trackmania_window
-        )  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-        windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
-        titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
-        rect = (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
+        rect = raw_rect_to_borderless_rect(rect,trackmania_window)
         top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
         left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
         if left >= monitor_width:
@@ -75,7 +74,6 @@ def grab_screen2():
     while frame is None:
         frame = camera.grab(frame_timeout=500)
     return frame
-
 
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
