@@ -2,6 +2,7 @@ import ctypes
 import math
 import os
 import time
+import numba
 
 import cv2
 import dxcam
@@ -68,6 +69,26 @@ def _get_window_position(trackmania_window):
     bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
 
+@numba.njit
+def Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position):
+    d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
+    d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
+    d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
+    while (
+        d1 <= d2
+        and d1 <= misc.max_allowable_distance_to_checkpoint
+        and current_zone_idx < len(zone_centers) - 1 - misc.n_zone_centers_extrapolate_after_end_of_map
+        # We can never enter the final virtual zone
+    ):
+        # Move from one virtual zone to another
+        current_zone_idx += 1
+        d2, d3 = d1, d2
+        d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
+    while current_zone_idx >= 2 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
+        current_zone_idx -= 1
+        d1, d2 = d2, d3
+        d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
+    return current_zone_idx
 
 def grab_screen2():
     frame = None
@@ -389,25 +410,12 @@ class TMInterfaceManager:
                             ),
                         )
                     )
-                    while True:  # Emulate do while loop
-                        d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-                        d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
-                        d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
-                        if current_zone_idx >= 2 and d3 < d2 and d3 <= misc.max_allowable_distance_to_checkpoint:
-                            current_zone_idx -= 1
-                        elif (
-                            d1 <= d2
-                            and d1 <= misc.max_allowable_distance_to_checkpoint
-                            and current_zone_idx < len(zone_centers) - 1 - misc.n_zone_centers_extrapolate_after_end_of_map
-                            # We can never enter the final virtual zone
-                        ):
-                            # Move from one virtual zone to another
-                            current_zone_idx += 1
-                            if current_zone_idx > rollout_results["furthest_zone_idx"]:
-                                last_progress_improvement_ms = sim_state_race_time
-                                rollout_results["furthest_zone_idx"] = current_zone_idx
-                        else:
-                            break
+
+                    current_zone_idx = Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position)
+                    
+                    if current_zone_idx > rollout_results["furthest_zone_idx"]:
+                        last_progress_improvement_ms = sim_state_race_time
+                        rollout_results["furthest_zone_idx"] = current_zone_idx
 
                     rollout_results["current_zone_idx"].append(current_zone_idx)
 
