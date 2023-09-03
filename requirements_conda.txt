@@ -11,3 +11,4 @@ setuptools
 typing
 numba
 tensorboard
+scipy
