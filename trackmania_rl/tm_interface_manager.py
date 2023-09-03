@@ -387,9 +387,7 @@ class TMInterfaceManager:
                     if gearbox_state != 0 and len(rollout_results["car_gear_and_wheels"]) > 0:
                         counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
 
-                    sim_state_car_gear_and_wheels = np.hstack(
-                        (
-                            np.array(
+                    sim_state_car_gear_and_wheels = np.array(
                                 [
                                     *(ws.is_sliding for ws in wheel_state),  # Bool
                                     *(ws.has_ground_contact for ws in wheel_state),  # Bool
@@ -398,18 +396,10 @@ class TMInterfaceManager:
                                     sim_state_mobil_engine.gear,  # 0 -> 5 approx
                                     sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
                                     counter_gearbox_state,  # Up to typically 28 when changing gears
+                                    *(i==contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF] for ws in wheel_state for i in range(misc.n_contact_material_physics_behavior_types))
                                 ],
                                 dtype=np.float32,
-                            ),
-                            *(
-                                (
-                                    np.arange(misc.n_contact_material_physics_behavior_types)
-                                    == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
-                                ).astype(np.float32)
-                                for ws in wheel_state
-                            ),
-                        )
-                    )
+                            )
 
                     current_zone_idx = Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position)
                     
