@@ -621,11 +621,7 @@ class TMInterfaceManager:
                     if not this_rollout_is_finished:
                         this_rollout_has_seen_t_negative |= _time < 0
 
-                        if _time == -1000:
-                            # Press forward before the race starts
-                            self.iface.set_timeout(misc.timeout_during_run_ms)
-                            self.request_inputs(misc.action_forward_idx, rollout_results)
-                        elif _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
+                        if _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.rewind_to_state(last_known_simulation_state)
                             self.request_speed(0)
