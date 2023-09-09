@@ -423,8 +423,8 @@ class TMInterfaceManager:
 
                     # ===================================================================================================
 
-                    time_between_grab_frame += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc3 = time.perf_counter_ns()
+                    time_between_grab_frame += pc3 - pc2
 
                     iterations = 0
                     parsed_time = None
@@ -444,8 +444,8 @@ class TMInterfaceManager:
                         self.last_rollout_crashed = True
                         break
 
-                    time_to_grab_frame += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc4 = time.perf_counter_ns()
+                    time_to_grab_frame += pc4 - pc3
 
                     frame = np.expand_dims(
                         cv2.resize(
@@ -458,8 +458,9 @@ class TMInterfaceManager:
 
                     rollout_results["frames"].append(frame)
 
-                    time_A_rgb2gray += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc5 = time.perf_counter_ns()
+                    time_A_rgb2gray += pc5 - pc4
+                    
 
                     # ==== Construct features
                     state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
@@ -482,8 +483,8 @@ class TMInterfaceManager:
                         for k in range(len(rollout_results["actions"]) - misc.n_prev_actions_in_inputs, len(rollout_results["actions"]))
                     ]
 
-                    time_A_geometry += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc6 = time.perf_counter_ns()
+                    time_A_geometry += pc6 - pc5
 
                     floats = np.hstack(
                         (
@@ -503,8 +504,8 @@ class TMInterfaceManager:
                         )
                     ).astype(np.float32)
 
-                    time_A_stack += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc7 = time.perf_counter_ns()
+                    time_A_stack += pc7 - pc6
 
                     (
                         action_idx,
@@ -513,8 +514,8 @@ class TMInterfaceManager:
                         q_values,
                     ) = exploration_policy(rollout_results["frames"][-1], floats)
 
-                    time_exploration_policy += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc8 = time.perf_counter_ns()
+                    time_exploration_policy += pc8 - pc7
 
                     # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
                     # action_was_greedy = True
@@ -528,8 +529,8 @@ class TMInterfaceManager:
                     self.request_inputs(action_idx, rollout_results)
                     self.request_speed(self.running_speed)
 
-                    time_to_iface_set_set += time.perf_counter_ns() - pc2
-                    pc2 = time.perf_counter_ns()
+                    pc9 = time.perf_counter_ns()
+                    time_to_iface_set_set += pc9 - pc8
 
                     if n_th_action_we_compute == 0:
                         end_race_stats["value_starting_frame"] = q_value
@@ -546,7 +547,7 @@ class TMInterfaceManager:
                     compute_action_asap = False
                     n_th_action_we_compute += 1
 
-                    time_after_iface_set_set += time.perf_counter_ns() - pc2
+                    time_after_iface_set_set += time.perf_counter_ns() - pc9
 
                 continue
 
