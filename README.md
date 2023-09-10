@@ -3,7 +3,8 @@ This public repository contains a copy of the reinforcement learning training co
 This code is a Work-in-Progress, constantly evolving. Do not expect this repository to be clean/finalized/easily usable.
 *Updated on June 9th 2023, synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*
 
-This codebase requires the game Trackmania Nations Forever as well as [TMInterface](https://donadigo.com/tminterface/). 
+This codebase requires the game Trackmania Nations Forever as well as [TMInterface](https://donadigo.com/tminterface/).
+NOTE: This codebase is only working on TMInterface versions < 2.0.0. Download the [1.4.3 version of TMInterface here](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
 
 ### Installation
 The code is known to work with Python 3.10.
@@ -24,7 +25,7 @@ The code is known to work with Python 3.10.
 5) Wait a long time...
 
 ### Benchmark
-It is possible to reach 2:04:91 of this map: https://tmnf.exchange/trackshow/10460245
+It is possible to reach 2:04:91 on this map: https://tmnf.exchange/trackshow/10460245
 Video: https://www.youtube.com/watch?v=p5pq2UNOEnY
 
 ### Disclaimer
