@@ -1,3 +1,5 @@
+import numpy as np
+
 def line_plane_collision_point(planeNormal, planePoint, rayDirection, rayPoint, epsilon=1e-6):
     # https://gist.github.com/TimSC/8c25ca941d614bf48ebba6b473747d72
     # All inputs: 3D numpy arrays. No need for them to be normalized.
@@ -21,3 +23,26 @@ def fraction_time_spent_in_current_zone(current_zone_center, next_zone_center, c
     return 0 if si < 0 else (1 if si > 1 else si)
     # assert 0 <= si <= 1, si
     # return si
+
+def extract_cp_distance_interval(raw_position_list, target_distance_between_cp_m, base_dir):
+    a = np.array(raw_position_list)
+    b = np.linalg.norm(a[:-1] - a[1:], axis=1)  # b[i] : distance traveled between point i and point i+1, for i > 0
+    c = np.pad(b.cumsum(), (1, 0))  # c[i] : distance traveled between point 0 and point i
+    number_zones = round(c[-1] / target_distance_between_cp_m - 0.5) + 0.5  # half a zone for the end
+    zone_length = c[-1] / number_zones
+    index_first_pos_in_new_zone = np.unique(c // zone_length, return_index=True)[1][1:]
+    index_last_pos_in_current_zone = index_first_pos_in_new_zone - 1
+    w1 = 1 - (c[index_last_pos_in_current_zone] % zone_length) / zone_length
+    w2 = (c[index_first_pos_in_new_zone] % zone_length) / zone_length
+    zone_centers = a[index_last_pos_in_current_zone] + (a[index_first_pos_in_new_zone] - a[index_last_pos_in_current_zone]) * (
+        w1 / (1e-4 + w1 + w2)
+    ).reshape((-1, 1))
+    zone_centers = np.vstack(
+        (
+            raw_position_list[0][None, :],
+            zone_centers,
+            (2 * raw_position_list[-1] - zone_centers[-1])[None, :],
+        )
+    )
+    np.save(base_dir / "maps" / "map.npy", np.array(zone_centers).round(1))
+    return zone_centers
