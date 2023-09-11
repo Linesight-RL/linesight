@@ -6,6 +6,8 @@ This code is a Work-in-Progress, constantly evolving. Do not expect this reposit
 This codebase requires the game Trackmania Nations Forever as well as [TMInterface](https://donadigo.com/tminterface/).
 NOTE: This codebase is only working on TMInterface versions < 2.0.0. Download the [1.4.3 version of TMInterface here](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
 
+Fair warning: While we do intend at some point to open-up our code with all training hyperparameters so that the project may be used by the wider community, we are not there yet. We share this code as-is so that people can read the code, but we likely won't provide much support to make it run properly.
+
 ### Installation
 The code is known to work with Python 3.10.
 - `pip install -r requirements.txt`
