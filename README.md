@@ -13,7 +13,7 @@ Before you get started, ensure you have the following prerequisites:
 - Trackmania Nations Forever
 - [TMInterface](https://donadigo.com/tminterface/) (Version < 2.0.0). [Download TMInterface 1.4.3](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
 - Python 3.10 ([Download Python 3.10](https://www.python.org/downloads/release/python-3100/))
-- PyTorch Installation
+- PyTorch
     -This project requires PyTorch. You can install it using the following command. Please note that the installation URL may change, so if the command doesn't work, check the [official PyTorch website](https://pytorch.org/) for the latest instructions:
     ```bash
         pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
