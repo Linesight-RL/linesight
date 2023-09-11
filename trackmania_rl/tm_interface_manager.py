@@ -2,10 +2,10 @@ import ctypes
 import math
 import os
 import time
-import numba
 
 import cv2
 import dxcam
+import numba
 import numpy as np
 import numpy.typing as npt
 import psutil
@@ -41,8 +41,9 @@ def ensure_not_minimized(trackmania_window):
     if is_fullscreen(trackmania_window):
         _set_window_focus(trackmania_window)
 
-def raw_rect_to_borderless_rect(rect,trackmania_window):# https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-    clientRect = win32gui.GetClientRect(trackmania_window)  
+
+def raw_rect_to_borderless_rect(rect, trackmania_window):  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
+    clientRect = win32gui.GetClientRect(trackmania_window)
     windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
     titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
     return (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
@@ -50,12 +51,14 @@ def raw_rect_to_borderless_rect(rect,trackmania_window):# https://stackoverflow.
 
 def _get_window_position(trackmania_window):
     monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    rect = win32gui.GetWindowPlacement(trackmania_window)[4]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
+    rect = win32gui.GetWindowPlacement(trackmania_window)[
+        4
+    ]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
     top = rect[1]
     left = rect[0]
     output_idx = 0
     if not is_fullscreen(trackmania_window):
-        rect = raw_rect_to_borderless_rect(rect,trackmania_window)
+        rect = raw_rect_to_borderless_rect(rect, trackmania_window)
         top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
         left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
         if left >= monitor_width:
@@ -69,8 +72,9 @@ def _get_window_position(trackmania_window):
     bottom = top + misc.H_screen
     return (left, top, right, bottom), output_idx
 
+
 @numba.njit
-def Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position):
+def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position):
     d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
     d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
     d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
@@ -90,11 +94,13 @@ def Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position):
         d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
     return current_zone_idx
 
+
 def grab_screen2():
     frame = None
     while frame is None:
         frame = camera.grab(frame_timeout=500)
     return frame
+
 
 class TMInterfaceCustom(TMInterface):
     def _wait_for_server_response(self, clear: bool = True):
@@ -388,21 +394,25 @@ class TMInterfaceManager:
                         counter_gearbox_state = 1 + rollout_results["car_gear_and_wheels"][-1][15]
 
                     sim_state_car_gear_and_wheels = np.array(
-                                [
-                                    *(ws.is_sliding for ws in wheel_state),  # Bool
-                                    *(ws.has_ground_contact for ws in wheel_state),  # Bool
-                                    *(ws.damper_absorb for ws in wheel_state),  # 0.005 min, 0.15 max, 0.01 typically
-                                    gearbox_state,  # Bool, except 2 at startup
-                                    sim_state_mobil_engine.gear,  # 0 -> 5 approx
-                                    sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
-                                    counter_gearbox_state,  # Up to typically 28 when changing gears
-                                    *(i==contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF] for ws in wheel_state for i in range(misc.n_contact_material_physics_behavior_types))
-                                ],
-                                dtype=np.float32,
-                            )
+                        [
+                            *(ws.is_sliding for ws in wheel_state),  # Bool
+                            *(ws.has_ground_contact for ws in wheel_state),  # Bool
+                            *(ws.damper_absorb for ws in wheel_state),  # 0.005 min, 0.15 max, 0.01 typically
+                            gearbox_state,  # Bool, except 2 at startup
+                            sim_state_mobil_engine.gear,  # 0 -> 5 approx
+                            sim_state_mobil_engine.actual_rpm,  # 0-10000 approx
+                            counter_gearbox_state,  # Up to typically 28 when changing gears
+                            *(
+                                i == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
+                                for ws in wheel_state
+                                for i in range(misc.n_contact_material_physics_behavior_types)
+                            ),
+                        ],
+                        dtype=np.float32,
+                    )
 
-                    current_zone_idx = Update_Current_Zone_Idx(current_zone_idx, zone_centers, sim_state_position)
-                    
+                    current_zone_idx = update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position)
+
                     if current_zone_idx > rollout_results["furthest_zone_idx"]:
                         last_progress_improvement_ms = sim_state_race_time
                         rollout_results["furthest_zone_idx"] = current_zone_idx
@@ -460,7 +470,6 @@ class TMInterfaceManager:
 
                     pc5 = time.perf_counter_ns()
                     time_A_rgb2gray += pc5 - pc4
-                    
 
                     # ==== Construct features
                     state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
@@ -517,15 +526,6 @@ class TMInterfaceManager:
                     pc8 = time.perf_counter_ns()
                     time_exploration_policy += pc8 - pc7
 
-                    # action_idx = misc.action_forward_idx if _time < 3000 else misc.action_backward_idx
-                    # action_was_greedy = True
-                    # q_value = 0
-                    # q_values = np.zeros(len(misc.inputs))
-
-                    # import random
-                    # action_idx = random.randint(0, 8)
-
-                    # print("ACTION ", action_idx, " ", simulation_state.scene_mobil.input_gas)
                     self.request_inputs(action_idx, rollout_results)
                     self.request_speed(self.running_speed)
 

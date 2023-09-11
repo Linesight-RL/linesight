@@ -1,4 +1,7 @@
+from typing import List
+
 import numpy as np
+
 
 def line_plane_collision_point(planeNormal, planePoint, rayDirection, rayPoint, epsilon=1e-6):
     # https://gist.github.com/TimSC/8c25ca941d614bf48ebba6b473747d72
@@ -24,7 +27,19 @@ def fraction_time_spent_in_current_zone(current_zone_center, next_zone_center, c
     # assert 0 <= si <= 1, si
     # return si
 
-def extract_cp_distance_interval(raw_position_list, target_distance_between_cp_m, base_dir):
+
+def extract_cp_distance_interval(raw_position_list: List, target_distance_between_cp_m: float, base_dir):
+    """
+    :param raw_position_list:               a list of 3D coordinates.
+
+    This function saves on disk a 2D numpy array of shape (N, 3) with the following properties.
+    - The first point of the array is raw_position_list[0]
+    - The middle of the last and second to last points of the array is raw_position_list[-1]
+    - All points in the 2D array are distant of approximately target_distance_between_cp_m from their neighbours.
+    - All points of the array lie on the path defined by raw_position_list
+
+    In short, this function resamples a path given in input to return regularly spaced checkpoints.
+    """
     a = np.array(raw_position_list)
     b = np.linalg.norm(a[:-1] - a[1:], axis=1)  # b[i] : distance traveled between point i and point i+1, for i > 0
     c = np.pad(b.cumsum(), (1, 0))  # c[i] : distance traveled between point 0 and point i

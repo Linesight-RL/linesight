@@ -19,7 +19,7 @@ from torchrl.data.replay_buffers import ListStorage
 from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampler
 
 import trackmania_rl.agents.iqn as iqn
-from trackmania_rl import buffer_management, misc, nn_utilities, tm_interface_manager, run_to_video
+from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
 from trackmania_rl.time_parsing import DigitsLibrary, parse_time
@@ -272,7 +272,7 @@ for loop_number in count(1):
         param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-    tmi.max_minirace_duration_ms =misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
+    tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
 
     if isinstance(buffer._sampler, PrioritizedSampler):
         buffer._sampler._alpha = misc.prio_alpha
@@ -374,7 +374,7 @@ for loop_number in count(1):
 
         sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
         (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-        run_to_video.write_actions_in_tmi_format(rollout_results["actions"],save_dir / "best_runs" / sub_folder_name / f"actions.txt")
+        run_to_video.write_actions_in_tmi_format(rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"actions.txt")
         joblib.dump(
             rollout_results["q_values"],
             save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
