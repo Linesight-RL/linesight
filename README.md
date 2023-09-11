@@ -2,7 +2,7 @@
 
 **Please note:** This project is a research work-in-progress and may not receive active support for setup or usage.
 
-Welcome to our Trackmania AI with Reinforcement Learning project. This repository contains the reinforcement learning training code developed by pb4 and [Agade](https://github.com/Agade09).
+Welcome to our Trackmania AI with Reinforcement Learning project. This repository contains the reinforcement learning training code developed by [pb4](https://github.com/pb4git) and [Agade](https://github.com/Agade09).
 
 **Project Status:** Work-in-Progress (*Updated on June 9th, 2023 ; synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*)
 
@@ -14,7 +14,7 @@ Before you get started, ensure you have the following prerequisites:
 
 - Trackmania Nations Forever
 - [TMInterface](https://donadigo.com/tminterface/) (Version < 2.0.0). [Download TMInterface 1.4.3](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
-- Python 3.10 ([Download Python 3.10](https://www.python.org/downloads/release/python-3100/))
+- Python 3.10 [Download Python 3.10](https://www.python.org/downloads/release/python-3100/)
 - PyTorch we use version 2 with Cuda 11.8
     -This project requires PyTorch. You can install it using the following command. Please note that the installation URL may change, so if the command doesn't work, check the [official PyTorch website](https://pytorch.org/) for the latest instructions:
     ```bash
