@@ -272,6 +272,7 @@ for loop_number in count(1):
         param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
     trainer.gamma = misc.gamma
     trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+    tmi.max_minirace_duration_ms =misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
 
     if isinstance(buffer._sampler, PrioritizedSampler):
         buffer._sampler._alpha = misc.prio_alpha
