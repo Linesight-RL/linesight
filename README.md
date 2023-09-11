@@ -1,36 +1,55 @@
 # Trackmania AI with Reinforcement Learning
-This public repository contains a copy of the reinforcement learning training code we (pb4 and [Agade](https://github.com/Agade09)) are currently developing.
-This code is a Work-in-Progress, constantly evolving. Do not expect this repository to be clean/finalized/easily usable.
-*Updated on June 9th 2023, synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*
 
-This codebase requires the game Trackmania Nations Forever as well as [TMInterface](https://donadigo.com/tminterface/).
-NOTE: This codebase is only working on TMInterface versions < 2.0.0. Download the [1.4.3 version of TMInterface here](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
+Welcome to our Trackmania AI with Reinforcement Learning project. This repository contains the reinforcement learning training code developed by pb4 and [Agade](https://github.com/Agade09).
 
-Fair warning: While we do intend at some point to open-up our code with all training hyperparameters so that the project may be used by the wider community, we are not there yet. We share this code as-is so that people can read the code, but we likely won't provide much support to make it run properly.
+**Project Status:** Work-in-Progress (Updated on June 9th, 2023)
 
-### Installation
-The code is known to work with Python 3.10.
-- `pip install -r requirements.txt`
-- Install pytorch, we use version 2 with Cuda 11.8.
-- `pip install -e .`
+Please note that this codebase is constantly evolving, and it may not be clean, finalized, or easily usable. We aim to open up our code with all training hyperparameters for the wider community in the future, but for now, it's shared as-is for code reading purposes.
 
-### How to start a run
-#### Generate a "virtual checkpoints" file for your map
-1) Run `python ./scripts/observe_manual_run_to_extract_checkpoints.py`
-2) Play once through the map, staying near the centerline of the road. The script will save a file in `./maps/map.npy` containing the coordinates of "virtual checkpoints" on the map, spaced approximately 10 meters apart.
+## Prerequisites
 
-#### Start training
-1) Edit the location of `map.npy` file at the top of `./scripts/train.py` at line `zone_centers = np.load(...)`
-2) Open Trackmania Interface and load the map you wish to train on. Set the game resolution to 640x480.
-3) Run `python ./scripts/train.py`
-4) Follow training performance via the tensorboard interface.
-5) Wait a long time...
+Before you get started, ensure you have the following prerequisites:
 
-### Benchmark
-It is possible to reach 2:04:91 on this map: https://tmnf.exchange/trackshow/10460245
-Video: https://www.youtube.com/watch?v=p5pq2UNOEnY
+- Trackmania Nations Forever
+- [TMInterface](https://donadigo.com/tminterface/) (Version < 2.0.0). [Download TMInterface 1.4.3](https://donadigo.com/files/TMInterface/TMInterface_1.4.3_Setup.exe).
+- Python 3.10 ([Download Python 3.10](https://www.python.org/downloads/release/python-3100/))
+- PyTorch Installation
+    -This project requires PyTorch. You can install it using the following command. Please note that the installation URL may change, so if the command doesn't work, check the [official PyTorch website](https://pytorch.org/) for the latest instructions:
+    ```bash
+        `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118`
 
-### Disclaimer
-In this public repository, we changed *some* training hyperparameters in the file `./trackmania_rl/misc.py`compared to our private repository. This *probably* makes training less efficient. This is done such that a minimal understanding of the principles of reinforcement learning is necessary to reproduce our results.
-The actual training hyperparameters may be released at a later date. In the meantime, we will answer questions of interested individuals who want to contact us directly.
-The code *should* run as-is, do not hesitate to contact us if it appears that necessary files are missing.
+## Installation
+
+To set up the project, follow these steps:
+
+1. Clone this repository.
+2. Install the required Python packages: `pip install -r requirements.txt`.
+3. Install PyTorch version 2 with Cuda 11.8.
+4. Install the project as an editable package: `pip install -e .`
+
+## Getting Started
+
+### Generating "Virtual Checkpoints" for Your Map
+
+To begin a run, follow these steps:
+
+1. Run the script to generate "virtual checkpoints" for your map: `python ./scripts/observe_manual_run_to_extract_checkpoints.py`.
+2. Play through the map, staying near the centerline of the road. The script will save a file in `./maps/map.npy` containing the coordinates of "virtual checkpoints" spaced approximately 10 meters apart.
+
+### Starting Training
+
+1. Edit the location of the `map.npy` file at the top of `./scripts/train.py`, specifically at line `zone_centers = np.load(...)`.
+2. Open Trackmania Interface and load the map you wish to train on, setting the game resolution to 640x480.
+3. Run the training script: `python ./scripts/train.py`.
+4. Monitor training performance via the TensorBoard interface.
+5. Be patient; training may take a significant amount of time.
+
+## Benchmark
+
+We have achieved a lap time of 2:04:91 on this [map](https://tmnf.exchange/trackshow/10460245). You can watch the [video](https://www.youtube.com/watch?v=p5pq2UNOEnY) for a demonstration.
+
+## Disclaimer
+
+In this public repository, we have intentionally changed some training hyperparameters in the file `./trackmania_rl/misc.py` compared to our private repository to encourage a better understanding of reinforcement learning principles. This may make training less efficient.
+
+The actual training hyperparameters may be released at a later date. In the meantime, feel free to contact us if you have questions or encounter any issues with the code.
