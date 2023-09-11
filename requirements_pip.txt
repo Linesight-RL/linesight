@@ -4,3 +4,4 @@ readwritememory
 tminterface
 torchrl
 pprofile
+pygbx
