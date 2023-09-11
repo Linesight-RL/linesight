@@ -16,7 +16,7 @@ Before you get started, ensure you have the following prerequisites:
 - PyTorch Installation
     -This project requires PyTorch. You can install it using the following command. Please note that the installation URL may change, so if the command doesn't work, check the [official PyTorch website](https://pytorch.org/) for the latest instructions:
     ```bash
-        `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118`
+        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 ## Installation
 
