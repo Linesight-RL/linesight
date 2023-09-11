@@ -4,9 +4,9 @@
 
 Welcome to our Trackmania AI with Reinforcement Learning project. This repository contains the reinforcement learning training code developed by pb4 and [Agade](https://github.com/Agade09).
 
-**Project Status:** Work-in-Progress (Updated on June 9th, 2023)
+**Project Status:** Work-in-Progress (*Updated on June 9th, 2023 ; synced with commit 8d8c0660bf516305f898a20359a929a59994f6e6 in our private repository*)
 
-Please note that this codebase is constantly evolving, and it may not be clean, finalized, or easily usable. We aim to open up our code with all training hyperparameters for the wider community in the future, but for now, it's shared as-is for code reading purposes.
+Please note that this codebase is constantly evolving, and it may not be clean, finalized, or easily usable. We intend to open up our code with all training hyperparameters for the wider community in the future, but for now, it's shared as-is for code reading purposes.
 
 ## Prerequisites
 
@@ -51,6 +51,8 @@ We have achieved a lap time of 2:04:91 on this [map](https://tmnf.exchange/track
 
 ## Disclaimer
 
-In this public repository, we have intentionally changed some training hyperparameters in the file `./trackmania_rl/misc.py` compared to our private repository to encourage a better understanding of reinforcement learning principles. This may make training less efficient.
+In this public repository, we have intentionally changed some training hyperparameters in the file `./trackmania_rl/misc.py` compared to our private repository to encourage a better understanding of reinforcement learning principles. Training may be inefficient or impossible with the current hyperparameters, we haven't even tested.
 
 The actual training hyperparameters may be released at a later date. In the meantime, feel free to contact us if you have questions or encounter any issues with the code.
+
+We will be happy to hear about your progress with this code ; either in the "Issues" section or on Discord (https://discord.com/channels/847108820479770686/1150816026028675133).
