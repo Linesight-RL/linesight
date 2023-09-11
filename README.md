@@ -1,5 +1,7 @@
 # Trackmania AI with Reinforcement Learning
 
+**Please note:** This project is a research work-in-progress and may not receive active support for setup or usage.
+
 Welcome to our Trackmania AI with Reinforcement Learning project. This repository contains the reinforcement learning training code developed by pb4 and [Agade](https://github.com/Agade09).
 
 **Project Status:** Work-in-Progress (Updated on June 9th, 2023)
@@ -23,9 +25,8 @@ Before you get started, ensure you have the following prerequisites:
 To set up the project, follow these steps:
 
 1. Clone this repository.
-2. Install the required Python packages: `pip install -r requirements.txt`.
-3. Install PyTorch version 2 with Cuda 11.8.
-4. Install the project as an editable package: `pip install -e .`
+2. Install the required Python packages: `pip install -r requirements.txt`
+3. Install the project as an editable package: `pip install -e .`
 
 ## Getting Started
 
