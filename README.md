@@ -55,4 +55,4 @@ In this public repository, we have intentionally changed some training hyperpara
 
 The actual training hyperparameters may be released at a later date. In the meantime, feel free to contact us if you have questions or encounter any issues with the code.
 
-We will be happy to hear about your progress with this code ; either in the "Issues" section or on Discord (https://discord.com/channels/847108820479770686/1150816026028675133).
+To actively participate and share your progress with this code, please join the TMInterface Discord community (https://discord.gg/tD4rarRYpj) first. You can then post your updates in the 'Issues' section on Github or join the conversation in our dedicated thread on the TMInterface Discord (https://discord.com/channels/847108820479770686/1150816026028675133)
