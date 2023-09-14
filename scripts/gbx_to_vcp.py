@@ -12,9 +12,9 @@ if not ghost:
 if ghost.num_respawns > 0:
     print("WARNING: GHOST HAS RESPAWNS")
 
-print(ghost.race_time,f"ghost has {len(ghost.records)} records and {len(ghost.control_entries)} control entries")
-records_to_keep = round(ghost.race_time/100)
-print("Keeping",records_to_keep,"out of",len(ghost.records),"records for a race time of",ghost.race_time/1000)
+print(ghost.race_time, f"ghost has {len(ghost.records)} records and {len(ghost.control_entries)} control entries")
+records_to_keep = round(ghost.race_time / 100)
+print("Keeping", records_to_keep, "out of", len(ghost.records), "records for a race time of", ghost.race_time / 1000)
 raw_positions_list = []
 for r in ghost.records[:records_to_keep]:
     raw_positions_list.append(np.array([r.position.x, r.position.y, r.position.z]))
