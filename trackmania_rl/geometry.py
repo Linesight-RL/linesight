@@ -1,7 +1,7 @@
 from typing import List
-from scipy.interpolate import make_interp_spline
 
 import numpy as np
+from scipy.interpolate import make_interp_spline
 
 
 def line_plane_collision_point(planeNormal, planePoint, rayDirection, rayPoint, epsilon=1e-6):
