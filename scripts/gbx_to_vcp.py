@@ -44,5 +44,3 @@ EXTRACT VCP FROM MULTIPLE GBX
 LIST MAP NAMES
 """
 # [replay_file.name.split('.')[0] for replay_file in replay_dir.iterdir()]
-
-
