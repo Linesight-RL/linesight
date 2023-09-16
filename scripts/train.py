@@ -363,39 +363,35 @@ for loop_number in count(1):
     #   SAVE STUFF IF THIS WAS A GOOD RACE
     # ===============================================
 
-    if (
-        not tmi.last_rollout_crashed
-        and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999)
-        and accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs
-    ):
+    if not tmi.last_rollout_crashed and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999):
         # This is a new alltime_minimum
         accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
-        print("\a")
-
-        sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
-        (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-        run_to_video.write_actions_in_tmi_format(rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"actions.txt")
-        joblib.dump(
-            rollout_results["q_values"],
-            save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
-        )
-        torch.save(
-            model1.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "weights1.torch",
-        )
-        torch.save(
-            model2.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "weights2.torch",
-        )
-        torch.save(
-            optimizer1.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
-        )
-        torch.save(
-            scaler.state_dict(),
-            save_dir / "best_runs" / sub_folder_name / "scaler.torch",
-        )
-        shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
+        if accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs:
+            print("\a")
+            sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
+            (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
+            run_to_video.write_actions_in_tmi_format(rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"actions.txt")
+            joblib.dump(
+                rollout_results["q_values"],
+                save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
+            )
+            torch.save(
+                model1.state_dict(),
+                save_dir / "best_runs" / sub_folder_name / "weights1.torch",
+            )
+            torch.save(
+                model2.state_dict(),
+                save_dir / "best_runs" / sub_folder_name / "weights2.torch",
+            )
+            torch.save(
+                optimizer1.state_dict(),
+                save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
+            )
+            torch.save(
+                scaler.state_dict(),
+                save_dir / "best_runs" / sub_folder_name / "scaler.torch",
+            )
+            shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
     # ===============================================
     #   FILL BUFFER WITH (S, A, R, S') transitions
