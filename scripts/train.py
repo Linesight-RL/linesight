@@ -22,6 +22,7 @@ import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
+from trackmania_rl.temporary_crap import race_time_left_curves
 from trackmania_rl.time_parsing import DigitsLibrary, parse_time
 
 base_dir = Path(__file__).resolve().parents[1]
@@ -295,6 +296,9 @@ for loop_number in count(1):
         map_path=map_path,
         zone_centers=zone_centers,
     )
+
+    if not is_explo and (loop_number // 5) % 10 == 0:
+        race_time_left_curves(rollout_results, trainer)
 
     if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
