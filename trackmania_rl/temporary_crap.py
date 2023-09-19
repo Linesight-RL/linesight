@@ -7,6 +7,7 @@ from . import misc
 
 
 def race_time_left_curves(rollout_results, trainer):
+    rollout_results_copy = rollout_results.copy()
     for frame_number in range(0, 10):
         q = defaultdict(list)
         a = defaultdict(list)
@@ -16,9 +17,9 @@ def race_time_left_curves(rollout_results, trainer):
         tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
         for j in x_axis:
             # print(j)
-            rollout_results["state_float"][frame_number][0] = j
+            rollout_results_copy["state_float"][frame_number][0] = j
             per_quantile_output = trainer.infer_model(
-                rollout_results["frames"][frame_number], rollout_results["state_float"][frame_number], tau
+                rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
             )
             for i, q_val in enumerate(list(per_quantile_output.mean(axis=0))):
                 # print(i, q_val)
