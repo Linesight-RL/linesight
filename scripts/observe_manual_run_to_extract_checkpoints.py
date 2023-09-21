@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -5,6 +6,8 @@ import numpy as np
 from tminterface.client import Client, run_client
 from tminterface.interface import TMInterface
 
+if not os.path.exists("maps"):
+    os.makedirs("maps")
 
 class MainClient(Client):
     def __init__(self) -> None:
