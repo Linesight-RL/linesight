@@ -88,6 +88,9 @@ class MainClient(Client):
         )
         np.save(base_dir / "maps" / "map.npy", np.array(self.zone_centers).round(1))
 
+        # Print success message
+        save_path = base_dir / "maps" / "map.npy"
+        print(f"map.npy was saved successfully to {save_path}")
 
 base_dir = Path(__file__).resolve().parents[1]
 server_name = f"TMInterface{sys.argv[1]}" if len(sys.argv) > 1 else "TMInterface0"
