@@ -297,8 +297,8 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if not is_explo and (loop_number // 5) % 10 == 0:
-        race_time_left_curves(rollout_results, trainer)
+    #if not is_explo and (loop_number // 5) % 10 == 0:
+    #    race_time_left_curves(rollout_results, trainer)
 
     if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
