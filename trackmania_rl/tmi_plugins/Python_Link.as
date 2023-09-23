@@ -25,6 +25,20 @@ const uint16 PORT = 8477;
 uint RESPONSE_TIMEOUT = 2000;
 int next_frame_requested = -1;
 
+void Init_Socket(){
+    if (@sock is null) {
+        @sock = Net::Socket();
+        sock.Listen(HOST, PORT);
+    }
+}
+
+void close_connection(){
+    @clientSock = null;
+    Init_Socket();
+    next_frame_requested = -1;
+    RESPONSE_TIMEOUT = 2000;
+}
+
 void WaitForResponse(MessageType type){
     auto now = Time::Now;
 
@@ -40,7 +54,7 @@ void WaitForResponse(MessageType type){
 
         if (receivedType == -1 && Time::Now - now > RESPONSE_TIMEOUT) {
             log("Client disconnected due to timeout (" + RESPONSE_TIMEOUT + "ms)");
-            @clientSock = null;
+            close_connection();
             break;
         }
     }
@@ -155,7 +169,7 @@ int HandleMessage()
 
         case MessageType::CShutdown: {
             log("Client disconnected");
-            @clientSock = null;
+            close_connection();
             break;
         }
 
@@ -197,7 +211,7 @@ int HandleMessage()
         }
 
         default: {
-            print("Server: got unknown message "+type);
+            log("Server: got unknown message "+type);
             break;
         }
     }
@@ -248,10 +262,7 @@ void OnLapCountChanged(SimulationManager@ simManager, int current, int target){
 }
 
 void Main(){
-    if (@sock is null) {
-        @sock = Net::Socket();
-        sock.Listen(HOST, PORT);
-    }
+    Init_Socket();
 }
 
 void Render(){
@@ -261,6 +272,10 @@ void Render(){
         @clientSock = @newSock;
         log("Client connected (IP: " + clientSock.RemoteIP + ")");
     }
+    /*else{//TMI 2.1 is completely unresponsive if speed is 0. Try to avoid getting stuck by this
+        auto@ simManager = GetSimulationManager();
+        simManager.SetSpeed(1);
+    }*/
     if(next_frame_requested==0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
         WaitForResponse(MessageType::SCRequestedFrameSync);
