@@ -167,11 +167,9 @@ class TMInterfaceManager:
 
     def grab_screen(self):
         global camera
-        while True:
-            try:
-                return grab_screen2()
-            except:
-                pass
+        try:
+            return camera.grab(frame_timeout=500)
+        except:
             self.recreate_dxcam()
 
     def request_speed(self, requested_speed):
@@ -592,7 +590,7 @@ class TMInterfaceManager:
                     assert not compute_action_asap_floats
 
                     frame = self.grab_screen()
-                    parsed_time = time_parsing.parse_time(frame, self.digits_library)
+                    parsed_time = time_parsing.parse_time(frame, self.digits_library) if frame is not None else -math.inf
                     frame_grabbing_iterations += 1
                     pc6 = time.perf_counter_ns()
                     time_to_grab_frame += pc6 - pc5
@@ -602,14 +600,14 @@ class TMInterfaceManager:
                             self.recreate_dxcam()
                         if frame_grabbing_iterations >= misc.tmi_protection_timeout_s:
                             print(
-                                f"Cutoff rollout due to {iterations} failed attempts to OCR {sim_state_race_time}. Got {parsed_time} instead."
+                                f"Cutoff rollout due to {frame_grabbing_iterations} failed attempts to OCR {sim_state_race_time}. Got {parsed_time} instead."
                             )
                             end_race_stats["tmi_protection_cutoff"] = True
                             self.last_rollout_crashed = True
                             break
-                        self.iface.request_frame(0)
                     #print("Successfully got frame after",frame_grabbing_iterations,"iterations")
                     else:
+                        self.iface.request_frame(-1)
                         frame = np.expand_dims(
                             cv2.resize(
                                 cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),

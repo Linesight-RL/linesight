@@ -262,12 +262,6 @@ void Render(){
         log("Client connected (IP: " + clientSock.RemoteIP + ")");
     }
     if(next_frame_requested==0){
-        next_frame_requested = -1;
-        auto@ simManager = GetSimulationManager();
-        auto@ state = simManager.SaveState();
-        if(debug){
-            print("Notifying of frame at race_time "+state.get_PlayerInfo().RaceTime);
-        }
         clientSock.Write(MessageType::SCRequestedFrameSync);
         WaitForResponse(MessageType::SCRequestedFrameSync);
         if(debug){
