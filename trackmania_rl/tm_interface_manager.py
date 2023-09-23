@@ -111,8 +111,6 @@ class TMInterfaceManager:
     ):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
-        self.set_timeout_is_done = False
-        self.snapshot_before_start_is_made = False
         self.latest_tm_engine_speed_requested = 1
         self.running_speed = running_speed
         self.run_steps_per_action = run_steps_per_action
@@ -122,7 +120,7 @@ class TMInterfaceManager:
         self.interface_name = interface_name
         self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         self.msgtype_response_to_wakeup_TMI = None
-        self.latest_map_path_requested = None
+        self.latest_map_path_requested = -2
         self.last_rollout_crashed = False
         self.last_game_reboot = time.perf_counter()
 
@@ -249,10 +247,11 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
+                print("registered",self.latest_map_path_requested)
                 if self.latest_map_path_requested == -1:  # Game was relaunched and is in the main menu
                     self.iface.execute_command("toggle_console")
+                if self.latest_map_path_requested in [-1,-2]:
                     self.request_map(map_path)
-
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
