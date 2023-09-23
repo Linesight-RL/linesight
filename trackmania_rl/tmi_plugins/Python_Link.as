@@ -62,6 +62,10 @@ int HandleMessage()
             break;
         }
 
+        case MessageType::SCCheckpointCountChangedSync: {
+            break;
+        }
+
         case MessageType::CSetSpeed: {
             auto@ simManager = GetSimulationManager();
             if(debug){
