@@ -248,10 +248,6 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
                 print("registered",self.latest_map_path_requested)
-                if self.latest_map_path_requested == -1:  # Game was relaunched and is in the main menu
-                    self.iface.execute_command("toggle_console")
-                if self.latest_map_path_requested in [-1,-2]:
-                    self.request_map(map_path)
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
@@ -438,6 +434,8 @@ class TMInterfaceManager:
 
                 if not give_up_signal_has_been_sent:
                     if map_path != self.latest_map_path_requested:
+                        if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
+                            self.iface.execute_command("toggle_console")
                         self.request_map(map_path)
                     else:
                         self.iface.give_up()

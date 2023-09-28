@@ -16,6 +16,7 @@ class MessageType(IntEnum):
 	SC_REQUESTED_FRAME_SYNC = auto()
 	C_SET_SPEED = auto()
 	C_REWIND_TO_STATE = auto()
+	C_RREWIND_TO_CURRENT_STATE = auto()
 	C_GET_SIMULATION_STATE = auto()
 	C_SET_INPUT_STATE = auto()
 	C_GIVE_UP = auto()
@@ -25,6 +26,7 @@ class MessageType(IntEnum):
 	C_SET_TIMEOUT = auto()
 	C_RACE_FINISHED = auto()
 	C_REQUEST_FRAME = auto()
+	SC_REQUEST_DESIRED_MAP_SYNC = auto()
 
 class TMInterface:
 	registered = False
@@ -52,6 +54,9 @@ class TMInterface:
 		self.sock.sendall(struct.pack('i', np.int32(len(state.data))))
 		self.sock.sendall(state.data)
 
+	def rewind_to_current_state(self):
+		self.sock.sendall(struct.pack('i', MessageType.C_RREWIND_TO_CURRENT_STATE))
+
 	def get_simulation_state(self):
 		self.sock.sendall(struct.pack('i', MessageType.C_GET_SIMULATION_STATE))
 		state_length = self._read_int32()
@@ -76,7 +81,7 @@ class TMInterface:
 	def execute_command(self, command: str):
 		self.sock.sendall(struct.pack('i', MessageType.C_EXECUTE_COMMAND))
 		self.sock.sendall(struct.pack('i', np.int32(len(command))))
-		self.sock.send(command.encode()) #https://www.delftstack.com/howto/python/python-socket-send-string/
+		self.sock.sendall(command.encode()) #https://www.delftstack.com/howto/python/python-socket-send-string/
 
 	def set_timeout(self, new_timeout: int):
 		self.sock.sendall(struct.pack('i', MessageType.C_SET_TIMEOUT))

@@ -8,15 +8,17 @@ enum MessageType {
     SCRequestedFrameSync = 4,
     CSetSpeed = 5,
     CRewindToState = 6,
-    CGetSimulationState = 7,
-    CSetInputState = 8,
-    CGiveUp = 9,
-    CPreventSimulationFinish = 10,
-    CShutdown = 11,
-    CExecuteCommand = 12,
-    CSetTimeout = 13,
-    CRaceFinished = 14,
-    CRequestFrame = 15,
+    CRewindToCurrentState = 7,
+    CGetSimulationState = 8,
+    CSetInputState = 9,
+    CGiveUp = 10,
+    CPreventSimulationFinish = 11,
+    CShutdown = 12,
+    CExecuteCommand = 13,
+    CSetTimeout = 14,
+    CRaceFinished = 15,
+    CRequestFrame = 16,
+    SCRequestDesiredMapSync = 17,
 }
 
 const bool debug = false;
@@ -24,6 +26,7 @@ const string HOST = "127.0.0.1";
 const uint16 PORT = 8477;
 uint RESPONSE_TIMEOUT = 2000;
 int next_frame_requested = -1;
+bool map_loaded = false;
 
 void Init_Socket(){
     if (@sock is null) {
@@ -80,6 +83,10 @@ int HandleMessage()
             break;
         }
 
+        case MessageType::SCRequestDesiredMapSync: {
+            break;
+        }
+
         case MessageType::CSetSpeed: {
             auto@ simManager = GetSimulationManager();
             if(debug){
@@ -129,6 +136,12 @@ int HandleMessage()
             break;            
         }
 
+        case MessageType::CRewindToCurrentState: {
+            auto@ simManager = GetSimulationManager();
+            if (simManager.InRace) {
+                simManager.RewindToState(simManager.SaveState());
+            }
+        }
 
         case MessageType::CGetSimulationState: {
             auto@ simManager = GetSimulationManager();
@@ -229,7 +242,7 @@ void OnRunStep(SimulationManager@ simManager){
     auto@ state = simManager.SaveState();
 
     clientSock.Write(MessageType::SCRunStepSync);
-    clientSock.Write(state.get_PlayerInfo().RaceTime);
+    clientSock.Write(simManager.RaceTime);
     WaitForResponse(MessageType::SCRunStepSync);
 }
 
@@ -261,6 +274,15 @@ void OnLapCountChanged(SimulationManager@ simManager, int current, int target){
     WaitForResponse(MessageType::SCLapCountChangedSync);
 }
 
+void OnGameStateChanged(TM::GameState state){
+    auto@ simManager = GetSimulationManager();
+    if(!map_loaded && state==TM::GameState::Menus){
+        map_loaded = true;
+        ExecuteCommand("map \"My Challenges\\Map5.Challenge.Gbx\"");
+        simManager.SetSpeed(1);
+    }
+}
+
 void Main(){
     Init_Socket();
 }
@@ -272,10 +294,6 @@ void Render(){
         @clientSock = @newSock;
         log("Client connected (IP: " + clientSock.RemoteIP + ")");
     }
-    /*else{//TMI 2.1 is completely unresponsive if speed is 0. Try to avoid getting stuck by this
-        auto@ simManager = GetSimulationManager();
-        simManager.SetSpeed(1);
-    }*/
     if(next_frame_requested==0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
         WaitForResponse(MessageType::SCRequestedFrameSync);
