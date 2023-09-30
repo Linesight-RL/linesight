@@ -126,18 +126,25 @@ class TMInterfaceManager:
 
     def launch_game(self):
         os.system("start .\\TMInterface.lnk")
-        time.sleep(5)
+        while not self.is_game_running():
+            time.sleep(0)
         process_prepare()
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
         self.msgtype_response_to_wakeup_TMI = None
 
+    def is_game_running(self):
+        return "TmForever.exe" in (p.name() for p in psutil.process_iter())
+
     def close_game(self):
         os.system("taskkill /IM TmForever.exe /f")
-        time.sleep(5)
+        Start_Time = time.perf_counter()
+        while self.is_game_running():
+            time.sleep(0)
+        print("Waited",time.perf_counter()-Start_Time,"seconds")
 
     def ensure_game_launched(self):
-        if "TmForever.exe" not in (p.name() for p in psutil.process_iter()):
+        if not self.is_game_running():
             if os.path.exists(".\\TMInterface.lnk"):
                 print("Game not found. Restarting TMInterface.")
                 self.launch_game()
