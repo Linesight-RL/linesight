@@ -126,9 +126,6 @@ class TMInterfaceManager:
 
     def launch_game(self):
         os.system("start .\\TMInterface.lnk")
-        while not self.is_game_running():
-            time.sleep(0)
-        process_prepare()
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
         self.msgtype_response_to_wakeup_TMI = None
@@ -138,10 +135,8 @@ class TMInterfaceManager:
 
     def close_game(self):
         os.system("taskkill /IM TmForever.exe /f")
-        Start_Time = time.perf_counter()
         while self.is_game_running():
             time.sleep(0)
-        print("Waited",time.perf_counter()-Start_Time,"seconds")
 
     def ensure_game_launched(self):
         if not self.is_game_running():
@@ -249,12 +244,6 @@ class TMInterfaceManager:
 
             if not self.iface.registered:
                 self.iface.register()
-                self.request_speed(1)
-                self.iface.execute_command(f"set countdown_speed {self.running_speed}")
-                self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
-                self.iface.execute_command(f"set skip_map_load_screens true")
-                self.iface.execute_command(f"cam 1")
-                print("registered",self.latest_map_path_requested)
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
@@ -441,8 +430,6 @@ class TMInterfaceManager:
 
                 if not give_up_signal_has_been_sent:
                     if map_path != self.latest_map_path_requested:
-                        if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
-                            self.iface.execute_command("toggle_console")
                         self.request_map(map_path)
                     else:
                         self.iface.give_up()
@@ -661,6 +648,19 @@ class TMInterfaceManager:
                 self.iface._respond_to_call(msgtype)
             elif msgtype == int(MessageType.C_SHUTDOWN):
                 self.iface.close()
+            elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
+                process_prepare()
+                if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
+                    self.iface.execute_command("toggle_console")
+                self.request_speed(1)
+                self.iface.execute_command(f"set countdown_speed {self.running_speed}")
+                self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
+                self.iface.execute_command(f"set skip_map_load_screens true")
+                self.iface.execute_command(f"cam 1")
+                if map_path != self.latest_map_path_requested:
+                    print("Requested map load")
+                    self.request_map(map_path)
+                self.iface._respond_to_call(msgtype)
             else:
                 pass
 

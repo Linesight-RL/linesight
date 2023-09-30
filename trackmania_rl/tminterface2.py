@@ -14,6 +14,7 @@ class MessageType(IntEnum):
 	SC_CHECKPOINT_COUNT_CHANGED_SYNC = auto()
 	SC_LAP_COUNT_CHANGED_SYNC = auto()
 	SC_REQUESTED_FRAME_SYNC = auto()
+	SC_ON_CONNECT_SYNC = auto()
 	C_SET_SPEED = auto()
 	C_REWIND_TO_STATE = auto()
 	C_RREWIND_TO_CURRENT_STATE = auto()
@@ -26,7 +27,6 @@ class MessageType(IntEnum):
 	C_SET_TIMEOUT = auto()
 	C_RACE_FINISHED = auto()
 	C_REQUEST_FRAME = auto()
-	SC_REQUEST_DESIRED_MAP_SYNC = auto()
 
 class TMInterface:
 	registered = False

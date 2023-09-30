@@ -6,19 +6,19 @@ enum MessageType {
     SCCheckpointCountChangedSync = 2,
     SCLapCountChangedSync = 3,
     SCRequestedFrameSync = 4,
-    CSetSpeed = 5,
-    CRewindToState = 6,
-    CRewindToCurrentState = 7,
-    CGetSimulationState = 8,
-    CSetInputState = 9,
-    CGiveUp = 10,
-    CPreventSimulationFinish = 11,
-    CShutdown = 12,
-    CExecuteCommand = 13,
-    CSetTimeout = 14,
-    CRaceFinished = 15,
-    CRequestFrame = 16,
-    SCRequestDesiredMapSync = 17,
+    SCOnConnectSync = 5,
+    CSetSpeed = 6,
+    CRewindToState = 7,
+    CRewindToCurrentState = 8,
+    CGetSimulationState = 9,
+    CSetInputState = 10,
+    CGiveUp = 11,
+    CPreventSimulationFinish = 12,
+    CShutdown = 13,
+    CExecuteCommand = 14,
+    CSetTimeout = 15,
+    CRaceFinished = 16,
+    CRequestFrame = 17,
 }
 
 const bool debug = false;
@@ -26,7 +26,7 @@ const string HOST = "127.0.0.1";
 const uint16 PORT = 8477;
 uint RESPONSE_TIMEOUT = 2000;
 int next_frame_requested = -1;
-bool map_loaded = false;
+bool on_connect_queued = false;
 
 void Init_Socket(){
     if (@sock is null) {
@@ -83,7 +83,7 @@ int HandleMessage()
             break;
         }
 
-        case MessageType::SCRequestDesiredMapSync: {
+        case MessageType::SCOnConnectSync: {
             break;
         }
 
@@ -275,17 +275,19 @@ void OnLapCountChanged(SimulationManager@ simManager, int current, int target){
     WaitForResponse(MessageType::SCLapCountChangedSync);
 }
 
-void OnGameStateChanged(TM::GameState state){
-    auto@ simManager = GetSimulationManager();
-    if(!map_loaded && state==TM::GameState::Menus){
-        map_loaded = true;
-        ExecuteCommand("map \"My Challenges\\Map5.Challenge.Gbx\"");
-        simManager.SetSpeed(1);
-    }
+void OnConnect(){
+    clientSock.Write(MessageType::SCOnConnectSync);
+    WaitForResponse(MessageType::SCOnConnectSync);
 }
 
 void Main(){
     Init_Socket();
+}
+
+void OnGameStateChanged(TM::GameState state){
+    if(state == TM::GameState::Menus && on_connect_queued){
+        OnConnect();
+    }
 }
 
 void Render(){
@@ -294,6 +296,12 @@ void Render(){
     if (@newSock !is null) {
         @clientSock = @newSock;
         log("Client connected (IP: " + clientSock.RemoteIP + ")");
+        if(GetCurrentGameState() != TM::GameState::StartUp){
+            OnConnect();
+        }
+        else{
+            on_connect_queued = true;
+        }
     }
     if(next_frame_requested==0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
