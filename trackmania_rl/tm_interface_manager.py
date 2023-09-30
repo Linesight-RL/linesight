@@ -471,7 +471,7 @@ class TMInterfaceManager:
 
                         self.msgtype_response_to_wakeup_TMI = msgtype
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
-                        self.iface.rewind_to_state(simulation_state)
+                        self.iface.rewind_to_current_state()
                         this_rollout_is_finished = True
 
                     if not this_rollout_is_finished:
@@ -479,7 +479,7 @@ class TMInterfaceManager:
 
                         if _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
                             last_known_simulation_state = self.iface.get_simulation_state()
-                            self.iface.rewind_to_state(last_known_simulation_state)
+                            self.iface.rewind_to_current_state()
                             self.request_speed(0)
                             compute_action_asap = True#not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
                             if compute_action_asap:

@@ -141,6 +141,7 @@ int HandleMessage()
             if (simManager.InRace) {
                 simManager.RewindToState(simManager.SaveState());
             }
+            break;
         }
 
         case MessageType::CGetSimulationState: {
