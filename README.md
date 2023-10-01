@@ -49,6 +49,10 @@ To begin a run, follow these steps:
 
 We have achieved a lap time of 2:04:91 on this [map](https://tmnf.exchange/trackshow/10460245). You can watch the [video](https://www.youtube.com/watch?v=p5pq2UNOEnY) for a demonstration.
 
+## Acknowledgments
+
+We would like to acknowledge the contributions of the community to this project. In particular, we want to highlight [ausstein's fork](https://github.com/ausstein/trackmania_rl_public), which extends the functionality of this project with support for multiple instances, additional parameters, and important fixes. Their work has been valuable to the project's development and versatility.
+
 ## Disclaimer
 
 In this public repository, we have intentionally changed some training hyperparameters in the file `./trackmania_rl/misc.py` compared to our private repository to encourage a better understanding of reinforcement learning principles. Training may be inefficient or impossible with the current hyperparameters, we haven't even tested.
