@@ -50,8 +50,7 @@ class TMInterface:
 		print('Connected')
 
 	def rewind_to_state(self, state):
-		self.sock.sendall(struct.pack('i', MessageType.C_REWIND_TO_STATE))
-		self.sock.sendall(struct.pack('i', np.int32(len(state.data))))
+		self.sock.sendall(struct.pack('ii', MessageType.C_REWIND_TO_STATE, np.int32(len(state.data))))
 		self.sock.sendall(state.data)
 
 	def rewind_to_current_state(self):
@@ -66,11 +65,7 @@ class TMInterface:
 		return state
 
 	def set_input_state(self, left: bool, right: bool, accelerate: bool, brake: bool):
-		self.sock.sendall(struct.pack('i', MessageType.C_SET_INPUT_STATE))
-		self.sock.sendall(struct.pack('B', np.uint8(left)))
-		self.sock.sendall(struct.pack('B', np.uint8(right)))
-		self.sock.sendall(struct.pack('B', np.uint8(accelerate)))
-		self.sock.sendall(struct.pack('B', np.uint8(brake)))
+		self.sock.sendall(struct.pack('iBBBB', MessageType.C_SET_INPUT_STATE, np.uint8(left), np.uint8(right), np.uint8(accelerate), np.uint8(brake)))
 
 	def give_up(self):
 		self.sock.sendall(struct.pack('i', MessageType.C_GIVE_UP))
@@ -79,17 +74,14 @@ class TMInterface:
 		self.sock.sendall(struct.pack('i', MessageType.C_PREVENT_SIMULATION_FINISH))
 
 	def execute_command(self, command: str):
-		self.sock.sendall(struct.pack('i', MessageType.C_EXECUTE_COMMAND))
-		self.sock.sendall(struct.pack('i', np.int32(len(command))))
+		self.sock.sendall(struct.pack('ii', MessageType.C_EXECUTE_COMMAND, np.int32(len(command))))
 		self.sock.sendall(command.encode()) #https://www.delftstack.com/howto/python/python-socket-send-string/
 
 	def set_timeout(self, new_timeout: int):
-		self.sock.sendall(struct.pack('i', MessageType.C_SET_TIMEOUT))
-		self.sock.sendall(struct.pack('I', np.uint32(new_timeout)))
+		self.sock.sendall(struct.pack('iI', MessageType.C_SET_TIMEOUT, np.uint32(new_timeout)))
 
 	def set_speed(self, new_speed):
-		self.sock.sendall(struct.pack('i', MessageType.C_SET_SPEED))
-		self.sock.sendall(struct.pack('f', np.float32(new_speed)))
+		self.sock.sendall(struct.pack('if', MessageType.C_SET_SPEED, np.float32(new_speed)))
 
 	def race_finished(self):
 		self.sock.sendall(struct.pack('i', MessageType.C_RACE_FINISHED))
@@ -97,8 +89,7 @@ class TMInterface:
 		return a
 
 	def request_frame(self,frames_to_skip: int):
-		self.sock.sendall(struct.pack('i', MessageType.C_REQUEST_FRAME))
-		self.sock.sendall(struct.pack('i', np.int32(frames_to_skip)))
+		self.sock.sendall(struct.pack('ii', MessageType.C_REQUEST_FRAME, np.int32(frames_to_skip)))
 
 	def _respond_to_call(self, response_type):
 		self.sock.sendall(struct.pack('i', np.int32(response_type)))
