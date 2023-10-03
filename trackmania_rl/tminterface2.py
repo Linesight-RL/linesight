@@ -17,7 +17,7 @@ class MessageType(IntEnum):
 	SC_ON_CONNECT_SYNC = auto()
 	C_SET_SPEED = auto()
 	C_REWIND_TO_STATE = auto()
-	C_RREWIND_TO_CURRENT_STATE = auto()
+	C_REWIND_TO_CURRENT_STATE = auto()
 	C_GET_SIMULATION_STATE = auto()
 	C_SET_INPUT_STATE = auto()
 	C_GIVE_UP = auto()
@@ -27,6 +27,7 @@ class MessageType(IntEnum):
 	C_SET_TIMEOUT = auto()
 	C_RACE_FINISHED = auto()
 	C_REQUEST_FRAME = auto()
+	C_RESET_CAMERA = auto()
 
 class TMInterface:
 	registered = False
@@ -54,7 +55,10 @@ class TMInterface:
 		self.sock.sendall(state.data)
 
 	def rewind_to_current_state(self):
-		self.sock.sendall(struct.pack('i', MessageType.C_RREWIND_TO_CURRENT_STATE))
+		self.sock.sendall(struct.pack('i', MessageType.C_REWIND_TO_CURRENT_STATE))
+
+	def reset_camera(self):
+		self.sock.sendall(struct.pack('i', MessageType.C_RESET_CAMERA))
 
 	def get_simulation_state(self):
 		self.sock.sendall(struct.pack('i', MessageType.C_GET_SIMULATION_STATE))
@@ -88,8 +92,12 @@ class TMInterface:
 		a = self._read_int32()
 		return a
 
-	def request_frame(self,frames_to_skip: int):
-		self.sock.sendall(struct.pack('ii', MessageType.C_REQUEST_FRAME, np.int32(frames_to_skip)))
+	def request_frame(self, W: int,H: int):
+		self.sock.sendall(struct.pack('iii', MessageType.C_REQUEST_FRAME, np.int32(W), np.int32(H)))
+
+	def get_frame(self,width: int,height: int):
+		frame_data = self.sock.recv(width*height*4)
+		return np.frombuffer(frame_data, dtype=np.uint8).reshape((height,width,4))
 
 	def _respond_to_call(self, response_type):
 		self.sock.sendall(struct.pack('i', np.int32(response_type)))

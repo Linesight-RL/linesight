@@ -4,7 +4,6 @@ import os
 import time
 
 import cv2
-import dxcam
 import numba
 import numpy as np
 import numpy.typing as npt
@@ -92,13 +91,6 @@ def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position):
     return current_zone_idx
 
 
-def grab_screen2():
-    frame = None
-    while frame is None:
-        frame = camera.grab(frame_timeout=500)
-    return frame
-
-
 class TMInterfaceManager:
     def __init__(
         self,
@@ -146,31 +138,8 @@ class TMInterfaceManager:
             else:
                 print("Game needs to be restarted but cannot be. Add TMInterface shortcut to directory.")
 
-    def create_dxcam(self):
-        global camera
-        trackmania_window = win32gui.FindWindow("TmForever", None)
-        ensure_not_minimized(trackmania_window)
-        region, output_idx = _get_window_position(trackmania_window)
-        print(f"CREATE {region=}, {output_idx=}")
-        camera = dxcam.create(output_idx=output_idx, output_color="BGRA", region=region, max_buffer_len=1)
-
-    def recreate_dxcam(self):
-        global camera
-        print("RECREATE")
-        if "camera" in locals() or "camera" in globals():
-            del camera
-        try:
-            self.create_dxcam()
-        except Exception as e:
-            print(e)
-            time.sleep(1)
-
     def grab_screen(self):
-        global camera
-        try:
-            return camera.grab(frame_timeout=500)
-        except:
-            self.recreate_dxcam()
+        return self.iface.get_frame(misc.W_downsized, misc.H_downsized)
 
     def request_speed(self, requested_speed):
         self.iface.set_speed(requested_speed)
@@ -251,10 +220,6 @@ class TMInterfaceManager:
             if self.msgtype_response_to_wakeup_TMI is not None:
                 self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
                 self.msgtype_response_to_wakeup_TMI = None
-
-        if "camera" not in globals():
-            self.create_dxcam()
-            process_prepare()
 
         self.last_rollout_crashed = False
 
@@ -478,8 +443,7 @@ class TMInterfaceManager:
                             compute_action_asap = True#not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
                             if compute_action_asap:
                                 compute_action_asap_floats = True
-                                self.iface.request_frame(1)
-                                frame_grabbing_iterations = 0
+                                self.iface.request_frame(misc.W_downsized,misc.H_downsized)
                 # ============================
                 # END ON RUN STEP
                 # ============================
@@ -507,7 +471,6 @@ class TMInterfaceManager:
                 if current == target:  # Finished the race !!
                     cp_times_bug_handling_attempts = 0
                     while len(simulation_state.cp_data.cp_times) == 0 and cp_times_bug_handling_attempts < 5:
-                        simulation_state = self.iface.get_simulation_state()
                         cp_times_bug_handling_attempts += 1
                     if len(simulation_state.cp_data.cp_times) != 0:
                         simulation_state.cp_data.cp_times[-1].time = -1  # Equivalent to prevent_simulation_finish()
@@ -576,75 +539,49 @@ class TMInterfaceManager:
                 self.iface._read_int32()
                 self.iface._respond_to_call(msgtype)
             elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
+                pc6 = time.perf_counter_ns()
+                frame = self.grab_screen()
+                time_to_grab_frame += pc6 - pc5
                 if (give_up_signal_has_been_sent and this_rollout_has_seen_t_negative and not this_rollout_is_finished and compute_action_asap):
                     assert self.latest_tm_engine_speed_requested == 0
                     assert not compute_action_asap_floats
+                    pc7 = time.perf_counter_ns()
+                    frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY),0)
+                    rollout_results["frames"].append(frame)
+                    time_A_rgb2gray += pc7 - pc6
 
-                    frame = self.grab_screen()
-                    parsed_time = time_parsing.parse_time(frame, self.digits_library) if frame is not None else -math.inf
-                    frame_grabbing_iterations += 1
-                    pc6 = time.perf_counter_ns()
-                    time_to_grab_frame += pc6 - pc5
-                    if parsed_time != sim_state_race_time:
-                        #print("Bad frame race_time",parsed_time,"instead of",sim_state_race_time)
-                        if frame_grabbing_iterations > 10:
-                            self.recreate_dxcam()
-                        if frame_grabbing_iterations >= misc.tmi_protection_timeout_s:
-                            print(
-                                f"Cutoff rollout due to {frame_grabbing_iterations} failed attempts to OCR {sim_state_race_time}. Got {parsed_time} instead."
-                            )
-                            end_race_stats["tmi_protection_cutoff"] = True
-                            self.last_rollout_crashed = True
-                            break
-                    #print("Successfully got frame after",frame_grabbing_iterations,"iterations")
-                    else:
-                        self.iface.request_frame(-1)
-                        frame = np.expand_dims(
-                            cv2.resize(
-                                cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),
-                                (misc.W_downsized, misc.H_downsized),
-                                interpolation=cv2.INTER_AREA,
-                            ),
-                            0,
-                        )
+                    (
+                        action_idx,
+                        action_was_greedy,
+                        q_value,
+                        q_values,
+                    ) = exploration_policy(rollout_results["frames"][-1], floats)
 
-                        rollout_results["frames"].append(frame)
+                    pc8 = time.perf_counter_ns()
+                    time_exploration_policy += pc8 - pc7
 
-                        pc7 = time.perf_counter_ns()
-                        time_A_rgb2gray += pc7 - pc6
+                    self.request_inputs(action_idx, rollout_results)
+                    self.request_speed(self.running_speed)
 
-                        (
-                            action_idx,
-                            action_was_greedy,
-                            q_value,
-                            q_values,
-                        ) = exploration_policy(rollout_results["frames"][-1], floats)
+                    pc9 = time.perf_counter_ns()
+                    time_to_iface_set_set += pc9 - pc8
 
-                        pc8 = time.perf_counter_ns()
-                        time_exploration_policy += pc8 - pc7
+                    if n_th_action_we_compute == 0:
+                        end_race_stats["value_starting_frame"] = q_value
+                        for i, val in enumerate(np.nditer(q_values)):
+                            end_race_stats[f"q_value_{i}_starting_frame"] = val
+                    rollout_results["meters_advanced_along_centerline"].append(distance_since_track_begin)
+                    rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
+                    rollout_results["actions"].append(action_idx)
+                    rollout_results["action_was_greedy"].append(action_was_greedy)
+                    rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
+                    rollout_results["q_values"].append(q_values)
+                    rollout_results["state_float"].append(floats)
 
-                        self.request_inputs(action_idx, rollout_results)
-                        self.request_speed(self.running_speed)
+                    compute_action_asap = False
+                    n_th_action_we_compute += 1
 
-                        pc9 = time.perf_counter_ns()
-                        time_to_iface_set_set += pc9 - pc8
-
-                        if n_th_action_we_compute == 0:
-                            end_race_stats["value_starting_frame"] = q_value
-                            for i, val in enumerate(np.nditer(q_values)):
-                                end_race_stats[f"q_value_{i}_starting_frame"] = val
-                        rollout_results["meters_advanced_along_centerline"].append(distance_since_track_begin)
-                        rollout_results["input_w"].append(misc.inputs[action_idx]["accelerate"])
-                        rollout_results["actions"].append(action_idx)
-                        rollout_results["action_was_greedy"].append(action_was_greedy)
-                        rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
-                        rollout_results["q_values"].append(q_values)
-                        rollout_results["state_float"].append(floats)
-
-                        compute_action_asap = False
-                        n_th_action_we_compute += 1
-
-                        time_after_iface_set_set += time.perf_counter_ns() - pc9
+                    time_after_iface_set_set += time.perf_counter_ns() - pc9
                 self.iface._respond_to_call(msgtype)
             elif msgtype == int(MessageType.C_SHUTDOWN):
                 self.iface.close()
@@ -657,6 +594,7 @@ class TMInterfaceManager:
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")
                 self.iface.execute_command(f"cam 1")
+                self.iface.execute_command(f"set temp_save_states_collect false")
                 if map_path != self.latest_map_path_requested:
                     print("Requested map load")
                     self.request_map(map_path)

@@ -19,13 +19,15 @@ enum MessageType {
     CSetTimeout = 15,
     CRaceFinished = 16,
     CRequestFrame = 17,
+    CResetCamera = 18,
 }
 
 const bool debug = false;
 const string HOST = "127.0.0.1";
 const uint16 PORT = 8477;
 uint RESPONSE_TIMEOUT = 2000;
-int next_frame_requested = -1;
+int next_frame_requested_H = -1;
+int next_frame_requested_W = -1;
 bool on_connect_queued = false;
 
 void Init_Socket(){
@@ -38,7 +40,7 @@ void Init_Socket(){
 void close_connection(){
     @clientSock = null;
     Init_Socket();
-    next_frame_requested = -1;
+    next_frame_requested_H = -1;
     RESPONSE_TIMEOUT = 2000;
 }
 
@@ -217,10 +219,17 @@ int HandleMessage()
         }
 
         case MessageType::CRequestFrame: {
-            next_frame_requested = clientSock.ReadInt32();
+            next_frame_requested_W = clientSock.ReadInt32();
+            next_frame_requested_H = clientSock.ReadInt32();
             if(debug){
-                print("Client requested frame after "+next_frame_requested+" skip");
+                print("Client requested next frame in size "+next_frame_requested_H+" "+next_frame_requested_W);
             }
+            break;
+        }
+
+        case MessageType::CResetCamera: {
+            auto@ simManager = GetSimulationManager();
+            simManager.ResetCamera();
             break;
         }
 
@@ -303,15 +312,15 @@ void Render(){
             on_connect_queued = true;
         }
     }
-    if(next_frame_requested==0){
+    if(next_frame_requested_H>=0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
+        auto frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
+        clientSock.Write(frame);
         WaitForResponse(MessageType::SCRequestedFrameSync);
+        next_frame_requested_H = -1;
         if(debug){
             print("Got response from client for SCRequestedFrameSync");
         }
-    }
-    else if(next_frame_requested>-1){
-        --next_frame_requested;
     }
 }
 
