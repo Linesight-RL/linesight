@@ -16,7 +16,7 @@ import win32gui
 from ReadWriteMemory import ReadWriteMemory
 from trackmania_rl.tminterface2 import TMInterface, MessageType
 
-from . import contact_materials, map_loader, misc, time_parsing
+from . import contact_materials, map_loader, misc
 
 def _set_window_focus(
     trackmania_window,
@@ -110,7 +110,6 @@ class TMInterfaceManager:
         self.max_minirace_duration_ms = max_minirace_duration_ms
         self.timeout_has_been_set = False
         self.interface_name = interface_name
-        self.digits_library = time_parsing.DigitsLibrary(base_dir / "data" / "digits_file.npy")
         self.msgtype_response_to_wakeup_TMI = None
         self.latest_map_path_requested = -2
         self.last_rollout_crashed = False
@@ -541,8 +540,8 @@ class TMInterfaceManager:
             elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
                 pc6 = time.perf_counter_ns()
                 frame = self.grab_screen()
-                time_to_grab_frame += pc6 - pc5
                 if (give_up_signal_has_been_sent and this_rollout_has_seen_t_negative and not this_rollout_is_finished and compute_action_asap):
+                    time_to_grab_frame += pc6 - pc5
                     assert self.latest_tm_engine_speed_requested == 0
                     assert not compute_action_asap_floats
                     pc7 = time.perf_counter_ns()
