@@ -439,7 +439,7 @@ class TMInterfaceManager:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.iface.rewind_to_current_state()
                             self.request_speed(0)
-                            compute_action_asap = not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
+                            compute_action_asap = True #not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
                             if compute_action_asap:
                                 compute_action_asap_floats = True
                                 self.iface.request_frame(misc.W_downsized,misc.H_downsized)
@@ -480,6 +480,9 @@ class TMInterfaceManager:
                     if (
                         this_rollout_has_seen_t_negative and not this_rollout_is_finished
                     ):  # We shouldn't take into account a race finished after we ended the rollout
+                        if (len(rollout_results['current_zone_idx'])==len(rollout_results['frames'])+1): #Handle the case where the floats have been computed but the race ended so we don't actually compute an action
+                            rollout_results['current_zone_idx'].pop(-1)
+
                         print(f"Z=({rollout_results['current_zone_idx'][-1]})", end="")
                         end_race_stats["race_finished"] = True
                         end_race_stats["race_time"] = simulation_state.race_time
