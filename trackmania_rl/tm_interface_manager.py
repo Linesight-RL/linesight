@@ -201,8 +201,6 @@ class TMInterfaceManager:
         compute_action_asap = False
         compute_action_asap_floats = False
 
-        n_frames_tmi_protection_triggered = 0
-
         last_known_simulation_state = None
 
         time_last_on_run_step = time.perf_counter()
@@ -381,7 +379,6 @@ class TMInterfaceManager:
                         end_race_stats["race_finished"] = False
                         end_race_stats["race_time"] = misc.cutoff_rollout_if_race_not_finished_within_duration_ms
                         end_race_stats["race_time_for_ratio"] = race_time
-                        end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
                         end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
                         end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
                         end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
@@ -457,7 +454,6 @@ class TMInterfaceManager:
                         end_race_stats["race_time"] = simulation_state.race_time
                         rollout_results["race_time"] = simulation_state.race_time
                         end_race_stats["race_time_for_ratio"] = simulation_state.race_time
-                        end_race_stats["n_frames_tmi_protection_triggered"] = n_frames_tmi_protection_triggered
                         end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
                         end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
                         end_race_stats["time_between_normal_on_run_steps"] = (
@@ -514,7 +510,7 @@ class TMInterfaceManager:
                     assert self.latest_tm_engine_speed_requested == 0
                     assert not compute_action_asap_floats
                     pc7 = time.perf_counter_ns()
-                    frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY),0)
+                    frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),0)
                     rollout_results["frames"].append(frame)
                     time_A_rgb2gray += pc7 - pc6
 
