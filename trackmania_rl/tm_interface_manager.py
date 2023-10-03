@@ -38,37 +38,6 @@ def ensure_not_minimized(trackmania_window):
         _set_window_focus(trackmania_window)
 
 
-def raw_rect_to_borderless_rect(rect, trackmania_window):  # https://stackoverflow.com/questions/51287338/python-2-7-get-ui-title-bar-size
-    clientRect = win32gui.GetClientRect(trackmania_window)
-    windowOffset = math.floor(((rect[2] - rect[0]) - clientRect[2]) / 2)
-    titleOffset = ((rect[3] - rect[1]) - clientRect[3]) - windowOffset
-    return (rect[0] + windowOffset, rect[1] + titleOffset, rect[2] - windowOffset, rect[3] - windowOffset)
-
-
-def _get_window_position(trackmania_window):
-    monitor_width = ctypes.windll.user32.GetSystemMetrics(0)
-    rect = win32gui.GetWindowPlacement(trackmania_window)[
-        4
-    ]  # Seems to be an alternative to win32gui.GetWindowRect(trackmania_window) which returns proper coordinates even for a minimized window
-    top = rect[1]
-    left = rect[0]
-    output_idx = 0
-    if not is_fullscreen(trackmania_window):
-        rect = raw_rect_to_borderless_rect(rect, trackmania_window)
-        top = rect[1] + round(((rect[3] - rect[1]) - misc.H_screen) / 2)
-        left = rect[0] + round(((rect[2] - rect[0]) - misc.W_screen) / 2)  # Could there be a 1 pixel error with these roundings?
-        if left >= monitor_width:
-            left -= monitor_width
-            output_idx += 1
-        if left < 0:
-            Secondary_Width = ctypes.windll.user32.GetSystemMetrics(78) - monitor_width
-            left = Secondary_Width + left
-            output_idx += 1
-    right = left + misc.W_screen
-    bottom = top + misc.H_screen
-    return (left, top, right, bottom), output_idx
-
-
 @numba.njit
 def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position):
     d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)

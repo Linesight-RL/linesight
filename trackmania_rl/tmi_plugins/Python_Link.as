@@ -210,7 +210,7 @@ int HandleMessage()
 
         case MessageType::CRaceFinished: {
             auto@ simManager = GetSimulationManager();
-            int is_race_finished = (simManager.PlayerInfo.RaceFinished?1:0);
+            int is_race_finished = ((simManager.PlayerInfo.RaceFinished || simManager.TickTime>simManager.RaceTime)?1:0);
             if(debug){
                 print("Server: Answering race_finished with "+is_race_finished);
             }
@@ -249,7 +249,6 @@ void OnRunStep(SimulationManager@ simManager){
     if(debug){
         print("Server: OnRunStep");
     }
-    auto@ state = simManager.SaveState();
 
     clientSock.Write(MessageType::SCRunStepSync);
     clientSock.Write(simManager.RaceTime);
