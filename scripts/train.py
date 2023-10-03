@@ -23,7 +23,6 @@ from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, t
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
 from trackmania_rl.temporary_crap import race_time_left_curves
-from trackmania_rl.time_parsing import DigitsLibrary, parse_time
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -224,14 +223,6 @@ map_cycle_iter = cycle(chain(*misc.map_cycle))
 next_map_tuple = next(map_cycle_iter)
 zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
-
-# ========================================================
-# Warmup numba
-# ========================================================
-parse_time(
-    np.random.randint(low=0, high=256, size=(misc.H_screen, misc.W_screen, 4), dtype=np.uint8),
-    DigitsLibrary(base_dir / "data" / "digits_file.npy"),
-)
 
 for loop_number in count(1):
     importlib.reload(misc)
