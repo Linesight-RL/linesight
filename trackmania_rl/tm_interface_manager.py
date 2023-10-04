@@ -554,6 +554,7 @@ class TMInterfaceManager:
                 if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
                     self.iface.execute_command("toggle_console")
                 self.request_speed(1)
+                self.iface.set_on_step_period(self.run_steps_per_action*10)
                 self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")

@@ -20,6 +20,7 @@ enum MessageType {
     CRaceFinished = 16,
     CRequestFrame = 17,
     CResetCamera = 18,
+    CSetOnStepPeriod = 19,
 }
 
 const bool debug = false;
@@ -28,6 +29,7 @@ const uint16 PORT = 8477;
 uint RESPONSE_TIMEOUT = 2000;
 int next_frame_requested_H = -1;
 int next_frame_requested_W = -1;
+int on_step_period = 10;
 bool on_connect_queued = false;
 
 void Init_Socket(){
@@ -233,6 +235,11 @@ int HandleMessage()
             break;
         }
 
+        case MessageType::CSetOnStepPeriod: {
+            on_step_period = clientSock.ReadInt32();
+            break;
+        }
+
         default: {
             log("Server: got unknown message "+type);
             break;
@@ -250,9 +257,11 @@ void OnRunStep(SimulationManager@ simManager){
         print("Server: OnRunStep");
     }
 
-    clientSock.Write(MessageType::SCRunStepSync);
-    clientSock.Write(simManager.RaceTime);
-    WaitForResponse(MessageType::SCRunStepSync);
+    if(simManager.RaceTime%on_step_period==0){
+        clientSock.Write(MessageType::SCRunStepSync);
+        clientSock.Write(simManager.RaceTime);
+        WaitForResponse(MessageType::SCRunStepSync);
+    }
 }
 
 void OnCheckpointCountChanged(SimulationManager@ simManager, int current, int target){

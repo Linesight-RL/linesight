@@ -28,6 +28,7 @@ class MessageType(IntEnum):
 	C_RACE_FINISHED = auto()
 	C_REQUEST_FRAME = auto()
 	C_RESET_CAMERA = auto()
+	C_SET_ON_STEP_PERIOD = auto()
 
 class TMInterface:
 	registered = False
@@ -95,9 +96,12 @@ class TMInterface:
 	def request_frame(self, W: int,H: int):
 		self.sock.sendall(struct.pack('iii', MessageType.C_REQUEST_FRAME, np.int32(W), np.int32(H)))
 
-	def get_frame(self,width: int,height: int):
+	def get_frame(self, width: int, height: int):
 		frame_data = self.sock.recv(width*height*4)
 		return np.frombuffer(frame_data, dtype=np.uint8).reshape((height,width,4))
+
+	def set_on_step_period(self,period: int):
+		self.sock.sendall(struct.pack('ii', MessageType.C_SET_ON_STEP_PERIOD, np.int32(period)))
 
 	def _respond_to_call(self, response_type):
 		self.sock.sendall(struct.pack('i', np.int32(response_type)))
