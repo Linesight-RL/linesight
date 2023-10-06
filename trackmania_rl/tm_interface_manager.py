@@ -200,6 +200,7 @@ class TMInterfaceManager:
         n_th_action_we_compute = 0
         compute_action_asap = False
         compute_action_asap_floats = False
+        frame_expected = False
 
         last_known_simulation_state = None
 
@@ -393,9 +394,13 @@ class TMInterfaceManager:
                         end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
                         end_race_stats["tmi_protection_cutoff"] = False
 
+                        self.iface.rewind_to_current_state()
+
                         self.msgtype_response_to_wakeup_TMI = msgtype
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
-                        self.iface.rewind_to_current_state()
+                        if frame_expected:
+                            self.iface.unrequest_frame()
+                            frame_expected = False
                         this_rollout_is_finished = True
 
                     if not this_rollout_is_finished:
@@ -408,6 +413,7 @@ class TMInterfaceManager:
                             compute_action_asap = True #not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
                             if compute_action_asap:
                                 compute_action_asap_floats = True
+                                frame_expected = True
                                 self.iface.request_frame(misc.W_downsized,misc.H_downsized)
                 # ============================
                 # END ON RUN STEP
@@ -474,8 +480,10 @@ class TMInterfaceManager:
 
                         this_rollout_is_finished = True  # SUCCESSFULLY FINISHED THE RACE
                         self.msgtype_response_to_wakeup_TMI = msgtype
-
                         self.iface.set_timeout(misc.timeout_between_runs_ms)
+                        if frame_expected:
+                            self.iface.unrequest_frame()
+                            frame_expected = False
 
                         # self.iface.set_speed(0)
                         # self.latest_tm_engine_speed_requested = 0
@@ -505,6 +513,7 @@ class TMInterfaceManager:
             elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
                 pc6 = time.perf_counter_ns()
                 frame = self.grab_screen()
+                frame_expected = False
                 if (give_up_signal_has_been_sent and this_rollout_has_seen_t_negative and not this_rollout_is_finished and compute_action_asap):
                     time_to_grab_frame += pc6 - pc5
                     assert self.latest_tm_engine_speed_requested == 0

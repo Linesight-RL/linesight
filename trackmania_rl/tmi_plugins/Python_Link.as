@@ -21,6 +21,7 @@ enum MessageType {
     CRequestFrame = 17,
     CResetCamera = 18,
     CSetOnStepPeriod = 19,
+    CUnrequestFrame = 20,
 }
 
 const bool debug = false;
@@ -240,6 +241,11 @@ int HandleMessage()
             break;
         }
 
+        case MessageType::CUnrequestFrame: {
+            next_frame_requested_H = -1;
+            break;
+        }
+
         default: {
             log("Server: got unknown message "+type);
             break;
@@ -323,6 +329,9 @@ void Render(){
     if(next_frame_requested_H>=0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
         auto frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
+        /*while(frame.Length!=uint(next_frame_requested_W*next_frame_requested_H*4)){
+            frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
+        }*/
         clientSock.Write(frame);
         WaitForResponse(MessageType::SCRequestedFrameSync);
         next_frame_requested_H = -1;
