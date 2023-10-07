@@ -89,6 +89,8 @@ class TMInterfaceManager:
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
         self.msgtype_response_to_wakeup_TMI = None
+        while not self.is_game_running():
+            time.sleep(0)
 
     def is_game_running(self):
         return "TmForever.exe" in (p.name() for p in psutil.process_iter())
