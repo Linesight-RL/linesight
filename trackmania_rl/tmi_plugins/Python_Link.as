@@ -97,7 +97,7 @@ int HandleMessage()
             if(debug){
                 print("Server: SetSpeed message");
             }
-            float new_speed = clientSock.ReadFloat();
+            const float new_speed = clientSock.ReadFloat();
             simManager.SetSpeed(new_speed);
             if(debug){
                 print("Server: Set speed to "+new_speed);
@@ -128,8 +128,8 @@ int HandleMessage()
         }
 
         case MessageType::CRewindToState: {
-            int32 stateLength = clientSock.ReadInt32();
-            auto stateData = clientSock.ReadBytes(stateLength);
+            const int32 stateLength = clientSock.ReadInt32();
+            const auto stateData = clientSock.ReadBytes(stateLength);
             auto@ simManager = GetSimulationManager();
             if(debug){
                 print("Server: rewind message");
@@ -152,7 +152,7 @@ int HandleMessage()
         case MessageType::CGetSimulationState: {
             auto@ simManager = GetSimulationManager();
             auto@ state = simManager.SaveState();
-            auto@ data = state.ToArray();
+            const auto@ data = state.ToArray();
             if(debug){
                 print("Server: get_simulation_state");
             }
@@ -166,10 +166,10 @@ int HandleMessage()
             if(debug){
                 print("Server: Set input state message");
             }
-            bool left = clientSock.ReadUint8()>0;
-            bool right = clientSock.ReadUint8()>0;
-            bool accelerate = clientSock.ReadUint8()>0;
-            bool brake = clientSock.ReadUint8()>0;
+            const bool left = clientSock.ReadUint8()>0;
+            const bool right = clientSock.ReadUint8()>0;
+            const bool accelerate = clientSock.ReadUint8()>0;
+            const bool brake = clientSock.ReadUint8()>0;
 
             if(debug){
                 print("Set input state to "+left+right+accelerate+brake);
@@ -213,7 +213,7 @@ int HandleMessage()
 
         case MessageType::CRaceFinished: {
             auto@ simManager = GetSimulationManager();
-            int is_race_finished = ((simManager.PlayerInfo.RaceFinished || simManager.TickTime>simManager.RaceTime)?1:0);
+            const int is_race_finished = ((simManager.PlayerInfo.RaceFinished || simManager.TickTime>simManager.RaceTime)?1:0);
             if(debug){
                 print("Server: Answering race_finished with "+is_race_finished);
             }
@@ -328,10 +328,7 @@ void Render(){
     }
     if(next_frame_requested_H>=0){
         clientSock.Write(MessageType::SCRequestedFrameSync);
-        auto frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
-        /*while(frame.Length!=uint(next_frame_requested_W*next_frame_requested_H*4)){
-            frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
-        }*/
+        const auto frame = Graphics::CaptureScreenshot(vec2(next_frame_requested_W,next_frame_requested_H));
         clientSock.Write(frame);
         WaitForResponse(MessageType::SCRequestedFrameSync);
         next_frame_requested_H = -1;
