@@ -12,7 +12,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
-import torch_optimizer
+#import torch_optimizer
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import ReplayBuffer
 from torchrl.data.replay_buffers import ListStorage
@@ -223,6 +223,12 @@ map_cycle_iter = cycle(chain(*misc.map_cycle))
 next_map_tuple = next(map_cycle_iter)
 zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
+
+# ========================================================
+# Warmup pytorch and numba
+# ========================================================
+trainer.infer_model(np.random.randint(low=0,high=255,size=(1,misc.H_downsized,misc.W_downsized),dtype=np.uint8),np.random.rand(misc.float_input_dim).astype(np.float32))
+tm_interface_manager.update_current_zone_idx(0,zone_centers,np.zeros(3))
 
 for loop_number in count(1):
     importlib.reload(misc)
