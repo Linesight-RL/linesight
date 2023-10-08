@@ -633,3 +633,5 @@ map_cycle = [
 #         False), 4),
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
+
+plot_race_time_left_curves = True if is_pb_desktop else False
