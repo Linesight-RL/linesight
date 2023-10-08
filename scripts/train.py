@@ -4,6 +4,7 @@ import random
 import shutil
 import time
 import typing
+import os
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -186,6 +187,9 @@ loss_test_history = []
 train_on_batch_duration_history = []
 grad_norm_history = []
 layer_grad_norm_history = defaultdict(list)
+
+#Copy Angelscript plugin to TMInterface dir
+shutil.copyfile(base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as", Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as")
 
 # ========================================================
 # Make the trainer
