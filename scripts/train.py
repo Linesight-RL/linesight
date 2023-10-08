@@ -1,5 +1,6 @@
 import importlib
 import math
+import os
 import random
 import shutil
 import time
@@ -12,7 +13,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
-import torch_optimizer
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import ReplayBuffer
 from torchrl.data.replay_buffers import ListStorage
@@ -23,7 +23,6 @@ from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, t
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
 from trackmania_rl.temporary_crap import race_time_left_curves
-from trackmania_rl.time_parsing import DigitsLibrary, parse_time
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -188,6 +187,12 @@ train_on_batch_duration_history = []
 grad_norm_history = []
 layer_grad_norm_history = defaultdict(list)
 
+# Copy Angelscript plugin to TMInterface dir
+shutil.copyfile(
+    base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as",
+    Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+)
+
 # ========================================================
 # Make the trainer
 # ========================================================
@@ -226,12 +231,13 @@ zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
 
 # ========================================================
-# Warmup numba
+# Warmup pytorch and numba
 # ========================================================
-parse_time(
-    np.random.randint(low=0, high=256, size=(misc.H_screen, misc.W_screen, 4), dtype=np.uint8),
-    DigitsLibrary(base_dir / "data" / "digits_file.npy"),
+trainer.infer_model(
+    np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
+    np.random.rand(misc.float_input_dim).astype(np.float32),
 )
+tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
 for loop_number in count(1):
     importlib.reload(misc)
@@ -297,8 +303,8 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 10 == 0:
-        race_time_left_curves(rollout_results, trainer)
+    # if not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 10 == 0:
+    #     race_time_left_curves(rollout_results, trainer)
 
     if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
