@@ -14,9 +14,11 @@ import win32com.client
 # noinspection PyPackageRequirements
 import win32gui
 from ReadWriteMemory import ReadWriteMemory
-from trackmania_rl.tminterface2 import TMInterface, MessageType
+
+from trackmania_rl.tminterface2 import MessageType, TMInterface
 
 from . import contact_materials, map_loader, misc
+
 
 def _set_window_focus(
     trackmania_window,
@@ -337,7 +339,7 @@ class TMInterfaceManager:
                 compute_action_asap_floats = False
 
             msgtype = self.iface._read_int32()
-            #print("msgtype",msgtype)
+            # print("msgtype",msgtype)
 
             # =============================================
             #        READ INCOMING MESSAGES
@@ -345,7 +347,7 @@ class TMInterfaceManager:
             if msgtype == int(MessageType.SC_RUN_STEP_SYNC):
                 # print("msg_on_run_step")
                 _time = self.iface._read_int32()
-                #print("_time",_time)
+                # print("_time",_time)
 
                 if _time > 0 and this_rollout_has_seen_t_negative:
                     if _time % 50 == 0:
@@ -412,11 +414,11 @@ class TMInterfaceManager:
                             last_known_simulation_state = self.iface.get_simulation_state()
                             self.iface.rewind_to_current_state()
                             self.request_speed(0)
-                            compute_action_asap = True #not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
+                            compute_action_asap = True  # not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
                             if compute_action_asap:
                                 compute_action_asap_floats = True
                                 frame_expected = True
-                                self.iface.request_frame(misc.W_downsized,misc.H_downsized)
+                                self.iface.request_frame(misc.W_downsized, misc.H_downsized)
                 # ============================
                 # END ON RUN STEP
                 # ============================
@@ -454,8 +456,10 @@ class TMInterfaceManager:
                     if (
                         this_rollout_has_seen_t_negative and not this_rollout_is_finished
                     ):  # We shouldn't take into account a race finished after we ended the rollout
-                        if (len(rollout_results['current_zone_idx'])==len(rollout_results['frames'])+1): #Handle the case where the floats have been computed but the race ended so we don't actually compute an action
-                            rollout_results['current_zone_idx'].pop(-1)
+                        if (
+                            len(rollout_results["current_zone_idx"]) == len(rollout_results["frames"]) + 1
+                        ):  # Handle the case where the floats have been computed but the race ended so we don't actually compute an action
+                            rollout_results["current_zone_idx"].pop(-1)
 
                         print(f"Z=({rollout_results['current_zone_idx'][-1]})", end="")
                         end_race_stats["race_finished"] = True
@@ -516,12 +520,17 @@ class TMInterfaceManager:
                 pc6 = time.perf_counter_ns()
                 frame = self.grab_screen()
                 frame_expected = False
-                if (give_up_signal_has_been_sent and this_rollout_has_seen_t_negative and not this_rollout_is_finished and compute_action_asap):
+                if (
+                    give_up_signal_has_been_sent
+                    and this_rollout_has_seen_t_negative
+                    and not this_rollout_is_finished
+                    and compute_action_asap
+                ):
                     time_to_grab_frame += pc6 - pc5
                     assert self.latest_tm_engine_speed_requested == 0
                     assert not compute_action_asap_floats
                     pc7 = time.perf_counter_ns()
-                    frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY),0)
+                    frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)
                     rollout_results["frames"].append(frame)
                     time_A_rgb2gray += pc7 - pc6
 
@@ -565,7 +574,7 @@ class TMInterfaceManager:
                 if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
                     self.iface.execute_command("toggle_console")
                 self.request_speed(1)
-                self.iface.set_on_step_period(self.run_steps_per_action*10)
+                self.iface.set_on_step_period(self.run_steps_per_action * 10)
                 self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                 self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                 self.iface.execute_command(f"set skip_map_load_screens true")

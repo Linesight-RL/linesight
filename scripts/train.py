@@ -1,10 +1,10 @@
 import importlib
 import math
+import os
 import random
 import shutil
 import time
 import typing
-import os
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -13,7 +13,8 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
-#import torch_optimizer
+
+# import torch_optimizer
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import ReplayBuffer
 from torchrl.data.replay_buffers import ListStorage
@@ -188,8 +189,11 @@ train_on_batch_duration_history = []
 grad_norm_history = []
 layer_grad_norm_history = defaultdict(list)
 
-#Copy Angelscript plugin to TMInterface dir
-shutil.copyfile(base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as", Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as")
+# Copy Angelscript plugin to TMInterface dir
+shutil.copyfile(
+    base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as",
+    Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+)
 
 # ========================================================
 # Make the trainer
@@ -231,8 +235,11 @@ map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregate
 # ========================================================
 # Warmup pytorch and numba
 # ========================================================
-trainer.infer_model(np.random.randint(low=0,high=255,size=(1,misc.H_downsized,misc.W_downsized),dtype=np.uint8),np.random.rand(misc.float_input_dim).astype(np.float32))
-tm_interface_manager.update_current_zone_idx(0,zone_centers,np.zeros(3))
+trainer.infer_model(
+    np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
+    np.random.rand(misc.float_input_dim).astype(np.float32),
+)
+tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
 for loop_number in count(1):
     importlib.reload(misc)
@@ -298,7 +305,7 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    #if not is_explo and (loop_number // 5) % 10 == 0:
+    # if not is_explo and (loop_number // 5) % 10 == 0:
     #    race_time_left_curves(rollout_results, trainer)
 
     if not tmi.last_rollout_crashed:
