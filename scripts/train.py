@@ -233,10 +233,11 @@ map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregate
 # ========================================================
 # Warmup pytorch and numba
 # ========================================================
-trainer.infer_model(
-    np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
-    np.random.rand(misc.float_input_dim).astype(np.float32),
-)
+for _ in range(5):
+    trainer.infer_model(
+        np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
+        np.random.rand(misc.float_input_dim).astype(np.float32),
+    )
 tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
 for loop_number in count(1):
