@@ -184,7 +184,12 @@ class TMInterfaceManager:
             self.iface = TMInterface(self.interface_name)
 
             if not self.iface.registered:
-                self.iface.register()
+                while True:
+                    try:
+                        self.iface.register()
+                        break
+                    except ConnectionRefusedError as e:
+                        print(e)
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
