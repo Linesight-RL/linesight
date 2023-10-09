@@ -49,9 +49,10 @@ class TMInterface:
         print("Shutting down...")
         self.close()
 
-    def register(self):
+    def register(self, timeout=None):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         signal.signal(signal.SIGINT, self.signal_handler)
+        self.sock.settimeout(timeout)
         self.sock.connect((HOST, PORT))
         self.registered = True
         print("Connected")
@@ -107,7 +108,9 @@ class TMInterface:
         self.sock.sendall(struct.pack("i", MessageType.C_UNREQUEST_FRAME))
 
     def get_frame(self, width: int, height: int):
-        frame_data = self.sock.recv(width * height * 4, socket.MSG_WAITALL)
+        frame_data = bytearray()
+        while len(frame_data)<width * height * 4:
+            frame_data.extend(self.sock.recv(width * height * 4))
         return np.frombuffer(frame_data, dtype=np.uint8).reshape((height, width, 4))
 
     def set_on_step_period(self, period: int):
