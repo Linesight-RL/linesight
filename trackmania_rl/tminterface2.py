@@ -52,7 +52,11 @@ class TMInterface:
     def register(self, timeout=None):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.sock.settimeout(timeout)
+        #https://stackoverflow.com/questions/45864828/msg-waitall-combined-with-so-rcvtimeo
+        #https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
+        if timeout is not None:
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, struct.pack('q', timeout*1000))
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('q', timeout*1000))
         self.sock.connect((HOST, PORT))
         self.registered = True
         print("Connected")
@@ -108,9 +112,7 @@ class TMInterface:
         self.sock.sendall(struct.pack("i", MessageType.C_UNREQUEST_FRAME))
 
     def get_frame(self, width: int, height: int):
-        frame_data = bytearray()
-        while len(frame_data)<width * height * 4:
-            frame_data.extend(self.sock.recv(width * height * 4))
+        frame_data = self.sock.recv(width * height * 4, socket.MSG_WAITALL)
         return np.frombuffer(frame_data, dtype=np.uint8).reshape((height, width, 4))
 
     def set_on_step_period(self, period: int):

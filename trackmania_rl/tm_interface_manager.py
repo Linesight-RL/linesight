@@ -36,7 +36,7 @@ def is_fullscreen(trackmania_window):
 
 def ensure_not_minimized(trackmania_window):
     if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
-        win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
+        win32gui.ShowWindow(trackmania_window, win32con.SW_RESTORE)  # Unminimize window
     if is_fullscreen(trackmania_window):
         _set_window_focus(trackmania_window)
 
