@@ -1,8 +1,8 @@
 import ctypes
 import math
 import os
-import time
 import socket
+import time
 
 import cv2
 import numba
@@ -586,7 +586,7 @@ class TMInterfaceManager:
                 else:
                     pass
         except socket.timeout as err:
-            print("Cutoff rollout due to TMI timeout",err)
+            print("Cutoff rollout due to TMI timeout", err)
             self.iface.close()
             end_race_stats["tmi_protection_cutoff"] = True
             self.last_rollout_crashed = True

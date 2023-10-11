@@ -52,11 +52,11 @@ class TMInterface:
     def register(self, timeout=None):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         signal.signal(signal.SIGINT, self.signal_handler)
-        #https://stackoverflow.com/questions/45864828/msg-waitall-combined-with-so-rcvtimeo
-        #https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
+        # https://stackoverflow.com/questions/45864828/msg-waitall-combined-with-so-rcvtimeo
+        # https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
         if timeout is not None:
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, struct.pack('q', timeout*1000))
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('q', timeout*1000))
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, struct.pack("q", timeout * 1000))
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("q", timeout * 1000))
         self.sock.connect((HOST, PORT))
         self.registered = True
         print("Connected")
