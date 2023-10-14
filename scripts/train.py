@@ -304,8 +304,8 @@ for loop_number in count(1):
         zone_centers=zone_centers,
     )
 
-    if misc.plot_race_time_left_curves and not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 10 == 0:
-        race_time_left_curves(rollout_results, trainer)
+    if misc.plot_race_time_left_curves and not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 20 == 0:
+        race_time_left_curves(rollout_results, trainer, save_dir)
 
     if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
@@ -381,7 +381,9 @@ for loop_number in count(1):
             print("\a")
             sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
             (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-            run_to_video.write_actions_in_tmi_format(rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"actions.txt")
+            run_to_video.write_actions_in_tmi_format(
+                rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"{map_name}_{end_race_stats['race_time']}.inputs"
+            )
             joblib.dump(
                 rollout_results["q_values"],
                 save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
