@@ -22,6 +22,7 @@ enum MessageType {
     CResetCamera = 18,
     CSetOnStepPeriod = 19,
     CUnrequestFrame = 20,
+    CToggleInterface = 21,
 }
 
 const bool debug = false;
@@ -243,6 +244,12 @@ int HandleMessage()
 
         case MessageType::CUnrequestFrame: {
             next_frame_requested_H = -1;
+            break;
+        }
+
+        case MessageType::CToggleInterface: {
+            const bool new_val = clientSock.ReadInt32()>0;
+            ToggleRaceInterface(new_val);
             break;
         }
 

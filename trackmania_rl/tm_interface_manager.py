@@ -86,6 +86,7 @@ class TMInterfaceManager:
         self.latest_map_path_requested = -2
         self.last_rollout_crashed = False
         self.last_game_reboot = time.perf_counter()
+        self.UI_disabled = False
 
     def launch_game(self):
         os.system("start .\\TMInterface.lnk")
@@ -128,6 +129,7 @@ class TMInterfaceManager:
         self.iface.execute_command(f"map {map_path}")
         # self.iface.execute_command("press delete")
         self.latest_map_path_requested = map_path
+        self.UI_disabled = False
 
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
         (
@@ -362,6 +364,10 @@ class TMInterfaceManager:
                     if not self.timeout_has_been_set:
                         self.iface.set_timeout(misc.timeout_during_run_ms)
                         self.timeout_has_been_set = True
+
+                    if not self.UI_disabled:
+                        self.iface.toggle_interface(False)
+                        self.UI_disabled = True
 
                     if not give_up_signal_has_been_sent:
                         if map_path != self.latest_map_path_requested:

@@ -32,6 +32,7 @@ class MessageType(IntEnum):
     C_RESET_CAMERA = auto()
     C_SET_ON_STEP_PERIOD = auto()
     C_UNREQUEST_FRAME = auto()
+    C_TOGGLE_INTERFACE = auto()
 
 
 class TMInterface:
@@ -74,7 +75,7 @@ class TMInterface:
     def get_simulation_state(self):
         self.sock.sendall(struct.pack("i", MessageType.C_GET_SIMULATION_STATE))
         state_length = self._read_int32()
-        state = SimStateData(self.sock.recv(state_length))
+        state = SimStateData(self.sock.recv(state_length, socket.MSG_WAITALL))
         state.cp_data.resize(CheckpointData.cp_states_field, state.cp_data.cp_states_length)
         state.cp_data.resize(CheckpointData.cp_times_field, state.cp_data.cp_times_length)
         return state
@@ -115,6 +116,9 @@ class TMInterface:
         frame_data = self.sock.recv(width * height * 4, socket.MSG_WAITALL)
         return np.frombuffer(frame_data, dtype=np.uint8).reshape((height, width, 4))
 
+    def toggle_interface(self, new_val: bool):
+        self.sock.sendall(struct.pack("ii", MessageType.C_TOGGLE_INTERFACE, np.int32(new_val)))
+
     def set_on_step_period(self, period: int):
         self.sock.sendall(struct.pack("ii", MessageType.C_SET_ON_STEP_PERIOD, np.int32(period)))
 
@@ -122,4 +126,4 @@ class TMInterface:
         self.sock.sendall(struct.pack("i", np.int32(response_type)))
 
     def _read_int32(self):
-        return struct.unpack("i", self.sock.recv(4))[0]
+        return struct.unpack("i", self.sock.recv(4, socket.MSG_WAITALL))[0]

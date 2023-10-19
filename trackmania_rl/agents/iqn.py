@@ -67,9 +67,10 @@ class Agent(torch.nn.Module):
             activation_function(inplace=True),
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
         )
-
-        self.iqn_fc = torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension)
-        self.lrelu = torch.nn.LeakyReLU()  # Needs inplace?
+        self.iqn_fc = torch.nn.Sequential(
+            torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension),
+            torch.nn.LeakyReLU(inplace=True)
+        )
         self.initialize_weights()
 
         self.n_actions = n_actions
@@ -85,7 +86,7 @@ class Agent(torch.nn.Module):
                 if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
                     nn_utilities.init_orthogonal(m, activation_gain)
         nn_utilities.init_orthogonal(
-            self.iqn_fc, np.sqrt(2) * activation_gain
+            self.iqn_fc[0], np.sqrt(2) * activation_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for module in [self.A_head[-1], self.V_head[-1]]:
             nn_utilities.init_orthogonal(module)
@@ -112,8 +113,6 @@ class Agent(torch.nn.Module):
         # (8 or 32 initial random numbers, expanded with cos to iqn_embedding_dimension)
         # (batch_size*num_quantiles, dense_input_dimension)
         quantile_net = self.iqn_fc(quantile_net)
-        # (batch_size*num_quantiles, dense_input_dimension)
-        quantile_net = self.lrelu(quantile_net)
         # (batch_size*num_quantiles, dense_input_dimension)
         concat = concat.repeat(num_quantiles, 1)
         # (batch_size*num_quantiles, dense_input_dimension)
