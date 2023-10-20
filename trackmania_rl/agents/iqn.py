@@ -67,10 +67,7 @@ class Agent(torch.nn.Module):
             activation_function(inplace=True),
             torch.nn.Linear(dense_hidden_dimension // 2, 1),
         )
-        self.iqn_fc = torch.nn.Sequential(
-            torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension),
-            torch.nn.LeakyReLU(inplace=True)
-        )
+        self.iqn_fc = torch.nn.Sequential(torch.nn.Linear(iqn_embedding_dimension, dense_input_dimension), torch.nn.LeakyReLU(inplace=True))
         self.initialize_weights()
 
         self.n_actions = n_actions
