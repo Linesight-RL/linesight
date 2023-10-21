@@ -366,7 +366,7 @@ class TMInterfaceManager:
                         self.timeout_has_been_set = True
 
                     if not self.UI_disabled:
-                        self.iface.toggle_interface(False)
+                        # self.iface.toggle_interface(False)
                         self.UI_disabled = True
 
                     if not give_up_signal_has_been_sent:

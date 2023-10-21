@@ -23,7 +23,7 @@ n_zone_centers_extrapolate_after_end_of_map = 1000
 n_prev_actions_in_inputs = 5
 n_contact_material_physics_behavior_types = 4  # See contact_materials.py
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
-cutoff_rollout_if_no_vcp_passed_within_duration_ms = 25_000
+cutoff_rollout_if_no_vcp_passed_within_duration_ms = 2_500
 
 temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
@@ -591,7 +591,7 @@ action_forward_idx = 0  # Accelerate forward, don't turn
 action_backward_idx = 6  # Go backward, don't turn
 
 distance_between_checkpoints = 10
-road_width = 40  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
+road_width = 100  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
 max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
