@@ -13,7 +13,8 @@ def fast_collate_cpu(batch, attr_name):
     data_type = elem.flat[0].dtype if elem_array else type(elem).__name__
     data_type = to_torch_dtype[str(data_type)]
     buffer = torch.empty(size=shape, dtype=data_type, pin_memory=True).numpy()
-    np.copyto(buffer, [getattr(memory, attr_name) for memory in batch])
+    source = [getattr(memory, attr_name) for memory in batch]
+    buffer[:] = source[:]
     return buffer
 
 

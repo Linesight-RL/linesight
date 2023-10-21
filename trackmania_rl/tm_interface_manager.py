@@ -374,6 +374,7 @@ class TMInterfaceManager:
                             self.request_map(map_path)
                         else:
                             self.iface.give_up()
+                        self.iface.rewind_to_current_state()
                         give_up_signal_has_been_sent = True
                     else:
                         if (

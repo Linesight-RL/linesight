@@ -473,10 +473,10 @@ for loop_number in count(1):
                 loss_test_history.append(loss)
                 print(f"BT   {loss=:<8.2e}")
             else:
-                train_start_time = time.time()
+                train_start_time = time.perf_counter()
                 loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
                 accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
-                train_on_batch_duration_history.append(time.time() - train_start_time)
+                train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
                 loss_history.append(loss)
                 if not math.isinf(grad_norm):
                     grad_norm_history.append(grad_norm)
