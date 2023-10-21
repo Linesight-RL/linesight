@@ -213,6 +213,7 @@ class TMInterfaceManager:
         compute_action_asap = False
         compute_action_asap_floats = False
         frame_expected = False
+        map_change_requested_time = math.inf
 
         last_known_simulation_state = None
 
@@ -365,16 +366,16 @@ class TMInterfaceManager:
                         self.iface.set_timeout(misc.timeout_during_run_ms)
                         self.timeout_has_been_set = True
 
-                    if not self.UI_disabled:
-                        # self.iface.toggle_interface(False)
+                    if not self.UI_disabled and _time<map_change_requested_time:
+                        self.iface.toggle_interface(False)
                         self.UI_disabled = True
 
                     if not give_up_signal_has_been_sent:
                         if map_path != self.latest_map_path_requested:
                             self.request_map(map_path)
+                            map_change_requested_time = _time
                         else:
                             self.iface.give_up()
-                        self.iface.rewind_to_current_state()
                         give_up_signal_has_been_sent = True
                     else:
                         if (
