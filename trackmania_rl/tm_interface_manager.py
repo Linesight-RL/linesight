@@ -366,7 +366,7 @@ class TMInterfaceManager:
                         self.iface.set_timeout(misc.timeout_during_run_ms)
                         self.timeout_has_been_set = True
 
-                    if not self.UI_disabled and _time<map_change_requested_time:
+                    if not self.UI_disabled and _time < map_change_requested_time:
                         self.iface.toggle_interface(False)
                         self.UI_disabled = True
 
