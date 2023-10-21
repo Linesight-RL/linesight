@@ -41,7 +41,7 @@ def race_time_left_curves(rollout_results, trainer, save_dir):
                 rollout_results_copy["state_float"][frame_number][0] = j
                 per_quantile_output = trainer.infer_model(
                     rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
-                )
+                )  # (iqn_k, n_actions)
                 for i, q_val in enumerate(list(per_quantile_output.mean(axis=0))):
                     # print(i, q_val)
                     q[i].append(q_val)
@@ -73,3 +73,37 @@ def race_time_left_curves(rollout_results, trainer, save_dir):
             plt.gcf().suptitle(f"crap_Q_{str(x_axis)[5:]}_{frame_number}.png")
             plt.savefig(save_dir / f"crap_Q_{str(x_axis)[5:]}_{frame_number}.png")
             plt.close()
+
+
+def tau_curves(rollout_results, trainer, save_dir):
+    if "race_time" not in rollout_results:
+        return
+
+    rollout_results_copy = rollout_results.copy()
+
+    tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+
+    n_best_actions_to_plot = 12
+
+    figs, axes = zip(*[plt.subplots() for _ in range(n_best_actions_to_plot)])
+
+    for frame_number in range(100, 500, 5):
+        if frame_number > len(rollout_results["frames"]) - 140:
+            break
+
+        per_quantile_output = trainer.infer_model(
+            rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
+        )  # (iqn_k, n_actions)
+
+        for i in range(n_best_actions_to_plot):
+            action_idx = per_quantile_output.mean(axis=0).argmax()
+            axes[i].plot(
+                tau.to(device="cpu"), per_quantile_output[:, action_idx] - per_quantile_output[:, action_idx].mean(), c="gray", alpha=0.2
+            )
+
+            per_quantile_output[:, action_idx] -= 10000
+
+    for i in range(n_best_actions_to_plot):
+        figs[i].suptitle(f"tau_{i}.png")
+        figs[i].savefig(save_dir / f"tau_{i}.png")
+        plt.close(figs[i])
