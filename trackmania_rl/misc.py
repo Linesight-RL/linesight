@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "315"
+run_name = "run_name_to_change"
 running_speed = 80 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -604,11 +604,53 @@ game_reboot_interval = 3600 * 4  # In seconds
 frames_before_save_best_runs = 1_500_000
 
 
-map_cycle = [
-    # repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True, False), 4),
-    # repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True, True), 1),
-    repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", True, True, False), 4),
-    repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", False, True, True), 1),
+nadeo_maps_to_train_and_test = [
+    "A01-Race",
+    # "A02-Race",
+    "A03-Race",
+    # "A04-Acrobatic",
+    "A05-Race",
+    # "A06-Obstacle",
+    "A07-Race",
+    # "A08-Endurance",
+    # "A09-Race",
+    # "A10-Acrobatic",
+    "A11-Race",
+    # "A12-Speed",
+    # "A13-Race",
+    "A14-Race",
+    "A15-Speed",
+    "B01-Race",
+    "B02-Race",
+    "B03-Race",
+    # "B04-Acrobatic",
+    "B05-Race",
+    # "B06-Obstacle",
+    # "B07-Race",
+    # "B08-Endurance",
+    # "B09-Acrobatic",
+    "B10-Speed",
+    # "B11-Race",
+    # "B12-Race",
+    # "B13-Obstacle",
+    "B14-Speed",
+    # "B15-Race",
+]
+
+map_cycle = []
+for map_name in nadeo_maps_to_train_and_test:
+    short_map_name = map_name[0:3]
+    map_cycle.append(repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl.npy", True, True, False), 4))
+    map_cycle.append(
+        repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl.npy", False, True, False), 1)
+    )
+
+
+map_cycle += [
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True, False), 4),
+    repeat(("map5", '"My Challenges\Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True, False), 1),
+    # repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", True, True, False), 4),
+    # repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", False, True, True), 1),
     # repeat(("wallb1", "Wallbang_full.Challenge.Gbx", "Wallbang_full_0.5m_cl.npy", True, True, False), 4),
     # repeat(("wallb1", "Wallbang_full.Challenge.Gbx", "Wallbang_full_0.5m_cl.npy", False, True, True), 1),
     # repeat(("yosh3", '"My Challenges\Yosh3.Challenge.Gbx"', "yosh3_0.5m_clprog_cut1.npy", True, True, False), 4),
@@ -627,8 +669,8 @@ map_cycle = [
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True, False), 1),
     # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True, False), 4),
     # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True, True), 1),
-    # repeat(("A02", '"Official Maps\White\A02-Race.Challenge.Gbx"', "A02-Race_10m_cl.npy", False, False, False), 1),
-    # repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_10m_cl.npy", False, False, True), 1),
+    repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl.npy", False, False, False), 1),
+    repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_0.5m_cl.npy", False, False, True), 1),
 ]
 
 # repeat(("parrots", '"ESL - Parrots are cool.Challenge.Gbx"', "parrots_are_cool_10m_cl.npy", True, True, False), 4),
@@ -640,4 +682,4 @@ map_cycle = [
 # repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
 #         False), 1),
 
-plot_race_time_left_curves = True if is_pb_desktop else False
+plot_race_time_left_curves = True if is_pb_desktop else True

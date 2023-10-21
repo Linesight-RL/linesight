@@ -22,6 +22,9 @@ def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
         "cyan",
     ]
 
+    (save_dir / "figures_A").mkdir(parents=True, exist_ok=True)
+    (save_dir / "figures_Q").mkdir(parents=True, exist_ok=True)
+
     rollout_results_copy = rollout_results.copy()
     for frame_number in [0, 5, 10, 20]:
         for x_axis in [
@@ -64,14 +67,14 @@ def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
                 plt.plot(x_axis, a[i], label=str(i), c=color_cycle[i])
             plt.gcf().legend()
             plt.gcf().suptitle(f"crap_A_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
-            plt.savefig(save_dir / f"crap_A_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
+            plt.savefig(save_dir / "figures_A" / f"crap_A_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
             plt.close()
 
             for i in reversed(range(12)):
                 plt.plot(x_axis, q[i], label=str(i), c=color_cycle[i])
             plt.gcf().legend()
             plt.gcf().suptitle(f"crap_Q_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
-            plt.savefig(save_dir / f"crap_Q_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
+            plt.savefig(save_dir / "figures_Q" / f"crap_Q_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
             plt.close()
 
 
@@ -103,7 +106,9 @@ def tau_curves(rollout_results, trainer, save_dir, map_name):
 
             per_quantile_output[:, action_idx] -= 10000
 
+    (save_dir / "figures_tau").mkdir(parents=True, exist_ok=True)
+
     for i in range(n_best_actions_to_plot):
         figs[i].suptitle(f"tau_{i}_{map_name}.png")
-        figs[i].savefig(save_dir / f"tau_{i}_{map_name}.png")
+        figs[i].savefig(save_dir / "figures_tau" / f"tau_{i}_{map_name}.png")
         plt.close(figs[i])
