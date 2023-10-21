@@ -6,7 +6,7 @@ import torch
 from . import misc
 
 
-def race_time_left_curves(rollout_results, trainer, save_dir):
+def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
     color_cycle = [
         "red",
         "forestgreen",
@@ -63,19 +63,19 @@ def race_time_left_curves(rollout_results, trainer, save_dir):
             for i in reversed(range(12)):
                 plt.plot(x_axis, a[i], label=str(i), c=color_cycle[i])
             plt.gcf().legend()
-            plt.gcf().suptitle(f"crap_A_{str(x_axis)[5:]}_{frame_number}.png")
-            plt.savefig(save_dir / f"crap_A_{str(x_axis)[5:]}_{frame_number}.png")
+            plt.gcf().suptitle(f"crap_A_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
+            plt.savefig(save_dir / f"crap_A_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
             plt.close()
 
             for i in reversed(range(12)):
                 plt.plot(x_axis, q[i], label=str(i), c=color_cycle[i])
             plt.gcf().legend()
-            plt.gcf().suptitle(f"crap_Q_{str(x_axis)[5:]}_{frame_number}.png")
-            plt.savefig(save_dir / f"crap_Q_{str(x_axis)[5:]}_{frame_number}.png")
+            plt.gcf().suptitle(f"crap_Q_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
+            plt.savefig(save_dir / f"crap_Q_{str(x_axis)[5:]}_{frame_number}_{map_name}.png")
             plt.close()
 
 
-def tau_curves(rollout_results, trainer, save_dir):
+def tau_curves(rollout_results, trainer, save_dir, map_name):
     if "race_time" not in rollout_results:
         return
 
@@ -104,6 +104,6 @@ def tau_curves(rollout_results, trainer, save_dir):
             per_quantile_output[:, action_idx] -= 10000
 
     for i in range(n_best_actions_to_plot):
-        figs[i].suptitle(f"tau_{i}.png")
-        figs[i].savefig(save_dir / f"tau_{i}.png")
+        figs[i].suptitle(f"tau_{i}_{map_name}.png")
+        figs[i].savefig(save_dir / f"tau_{i}_{map_name}.png")
         plt.close(figs[i])
