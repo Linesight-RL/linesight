@@ -20,7 +20,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
 
-    number_memories_added = 0
+    number_memories_added_train = 0
+    number_memories_added_test = 0
     buffer_to_fill = buffer_test if random.random() < misc.buffer_test_ratio else buffer
 
     gammas = (gamma ** np.linspace(1, n_steps_max, n_steps_max)).astype(
@@ -85,6 +86,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 terminal_actions,
             ),
         )
-        number_memories_added += 1
+        if buffer_to_fill is buffer:
+            number_memories_added_train += 1
+        else:
+            number_memories_added_test += 1
 
-    return buffer, buffer_test, number_memories_added
+    return buffer, buffer_test, number_memories_added_train, number_memories_added_test

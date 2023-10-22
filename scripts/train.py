@@ -415,7 +415,8 @@ for loop_number in count(1):
         (
             buffer,
             buffer_test,
-            number_memories_added,
+            number_memories_added_train,
+            number_memories_added_test,
         ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
             buffer,
             buffer_test,
@@ -426,10 +427,10 @@ for loop_number in count(1):
             reward_per_ms_press_forward,
         )
 
-        accumulated_stats["cumul_number_memories_generated"] += number_memories_added
-        neural_net_reset_counter += number_memories_added
+        accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
+        neural_net_reset_counter += number_memories_added_train
         accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
-            misc.number_times_single_memory_is_used_before_discard * number_memories_added
+            misc.number_times_single_memory_is_used_before_discard * number_memories_added_train
         )
         print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
 
