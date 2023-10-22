@@ -522,6 +522,7 @@ class TMInterfaceManager:
                 elif msgtype == int(MessageType.SC_LAP_COUNT_CHANGED_SYNC):
                     print("LAP ", end="")
                     self.iface._read_int32()
+                    self.iface._read_int32()
                     self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
                     pc6 = time.perf_counter_ns()
