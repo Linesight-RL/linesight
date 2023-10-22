@@ -23,6 +23,7 @@ enum MessageType {
     CSetOnStepPeriod = 19,
     CUnrequestFrame = 20,
     CToggleInterface = 21,
+    CIsInMenus = 22,
 }
 
 const bool debug = false;
@@ -242,6 +243,12 @@ int HandleMessage()
         case MessageType::CToggleInterface: {
             const bool new_val = clientSock.ReadInt32()>0;
             ToggleRaceInterface(new_val);
+            break;
+        }
+
+        case MessageType::CIsInMenus: {
+            const int response = GetCurrentGameState()==TM::GameState::Menus? 1 : 0;
+            clientSock.Write(response);
             break;
         }
 

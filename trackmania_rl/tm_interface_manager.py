@@ -587,7 +587,7 @@ class TMInterfaceManager:
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"cam 1")
                     self.iface.execute_command(f"set temp_save_states_collect false")
-                    if map_path != self.latest_map_path_requested:
+                    if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
                         self.request_map(map_path)
                     self.iface._respond_to_call(msgtype)
