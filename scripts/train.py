@@ -391,19 +391,19 @@ for loop_number in count(1):
             )
             torch.save(
                 model1.state_dict(),
-                save_dir / "best_runs" / sub_folder_name / "weights1.torch",
+                save_dir / "best_runs" / "weights1.torch",
             )
             torch.save(
                 model2.state_dict(),
-                save_dir / "best_runs" / sub_folder_name / "weights2.torch",
+                save_dir / "best_runs" / "weights2.torch",
             )
             torch.save(
                 optimizer1.state_dict(),
-                save_dir / "best_runs" / sub_folder_name / "optimizer1.torch",
+                save_dir / "best_runs" / "optimizer1.torch",
             )
             torch.save(
                 scaler.state_dict(),
-                save_dir / "best_runs" / sub_folder_name / "scaler.torch",
+                save_dir / "best_runs" / "scaler.torch",
             )
             shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
