@@ -26,7 +26,10 @@ def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
     (save_dir / "figures_Q").mkdir(parents=True, exist_ok=True)
 
     rollout_results_copy = rollout_results.copy()
-    for frame_number in [0, 5, 10, 20]:
+    for frame_number in [0, 5, 10, 20, -180, -140, -100, -60, -20]:
+        if frame_number < 0 and "race_time" not in rollout_results:
+            return
+
         for x_axis in [
             range(0, misc.temporal_mini_race_duration_actions),
             range(int(0.7 * misc.temporal_mini_race_duration_actions), misc.temporal_mini_race_duration_actions),
