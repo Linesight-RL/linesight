@@ -522,6 +522,7 @@ class TMInterfaceManager:
                 elif msgtype == int(MessageType.SC_LAP_COUNT_CHANGED_SYNC):
                     print("LAP ", end="")
                     self.iface._read_int32()
+                    self.iface._read_int32()
                     self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
                     pc6 = time.perf_counter_ns()
@@ -587,7 +588,7 @@ class TMInterfaceManager:
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"cam 1")
                     self.iface.execute_command(f"set temp_save_states_collect false")
-                    if map_path != self.latest_map_path_requested:
+                    if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
                         self.request_map(map_path)
                     self.iface._respond_to_call(msgtype)
