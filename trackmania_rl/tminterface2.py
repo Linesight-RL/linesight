@@ -35,6 +35,7 @@ class MessageType(IntEnum):
     C_TOGGLE_INTERFACE = auto()
     C_IS_IN_MENUS = auto()
 
+
 class TMInterface:
     registered = False
 
@@ -123,8 +124,8 @@ class TMInterface:
         self.sock.sendall(struct.pack("ii", MessageType.C_SET_ON_STEP_PERIOD, np.int32(period)))
 
     def is_in_menus(self):
-        self.sock.sendall(struct.pack('i', MessageType.C_IS_IN_MENUS))
-        return self._read_int32()>0
+        self.sock.sendall(struct.pack("i", MessageType.C_IS_IN_MENUS))
+        return self._read_int32() > 0
 
     def _respond_to_call(self, response_type):
         self.sock.sendall(struct.pack("i", np.int32(response_type)))
