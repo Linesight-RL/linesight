@@ -22,6 +22,7 @@ import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import load_next_map_zone_centers
+from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
 base_dir = Path(__file__).resolve().parents[1]
@@ -30,42 +31,49 @@ save_dir = base_dir / "save" / misc.run_name
 save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
-layout = {
-    "80": {
-        "eval_race_time_robust": [
-            "Multiline",
-            [
-                "eval_race_time_robust",
+layout_version = "layout_1"
+SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
+    {
+        layout_version: {
+            "eval_agg_ratio": [
+                "Multiline",
+                [
+                    "eval_agg_ratio_",
+                ],
             ],
-        ],
-        "explo_race_time_finished": [
-            "Multiline",
-            [
-                "explo_race_time_finished",
+            "eval_ratio_author": [
+                "Multiline",
+                [
+                    "eval_ratio_author_",
+                ],
             ],
-        ],
-        "loss": ["Multiline", ["loss$", "loss_test$"]],
-        "avg_Q": [
-            "Multiline",
-            ["avg_Q"],
-        ],
-        "single_zone_reached": [
-            "Multiline",
-            [
-                "single_zone_reached",
+            "explo_race_time_finished": [
+                "Multiline",
+                [
+                    "explo_race_time_finished",
+                ],
             ],
-        ],
-        "grad_norm_history": [
-            "Multiline",
-            [
-                "grad_norm_history_d9",
-                "grad_norm_history_d98",
+            "loss": ["Multiline", ["loss$", "loss_test$"]],
+            "avg_Q": [
+                "Multiline",
+                ["avg_Q"],
             ],
-        ],
-        "race_time_ratio": ["Multiline", ["race_time_ratio"]],
-    },
-}
-tensorboard_writer.add_custom_scalars(layout)
+            "single_zone_reached": [
+                "Multiline",
+                [
+                    "single_zone_reached",
+                ],
+            ],
+            "grad_norm_history": [
+                "Multiline",
+                [
+                    "grad_norm_history_d9",
+                    "grad_norm_history_d98",
+                ],
+            ],
+        },
+    }
+)
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
@@ -354,7 +362,18 @@ for loop_number in count(1):
             and end_race_stats["race_time"] < 1.02 * accumulated_stats["rolling_mean_ms"][map_name]
         ):
             race_stats_to_write[f"eval_race_time_robust_{map_name}"] = end_race_stats["race_time"] / 1000
-        for i in range(len(misc.inputs)):
+            if map_name in reference_times:
+                for reference_time_name in ["author", "gold"]:
+                    if reference_time_name in reference_times[map_name]:
+                        reference_time = reference_times[map_name][reference_time_name]
+                        race_stats_to_write[f"eval_ratio_{reference_time_name}_{map_name}"] = (
+                            100 * (end_race_stats["race_time"] / 1000) / reference_time
+                        )
+                        race_stats_to_write[f"eval_agg_ratio_{reference_time_name}"] = (
+                            100 * (end_race_stats["race_time"] / 1000) / reference_time
+                        )
+
+        for i in [0]:
             race_stats_to_write[f"q_value_{i}_starting_frame_{map_name}"] = end_race_stats[f"q_value_{i}_starting_frame"]
         if not is_explo:
             for i, split_time in enumerate(
