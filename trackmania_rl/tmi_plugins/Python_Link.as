@@ -266,10 +266,10 @@ void OnRunStep(SimulationManager@ simManager){
         return;
     }
     if(debug){
-        print("Server: OnRunStep");
+        print("Server: OnRunStep " + simManager.RaceTime);
     }
 
-    if(simManager.RaceTime%on_step_period==0){
+    if(simManager.RaceTime%on_step_period==0 || simManager.TickTime>simManager.RaceTime){
         clientSock.Write(MessageType::SCRunStepSync);
         clientSock.Write(simManager.RaceTime);
         WaitForResponse(MessageType::SCRunStepSync);
