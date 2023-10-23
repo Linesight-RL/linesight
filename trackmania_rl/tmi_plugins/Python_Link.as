@@ -316,6 +316,7 @@ void Main(){
 void OnGameStateChanged(TM::GameState state){
     if(state == TM::GameState::Menus && on_connect_queued){
         OnConnect();
+        on_connect_queued = false;
     }
 }
 
