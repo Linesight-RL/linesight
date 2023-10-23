@@ -21,7 +21,7 @@ from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampl
 import trackmania_rl.agents.iqn as iqn
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, tm_interface_manager
 from trackmania_rl.buffer_utilities import buffer_collate_function
-from trackmania_rl.map_loader import load_next_map_zone_centers
+from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
@@ -31,7 +31,7 @@ save_dir = base_dir / "save" / misc.run_name
 save_dir.mkdir(parents=True, exist_ok=True)
 tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
-layout_version = "layout_1"
+layout_version = "layout_2"
 SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
     {
         layout_version: {
@@ -41,10 +41,16 @@ SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom
                     "eval_agg_ratio_",
                 ],
             ],
-            "eval_ratio_author": [
+            "eval_ratio_trained_author": [
                 "Multiline",
                 [
-                    "eval_ratio_author_",
+                    "eval_ratio_trained_author",
+                ],
+            ],
+            "eval_ratio_blind_author": [
+                "Multiline",
+                [
+                    "eval_ratio_blind_author",
                 ],
             ],
             "explo_race_time_finished": [
@@ -110,6 +116,7 @@ print(model1)
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
 accumulated_stats["rolling_mean_ms"] = {}
+previous_alltime_min = None
 
 
 # ========================================================
@@ -232,11 +239,13 @@ tmi = tm_interface_manager.TMInterfaceManager(
 )
 
 map_cycle_str = str(misc.map_cycle)
+set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
 map_cycle_iter = cycle(chain(*misc.map_cycle))
 
 next_map_tuple = next(map_cycle_iter)
 zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
 map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
+map_status = "trained" if map_name in set_maps_trained else "blind"
 
 # ========================================================
 # Warmup pytorch and numba
@@ -256,6 +265,7 @@ for loop_number in count(1):
     # ===============================================
     if str(misc.map_cycle) != map_cycle_str:
         map_cycle_str = str(misc.map_cycle)
+        set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
         map_cycle_iter = cycle(chain(*misc.map_cycle))
 
     # ===============================================
@@ -266,7 +276,7 @@ for loop_number in count(1):
     if next_map_tuple[2] != zone_centers_filename:
         zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
     map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
-
+    map_status = "trained" if map_name in set_maps_trained else "blind"
     # ===============================================
     #   VERY BASIC TRAINING ANNEALING
     # ===============================================
@@ -324,12 +334,16 @@ for loop_number in count(1):
         # ===============================================
         race_stats_to_write = {
             f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
-            f"explo_race_time_{map_name}" if is_explo else f"eval_race_time_{map_name}": end_race_stats["race_time"] / 1000,
-            f"explo_race_finished_{map_name}" if is_explo else f"eval_race_finished_{map_name}": end_race_stats["race_finished"],
+            f"explo_race_time_{map_status}_{map_name}"
+            if is_explo
+            else f"eval_race_time_{map_status}_{map_name}": end_race_stats["race_time"] / 1000,
+            f"explo_race_finished_{map_status}_{map_name}"
+            if is_explo
+            else f"eval_race_finished_{map_status}_{map_name}": end_race_stats["race_finished"],
             f"mean_action_gap_{map_name}": -(
                 np.array(rollout_results["q_values"]) - np.array(rollout_results["q_values"]).max(axis=1, initial=None).reshape(-1, 1)
             ).mean(),
-            f"single_zone_reached_{map_name}": rollout_results["furthest_zone_idx"],
+            f"single_zone_reached_{map_status}_{map_name}": rollout_results["furthest_zone_idx"],
             "time_to_answer_normal_step": end_race_stats["time_to_answer_normal_step"],
             "time_to_answer_action_step": end_race_stats["time_to_answer_action_step"],
             "time_between_normal_on_run_steps": end_race_stats["time_between_normal_on_run_steps"],
@@ -347,10 +361,12 @@ for loop_number in count(1):
         print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 
         if not is_explo:
-            race_stats_to_write[f"avg_Q_{map_name}"] = np.mean(rollout_results["q_values"])
+            race_stats_to_write[f"avg_Q_{map_status}_{map_name}"] = np.mean(rollout_results["q_values"])
 
         if end_race_stats["race_finished"]:
-            race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_name}"] = end_race_stats["race_time"] / 1000
+            race_stats_to_write[f"{'explo' if is_explo else 'eval'}_race_time_finished_{map_status}_{map_name}"] = (
+                end_race_stats["race_time"] / 1000
+            )
             if not is_explo:
                 accumulated_stats["rolling_mean_ms"][map_name] = (
                     accumulated_stats["rolling_mean_ms"].get(map_name, misc.cutoff_rollout_if_race_not_finished_within_duration_ms) * 0.9
@@ -361,15 +377,15 @@ for loop_number in count(1):
             and end_race_stats["race_finished"]
             and end_race_stats["race_time"] < 1.02 * accumulated_stats["rolling_mean_ms"][map_name]
         ):
-            race_stats_to_write[f"eval_race_time_robust_{map_name}"] = end_race_stats["race_time"] / 1000
+            race_stats_to_write[f"eval_race_time_robust_{map_status}_{map_name}"] = end_race_stats["race_time"] / 1000
             if map_name in reference_times:
                 for reference_time_name in ["author", "gold"]:
                     if reference_time_name in reference_times[map_name]:
                         reference_time = reference_times[map_name][reference_time_name]
-                        race_stats_to_write[f"eval_ratio_{reference_time_name}_{map_name}"] = (
+                        race_stats_to_write[f"eval_ratio_{map_status}_{reference_time_name}_{map_name}"] = (
                             100 * (end_race_stats["race_time"] / 1000) / reference_time
                         )
-                        race_stats_to_write[f"eval_agg_ratio_{reference_time_name}"] = (
+                        race_stats_to_write[f"eval_agg_ratio_{map_status}_{reference_time_name}"] = (
                             100 * (end_race_stats["race_time"] / 1000) / reference_time
                         )
 
@@ -641,13 +657,22 @@ for loop_number in count(1):
                 walltime=walltime_tb,
             )
 
+        previous_alltime_min = previous_alltime_min or copy.deepcopy(accumulated_stats["alltime_min_ms"])
+
         tensorboard_writer.add_text(
             "times_summary",
             f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} "
-            + " ".join([f"{k}: {v / 1000:.2f}" for k, v in accumulated_stats["alltime_min_ms"].items()]),
+            + " ".join(
+                [
+                    f"{'**' if v < previous_alltime_min[k] else ''}{k}: {v / 1000:.2f}{'**' if v < previous_alltime_min[k] else ''}"
+                    for k, v in accumulated_stats["alltime_min_ms"].items()
+                ]
+            ),
             global_step=accumulated_stats["cumul_number_frames_played"],
             walltime=walltime_tb,
         )
+
+        previous_alltime_min = copy.deepcopy(accumulated_stats["alltime_min_ms"])
 
         # ===============================================
         #   BUFFER STATS

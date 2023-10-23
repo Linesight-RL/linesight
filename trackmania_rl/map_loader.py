@@ -1,3 +1,6 @@
+import copy
+import itertools
+
 import numpy as np
 
 from . import misc
@@ -45,3 +48,10 @@ def precalculate_virtual_checkpoints_information(zone_centers):
         distance_from_start_track_to_prev_zone_transition,
         normalized_vector_along_track_axis,
     )
+
+
+def analyze_map_cycle(map_cycle):
+    set_all_maps = set(map(lambda x: x[0], (a for a in itertools.chain(*copy.deepcopy(misc.map_cycle)))))
+    set_maps_trained = set(map(lambda x: x[0], filter(lambda x: x[4], (a for a in itertools.chain(*copy.deepcopy(map_cycle))))))
+    set_maps_blind = set_all_maps - set_maps_trained
+    return set_maps_trained, set_maps_blind
