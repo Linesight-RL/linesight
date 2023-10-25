@@ -28,6 +28,7 @@ cutoff_rollout_if_no_vcp_passed_within_duration_ms = 2_500
 temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
 # If mini_race_time == mini_race_duration this is the end of the minirace
+margin_to_announce_finish_meters = 700
 
 epsilon_schedule = [
     (0, 0.1),
@@ -49,7 +50,7 @@ gamma = 1
 reward_per_ms_press_forward_schedule = [
     (0, 0),
 ]
-float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types
+float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types + 1
 float_hidden_dim = 256
 conv_head_output_dim = 5632
 dense_hidden_dimension = 1024
@@ -317,6 +318,7 @@ float_inputs_mean = np.array(
         1.17e01,
         1.01e02,
         # ==================== END   40 CP =====================
+        margin_to_announce_finish_meters,
     ]
 )
 
@@ -508,6 +510,7 @@ float_inputs_std = np.array(
         1.89e02,
         1.57e02,
         # ==================== END   40 CP =====================
+        margin_to_announce_finish_meters / 2,
     ]
 )
 

@@ -332,6 +332,13 @@ class TMInterfaceManager:
                             state_car_velocity_in_car_reference_system.ravel(),
                             state_y_map_vector_in_car_reference_system.ravel(),
                             state_zone_center_coordinates_in_car_reference_system.ravel(),
+                            min(
+                                misc.margin_to_announce_finish_meters,
+                                distance_from_start_track_to_prev_zone_transition[
+                                    len(zone_centers) - misc.n_zone_centers_extrapolate_after_end_of_map
+                                ]
+                                - distance_since_track_begin,
+                            ),
                         )
                     ).astype(np.float32)
 
