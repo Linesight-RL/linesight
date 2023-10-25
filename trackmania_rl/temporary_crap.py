@@ -115,3 +115,50 @@ def tau_curves(rollout_results, trainer, save_dir, map_name):
         figs[i].suptitle(f"tau_{i}_{map_name}.png")
         figs[i].savefig(save_dir / "figures_tau" / map_name / f"tau_{i}_{map_name}.png")
         plt.close(figs[i])
+
+
+def patrick_curves(rollout_results, trainer, save_dir, map_name):
+    if "race_time" not in rollout_results:
+        return
+
+    rollout_results_copy = rollout_results.copy()
+
+    tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+
+    horizons_to_plot = [140, 120, 100, 80, 60, 40, 20, 10]
+
+    figs, axes = zip(*[plt.subplots() for _ in range(len(horizons_to_plot))])
+
+    values_predicted = [[] for _ in horizons_to_plot]
+    values_observed = [[] for _ in horizons_to_plot]
+
+    for frame_number in range(0, len(rollout_results_copy["frames"]) - 200, 5):
+        for ihorz, horizon in enumerate(horizons_to_plot):
+            rollout_results_copy["state_float"][frame_number][0] = 140 - horizon
+
+            per_quantile_output = trainer.infer_model(
+                rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
+            )  # (iqn_k, n_actions)
+
+            action_idx = per_quantile_output.mean(axis=0).argmax()
+            values_predicted[ihorz].append(per_quantile_output[:, action_idx].mean())
+
+            values_observed[ihorz].append(
+                horizon * misc.ms_per_action * misc.constant_reward_per_ms
+                + misc.reward_per_m_advanced_along_centerline
+                * (
+                    rollout_results_copy["meters_advanced_along_centerline"][frame_number + horizon]
+                    - rollout_results_copy["meters_advanced_along_centerline"][frame_number]
+                )
+            )
+
+    (save_dir / "figures_patrick" / map_name).mkdir(parents=True, exist_ok=True)
+
+    for ihorz, horizon in enumerate(horizons_to_plot):
+        axes[ihorz].plot(range(len(values_predicted[ihorz])), values_predicted[ihorz], label="Value predicted")
+        axes[ihorz].plot(range(len(values_observed[ihorz])), values_observed[ihorz], label="Value observed")
+
+        figs[ihorz].suptitle(f"patrick_{horizon}_{map_name}.png")
+        figs[ihorz].legend()
+        figs[ihorz].savefig(save_dir / "figures_patrick" / map_name / f"patrick_{horizon}_{map_name}.png")
+        plt.close(figs[ihorz])

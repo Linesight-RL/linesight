@@ -24,7 +24,7 @@ from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, t
 from trackmania_rl.buffer_utilities import buffer_collate_function
 from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 from trackmania_rl.map_reference_times import reference_times
-from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
+from trackmania_rl.temporary_crap import patrick_curves, race_time_left_curves, tau_curves
 
 base_dir = Path(__file__).resolve().parents[1]
 
@@ -333,6 +333,7 @@ for loop_number in count(1):
     if misc.plot_race_time_left_curves and not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 17 == 0:
         race_time_left_curves(rollout_results, trainer, save_dir, map_name)
         tau_curves(rollout_results, trainer, save_dir, map_name)
+        # patrick_curves(rollout_results, trainer, save_dir, map_name)
 
     if not tmi.last_rollout_crashed:
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
