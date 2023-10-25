@@ -109,8 +109,8 @@ def make_untrained_agent():
     )
 
 
-model1 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last)
-model2 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last)
+model1 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last).train()
+model2 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last).train()
 
 print(model1)
 
@@ -317,6 +317,12 @@ for loop_number in count(1):
     # ===============================================
 
     rollout_start_time = time.time()
+
+    if model1.training and not is_explo:
+        model1.eval()
+    elif is_explo and not model1.training:
+        model1.train()
+
     rollout_results, end_race_stats = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
         map_path=map_path,
@@ -605,11 +611,12 @@ for loop_number in count(1):
         # ===============================================
 
         if not tmi.last_rollout_crashed:
+            if model1.training:
+                model1.eval()
             tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
             per_quantile_output = trainer.infer_model(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
             for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                 step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
-            model1.train()
 
         # ===============================================
         #   WRITE TO TENSORBOARD
