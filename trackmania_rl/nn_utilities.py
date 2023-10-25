@@ -1,6 +1,7 @@
 import math
 
 import torch
+from prettytable import PrettyTable
 
 
 def init_kaiming(layer, neg_slope=0, nonlinearity="leaky_relu"):
@@ -90,3 +91,18 @@ def from_linear_schedule(schedule, current_step):
         begin_value = schedule[schedule_end_index - 1][1]
         assert annealing_period > 0
         return begin_value + ((end_value - begin_value) * (current_step - schedule_begin_step)) / annealing_period
+
+
+def count_parameters(model):
+    # from https://stackoverflow.com/questions/49201236/check-the-total-number-of-parameters-in-a-pytorch-model
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        params = parameter.numel()
+        table.add_row([name, params])
+        total_params += params
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params

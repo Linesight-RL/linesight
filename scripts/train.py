@@ -113,6 +113,7 @@ model1 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch
 model2 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last).train()
 
 print(model1)
+nn_utilities.count_parameters(model1)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}

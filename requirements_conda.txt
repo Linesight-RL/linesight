@@ -12,3 +12,4 @@ typing
 numba
 tensorboard
 scipy
+prettytable
