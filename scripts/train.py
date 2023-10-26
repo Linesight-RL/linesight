@@ -96,8 +96,8 @@ np.random.seed(random_seed)
 # ========================================================
 
 
-def make_untrained_agent():
-    return iqn.Agent(
+def make_untrained_iqn_network():
+    return iqn.IQN_Network(
         float_inputs_dim=misc.float_input_dim,
         float_hidden_dim=misc.float_hidden_dim,
         conv_head_output_dim=misc.conv_head_output_dim,
@@ -109,11 +109,11 @@ def make_untrained_agent():
     )
 
 
-model1 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last).train()
-model2 = torch.jit.script(make_untrained_agent()).to("cuda", memory_format=torch.channels_last).train()
+online_network = torch.jit.script(make_untrained_iqn_network()).to("cuda", memory_format=torch.channels_last).train()
+target_network = torch.jit.script(make_untrained_iqn_network()).to("cuda", memory_format=torch.channels_last).train()
 
-print(model1)
-nn_utilities.count_parameters(model1)
+print(online_network)
+nn_utilities.count_parameters(online_network)
 
 accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
 accumulated_stats["alltime_min_ms"] = {}
@@ -126,8 +126,8 @@ previous_alltime_min = None
 # ========================================================
 # noinspection PyBroadException
 try:
-    model1.load_state_dict(torch.load(save_dir / "weights1.torch"))
-    model2.load_state_dict(torch.load(save_dir / "weights2.torch"))
+    online_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
+    target_network.load_state_dict(torch.load(save_dir / "weights2.torch"))
     print(" =========================     Weights loaded !     ================================")
 except:
     print(" Could not load weights")
@@ -148,27 +148,11 @@ neural_net_reset_counter = 0
 single_reset_flag = misc.single_reset_flag
 
 optimizer1 = torch.optim.RAdam(
-    model1.parameters(),
+    online_network.parameters(),
     lr=nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
     eps=misc.adam_epsilon,
     betas=(misc.adam_beta1, misc.adam_beta2),
 )
-# optimizer1 = torch.optim.AdamW(
-#     model1.parameters(),
-#     lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
-#     eps=misc.adam_epsilon,
-#     betas=(0.9, 0.95),
-#     weight_decay=0.1,
-# )
-# optimizer1 = torch.optim.Adam(model1.parameters(), lr=learning_rate, eps=0.01)
-# optimizer1 = torch.optim.SGD(model1.parameters(), lr=nn_utilities.from_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]), momentum=0.8)
-# optimizer1 = torch_optimizer.Lamb(
-#     model1.parameters(),
-#     lr= 5e-5,
-#     betas=(0.9, 0.999),
-#     eps=1e-4,
-#     weight_decay=0,
-# )
 # optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
 scaler = torch.cuda.amp.GradScaler()
@@ -214,8 +198,8 @@ shutil.copyfile(
 # Make the trainer
 # ========================================================
 trainer = iqn.Trainer(
-    model=model1,
-    model2=model2,
+    online_network=online_network,
+    target_network=target_network,
     optimizer=optimizer1,
     scaler=scaler,
     batch_size=misc.batch_size,
@@ -229,7 +213,7 @@ trainer = iqn.Trainer(
 # ========================================================
 # Training loop
 # ========================================================
-model1.train()
+online_network.train()
 time_last_save = time.time()
 tmi = tm_interface_manager.TMInterfaceManager(
     base_dir=base_dir,
@@ -253,7 +237,7 @@ map_status = "trained" if map_name in set_maps_trained else "blind"
 # Warmup pytorch and numba
 # ========================================================
 for _ in range(5):
-    trainer.infer_model(
+    trainer.infer_online_network(
         np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
         np.random.rand(misc.float_input_dim).astype(np.float32),
     )
@@ -319,10 +303,10 @@ for loop_number in count(1):
 
     rollout_start_time = time.time()
 
-    if model1.training and not is_explo:
-        model1.eval()
-    elif is_explo and not model1.training:
-        model1.train()
+    if online_network.training and not is_explo:
+        online_network.eval()
+    elif is_explo and not online_network.training:
+        online_network.train()
 
     rollout_results, end_race_stats = tmi.rollout(
         exploration_policy=trainer.get_exploration_action,
@@ -434,11 +418,11 @@ for loop_number in count(1):
                 save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
             )
             torch.save(
-                model1.state_dict(),
+                online_network.state_dict(),
                 save_dir / "best_runs" / "weights1.torch",
             )
             torch.save(
-                model2.state_dict(),
+                target_network.state_dict(),
                 save_dir / "best_runs" / "weights2.torch",
             )
             torch.save(
@@ -487,21 +471,21 @@ for loop_number in count(1):
             single_reset_flag = misc.single_reset_flag
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
 
-            model3 = make_untrained_agent().to("cuda", memory_format=torch.channels_last)
-            nn_utilities.soft_copy_param(model1, model3, misc.overall_reset_mul_factor)
+            untrained_iqn_network = make_untrained_iqn_network().to("cuda", memory_format=torch.channels_last)
+            nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
 
             with torch.no_grad():
-                model1.A_head[2].weight = nn_utilities.linear_combination(
-                    model1.A_head[2].weight, model3.A_head[2].weight, misc.last_layer_reset_factor
+                online_network.A_head[2].weight = nn_utilities.linear_combination(
+                    online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
                 )
-                model1.A_head[2].bias = nn_utilities.linear_combination(
-                    model1.A_head[2].bias, model3.A_head[2].bias, misc.last_layer_reset_factor
+                online_network.A_head[2].bias = nn_utilities.linear_combination(
+                    online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
                 )
-                model1.V_head[2].weight = nn_utilities.linear_combination(
-                    model1.V_head[2].weight, model3.V_head[2].weight, misc.last_layer_reset_factor
+                online_network.V_head[2].weight = nn_utilities.linear_combination(
+                    online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
                 )
-                model1.V_head[2].bias = nn_utilities.linear_combination(
-                    model1.V_head[2].bias, model3.V_head[2].bias, misc.last_layer_reset_factor
+                online_network.V_head[2].bias = nn_utilities.linear_combination(
+                    online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
                 )
 
         # ===============================================
@@ -525,14 +509,14 @@ for loop_number in count(1):
                 loss_history.append(loss)
                 if not math.isinf(grad_norm):
                     grad_norm_history.append(grad_norm)
-                    for name, param in model1.named_parameters():
+                    for name, param in online_network.named_parameters():
                         layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
                         layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
 
                 accumulated_stats["cumul_number_batches_done"] += 1
                 print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
 
-                nn_utilities.custom_weight_decay(model1, 1 - weight_decay)
+                nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
 
                 # ===============================================
                 #   UPDATE TARGET NETWORK
@@ -546,7 +530,7 @@ for loop_number in count(1):
                         "cumul_number_single_memories_used_next_target_network_update"
                     ] += misc.number_memories_trained_on_between_target_network_updates
                     # print("UPDATE")
-                    nn_utilities.soft_copy_param(model2, model1, misc.soft_update_tau)
+                    nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
         print("")
 
     # ===============================================
@@ -613,10 +597,10 @@ for loop_number in count(1):
         # ===============================================
 
         if not tmi.last_rollout_crashed:
-            if model1.training:
-                model1.eval()
+            if online_network.training:
+                online_network.eval()
             tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-            per_quantile_output = trainer.infer_model(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
+            per_quantile_output = trainer.infer_online_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
             for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                 step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
 
@@ -625,7 +609,7 @@ for loop_number in count(1):
         # ===============================================
 
         walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
-        for name, param in model1.named_parameters():
+        for name, param in online_network.named_parameters():
             tensorboard_writer.add_scalar(
                 tag=f"layer_{name}_L2",
                 scalar_value=np.sqrt((param**2).mean().detach().cpu().item()),
@@ -634,7 +618,7 @@ for loop_number in count(1):
             )
         assert len(optimizer1.param_groups) == 1
         try:
-            for p, (name, _) in zip(optimizer1.param_groups[0]["params"], model1.named_parameters()):
+            for p, (name, _) in zip(optimizer1.param_groups[0]["params"], online_network.named_parameters()):
                 state = optimizer1.state[p]
                 exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
                 mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
@@ -705,8 +689,8 @@ for loop_number in count(1):
         #   SAVE
         # ===============================================
 
-        torch.save(model1.state_dict(), save_dir / "weights1.torch")
-        torch.save(model2.state_dict(), save_dir / "weights2.torch")
+        torch.save(online_network.state_dict(), save_dir / "weights1.torch")
+        torch.save(target_network.state_dict(), save_dir / "weights2.torch")
         torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
         torch.save(scaler.state_dict(), save_dir / "scaler.torch")
         joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")

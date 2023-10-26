@@ -21,7 +21,7 @@ class CReLU(torch.nn.Module):
         return torch.nn.functional.relu(x, inplace=self.inplace)
 
 
-class Agent(torch.nn.Module):
+class IQN_Network(torch.nn.Module):
     def __init__(
         self,
         float_inputs_dim,
@@ -128,8 +128,8 @@ class Agent(torch.nn.Module):
 
 class Trainer:
     __slots__ = (
-        "model",
-        "model2",
+        "online_network",
+        "target_network",
         "optimizer",
         "scaler",
         "batch_size",
@@ -146,8 +146,8 @@ class Trainer:
 
     def __init__(
         self,
-        model: Agent,
-        model2: Agent,
+        online_network: IQN_Network,
+        target_network: IQN_Network,
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
         batch_size: int,
@@ -157,8 +157,8 @@ class Trainer:
         gamma: float,
         tau_epsilon_boltzmann: float,
     ):
-        self.model = model
-        self.model2 = model2
+        self.online_network = online_network
+        self.target_network = target_network
         self.optimizer = optimizer
         self.scaler = scaler
         self.batch_size = batch_size
@@ -197,24 +197,24 @@ class Trainer:
                 gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 actions = actions.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
-                #   Use model2 to evaluate the action chosen, per quantile.
+                #   Use target_network to evaluate the action chosen, per quantile.
                 #
-                q__stpo__model2__quantiles_tau2, tau2 = self.model2(
+                q__stpo__target__quantiles_tau2, tau2 = self.target_network(
                     next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
                 )  # (batch_size*iqn_n,n_actions)
                 #
-                #   Use model to choose an action for next state.
+                #   Use online network to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
                 if misc.use_ddqn:
-                    a__tpo__model__reduced_repeated = (
-                        self.model(
+                    a__tpo__online__reduced_repeated = (
+                        self.online_network(
                             next_state_img_tensor,
                             next_state_float_tensor,
                             self.iqn_n,
                             tau=None,
                         )[0]
-                        .reshape([self.iqn_n, self.batch_size, self.model.n_actions])
+                        .reshape([self.iqn_n, self.batch_size, self.online_network.n_actions])
                         .mean(dim=0)
                         .argmax(dim=1, keepdim=True)
                         .repeat([self.iqn_n, 1])
@@ -222,12 +222,12 @@ class Trainer:
                     #
                     #   Build IQN target on tau2 quantiles
                     #
-                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.gather(
-                        1, a__tpo__model__reduced_repeated
+                    outputs_target_tau2 = rewards + gammas_terminal * q__stpo__target__quantiles_tau2.gather(
+                        1, a__tpo__online__reduced_repeated
                     )  # (batch_size*iqn_n, 1)
                 else:
                     outputs_target_tau2 = (
-                        rewards + gammas_terminal * q__stpo__model2__quantiles_tau2.max(dim=1, keepdim=True)[0]
+                        rewards + gammas_terminal * q__stpo__target__quantiles_tau2.max(dim=1, keepdim=True)[0]
                     )  # (batch_size*iqn_n, 1)
 
                 #
@@ -237,12 +237,12 @@ class Trainer:
                     0, 1
                 )  # (batch_size, iqn_n, 1)
 
-            q__st__model__quantiles_tau3, tau3 = self.model(
+            q__st__online__quantiles_tau3, tau3 = self.online_network(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
 
             outputs_tau3 = (
-                q__st__model__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
+                q__st__online__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
             TD_error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
@@ -266,8 +266,8 @@ class Trainer:
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), misc.clip_grad_norm).detach().cpu().item()
-                torch.nn.utils.clip_grad_value_(self.model.parameters(), misc.clip_grad_value)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), misc.clip_grad_norm).detach().cpu().item()
+                torch.nn.utils.clip_grad_value_(self.online_network.parameters(), misc.clip_grad_value)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
@@ -279,12 +279,12 @@ class Trainer:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
 
-    def infer_model(self, img_inputs, float_inputs, tau=None):
+    def infer_online_network(self, img_inputs, float_inputs, tau=None):
         with torch.no_grad():
             state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
             q_values = (
-                self.model(
+                self.online_network(
                     state_img_tensor,
                     state_float_tensor,
                     self.iqn_k,
@@ -298,7 +298,7 @@ class Trainer:
             return q_values
 
     def get_exploration_action(self, img_inputs, float_inputs):
-        q_values = self.infer_model(img_inputs, float_inputs).mean(axis=0)
+        q_values = self.infer_online_network(img_inputs, float_inputs).mean(axis=0)
         r = random.random()
 
         if self.is_explo and r < self.epsilon:
