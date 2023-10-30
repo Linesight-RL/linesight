@@ -39,7 +39,8 @@ SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom
             "eval_agg_ratio": [
                 "Multiline",
                 [
-                    "eval_agg_ratio_",
+                    "eval_agg_ratio_trained_author",
+                    "eval_agg_ratio_blind_author",
                 ],
             ],
             "eval_ratio_trained_author": [
