@@ -64,7 +64,7 @@ prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER pa
 prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 100_000 if is_pb_desktop else 800_000
+memory_size = 50_000 if is_pb_desktop else 800_000
 memory_size_start_learn = 400
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
