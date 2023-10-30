@@ -187,4 +187,16 @@ reference_times = {
         "author": 133,
         "gold": 138,
     },
+    "yellowmile": {
+        "author": 40.10,
+        "gold": 43.0,
+    },
+    "te86": {
+        "author": 18.61,
+        "gold": 20.0,
+    },
+    "minishort037": {
+        "author": 16.42,
+        "gold": 18.0,
+    },
 }
