@@ -493,6 +493,9 @@ for loop_number in count(1):
         #   LEARN ON BATCH
         # ===============================================
 
+        if not online_network.training:
+            online_network.train()
+
         while (
             len(buffer) >= misc.memory_size_start_learn
             and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
