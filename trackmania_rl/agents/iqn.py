@@ -88,11 +88,9 @@ class IQN_Network(torch.nn.Module):
         for module in [self.A_head[-1], self.V_head[-1]]:
             nn_utilities.init_orthogonal(module)
 
-    def forward(
-        self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None, use_fp32: bool = False
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
-        img_outputs = self.img_head((img.to(torch.float32 if use_fp32 else torch.float16) - 128) / 128)  # PERF
+        img_outputs = self.img_head(img)
         # img_outputs = torch.zeros(batch_size, misc.conv_head_output_dim).to(device="cuda") # Uncomment to temporarily mask the img_head
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
         # (batch_size, dense_input_dimension) OK
@@ -279,9 +277,14 @@ class Trainer:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
 
-    def infer_online_network(self, img_inputs, float_inputs, tau=None):
+    def infer_online_network(self, img_inputs_uint8, float_inputs, tau=None):
         with torch.no_grad():
-            state_img_tensor = torch.from_numpy(img_inputs).unsqueeze(0).to("cuda", memory_format=torch.channels_last, non_blocking=True)
+            state_img_tensor = (
+                torch.from_numpy(img_inputs_uint8)
+                .unsqueeze(0)
+                .to("cuda", memory_format=torch.channels_last, non_blocking=True, dtype=torch.float32)
+                - 128
+            ) / 128
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
             q_values = (
                 self.online_network(
@@ -289,7 +292,6 @@ class Trainer:
                     state_float_tensor,
                     self.iqn_k,
                     tau=tau,  # torch.linspace(0.05, 0.95, self.iqn_k, device="cuda")[:, None],
-                    use_fp32=True,
                 )[0]
                 .cpu()
                 .numpy()
@@ -297,8 +299,8 @@ class Trainer:
             )
             return q_values
 
-    def get_exploration_action(self, img_inputs, float_inputs):
-        q_values = self.infer_online_network(img_inputs, float_inputs).mean(axis=0)
+    def get_exploration_action(self, img_inputs_uint8, float_inputs):
+        q_values = self.infer_online_network(img_inputs_uint8, float_inputs).mean(axis=0)
         r = random.random()
 
         if self.is_explo and r < self.epsilon:

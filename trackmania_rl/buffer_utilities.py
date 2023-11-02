@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torchvision.transforms.v2 as transforms
 
 from . import misc
 
@@ -84,6 +85,20 @@ def buffer_collate_function(batch):
             ],
         )
     )
+
+    state_img = (state_img.to(torch.float16) - 128) / 128
+    next_state_img = (next_state_img.to(torch.float16) - 128) / 128
+
+    if misc.apply_randomcrop_augmentation:
+        # Same transformation is applied for state and next_state.
+        # Different transformation is applied to each element in a batch.
+        i, j, h, w = transforms.RandomCrop.get_params(state_img, output_size=misc.cropped_size)
+        state_img = transforms.functional.crop(
+            transforms.functional.pad(state_img, padding=misc.n_pixels_to_crop_on_each_side, padding_mode="edge"), i, j, h, w
+        )
+        next_state_img = transforms.functional.crop(
+            transforms.functional.pad(next_state_img, padding=misc.n_pixels_to_crop_on_each_side, padding_mode="edge"), i, j, h, w
+        )
 
     if misc.apply_horizontal_flip_augmentation:
         # Apply Horizontal Flipping
