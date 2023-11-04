@@ -42,7 +42,7 @@ def extract_cp_distance_interval(raw_position_list: List, target_distance_betwee
     In short, this function resamples a path given in input to return regularly spaced checkpoints.
     """
     interpolation_function = make_interp_spline(x=range(len(raw_position_list)), y=raw_position_list, k=1)
-    raw_position_list = interpolation_function(np.arange(0, len(raw_position_list), 0.01))
+    raw_position_list = interpolation_function(np.arange(0, len(raw_position_list) - 1 + 1e-6, 0.01))
     a = np.array(raw_position_list)
     b = np.linalg.norm(a[:-1] - a[1:], axis=1)  # b[i] : distance traveled between point i and point i+1, for i > 0
     c = np.pad(b.cumsum(), (1, 0))  # c[i] : distance traveled between point 0 and point i
