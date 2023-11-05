@@ -643,9 +643,11 @@ nadeo_maps_to_train_and_test = [
 map_cycle = []
 for map_name in nadeo_maps_to_train_and_test:
     short_map_name = map_name[0:3]
-    map_cycle.append(repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl.npy", True, True, False), 4))
     map_cycle.append(
-        repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl.npy", False, True, False), 1)
+        repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", True, True, False), 4)
+    )
+    map_cycle.append(
+        repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", False, True, False), 1)
     )
 
 
@@ -672,7 +674,7 @@ map_cycle += [
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True, False), 1),
     # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True, False), 4),
     # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True, True), 1),
-    repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl.npy", False, False, False), 1),
+    repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl2.npy", False, False, False), 1),
     repeat(("yellowmile", f'"The Yellow Mile_.Challenge.Gbx"', "YellowMile_0.5m_cl.npy", False, False, False), 1),
     repeat(("te86", f'"te 86.Challenge.Gbx"', "te86_0.5m_cl.npy", False, False, False), 1),
     repeat(("minishort037", f'"Mini-Short.037.Challenge.Gbx"', "minishort037_0.5m_cl.npy", False, False, False), 1),
