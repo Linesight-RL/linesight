@@ -361,108 +361,6 @@ if __name__ == "__main__":
             tau_curves(rollout_results, inferer, save_dir, map_name)
             # patrick_curves(rollout_results, trainer, save_dir, map_name)
 
-        # ===============================================
-        #   FILL BUFFER WITH (S, A, R, S') transitions
-        # ===============================================
-        if fill_buffer:
-            (
-                buffer,
-                buffer_test,
-                number_memories_added_train,
-                number_memories_added_test,
-            ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-                buffer,
-                buffer_test,
-                rollout_results,
-                misc.n_steps,
-                misc.gamma,
-                misc.discard_non_greedy_actions_in_nsteps,
-                reward_per_ms_press_forward,
-            )
-
-            accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
-            Shared_Steps.value = accumulated_stats["cumul_number_memories_generated"]
-            neural_net_reset_counter += number_memories_added_train
-            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
-                misc.number_times_single_memory_is_used_before_discard * number_memories_added_train
-            )
-            print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
-
-            # ===============================================
-            #   PERIODIC RESET ?
-            # ===============================================
-
-            if neural_net_reset_counter >= misc.reset_every_n_frames_generated or single_reset_flag != misc.single_reset_flag:
-                neural_net_reset_counter = 0
-                single_reset_flag = misc.single_reset_flag
-                accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
-
-                untrained_iqn_network = make_untrained_iqn_network()
-                nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
-
-                with torch.no_grad():
-                    online_network.A_head[2].weight = nn_utilities.linear_combination(
-                        online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
-                    )
-                    online_network.A_head[2].bias = nn_utilities.linear_combination(
-                        online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
-                    )
-                    online_network.V_head[2].weight = nn_utilities.linear_combination(
-                        online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
-                    )
-                    online_network.V_head[2].bias = nn_utilities.linear_combination(
-                        online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
-                    )
-
-            # ===============================================
-            #   LEARN ON BATCH
-            # ===============================================
-
-            if not online_network.training:
-                online_network.train()
-
-            while (
-                len(buffer) >= misc.memory_size_start_learn
-                and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
-                <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
-            ):
-                if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-                    loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
-                    loss_test_history.append(loss)
-                    print(f"BT   {loss=:<8.2e}")
-                else:
-                    train_start_time = time.perf_counter()
-                    loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
-                    accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
-                    train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
-                    loss_history.append(loss)
-                    if not math.isinf(grad_norm):
-                        grad_norm_history.append(grad_norm)
-                        for name, param in online_network.named_parameters():
-                            layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
-                            layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
-
-                    accumulated_stats["cumul_number_batches_done"] += 1
-                    print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
-
-                    nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
-
-                    # ===============================================
-                    #   UPDATE TARGET NETWORK
-                    # ===============================================
-                    if (
-                        accumulated_stats["cumul_number_single_memories_used"]
-                        >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
-                    ):
-                        accumulated_stats["cumul_number_target_network_updates"] += 1
-                        accumulated_stats[
-                            "cumul_number_single_memories_used_next_target_network_update"
-                        ] += misc.number_memories_trained_on_between_target_network_updates
-                        # print("UPDATE")
-                        nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
-            print("")
-            Communication_Pipe.send(online_network.state_dict())
-
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
@@ -577,6 +475,108 @@ if __name__ == "__main__":
                     save_dir / "best_runs" / "scaler.torch",
                 )
                 shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
+
+        # ===============================================
+        #   FILL BUFFER WITH (S, A, R, S') transitions
+        # ===============================================
+        if fill_buffer:
+            (
+                buffer,
+                buffer_test,
+                number_memories_added_train,
+                number_memories_added_test,
+            ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+                buffer,
+                buffer_test,
+                rollout_results,
+                misc.n_steps,
+                misc.gamma,
+                misc.discard_non_greedy_actions_in_nsteps,
+                reward_per_ms_press_forward,
+            )
+
+            accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
+            Shared_Steps.value = accumulated_stats["cumul_number_memories_generated"]
+            neural_net_reset_counter += number_memories_added_train
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
+                misc.number_times_single_memory_is_used_before_discard * number_memories_added_train
+            )
+            print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
+
+            # ===============================================
+            #   PERIODIC RESET ?
+            # ===============================================
+
+            if neural_net_reset_counter >= misc.reset_every_n_frames_generated or single_reset_flag != misc.single_reset_flag:
+                neural_net_reset_counter = 0
+                single_reset_flag = misc.single_reset_flag
+                accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
+
+                untrained_iqn_network = make_untrained_iqn_network()
+                nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
+
+                with torch.no_grad():
+                    online_network.A_head[2].weight = nn_utilities.linear_combination(
+                        online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
+                    )
+                    online_network.A_head[2].bias = nn_utilities.linear_combination(
+                        online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
+                    )
+                    online_network.V_head[2].weight = nn_utilities.linear_combination(
+                        online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
+                    )
+                    online_network.V_head[2].bias = nn_utilities.linear_combination(
+                        online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
+                    )
+
+            # ===============================================
+            #   LEARN ON BATCH
+            # ===============================================
+
+            if not online_network.training:
+                online_network.train()
+
+            while (
+                len(buffer) >= misc.memory_size_start_learn
+                and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
+                <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
+            ):
+                if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
+                    loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
+                    loss_test_history.append(loss)
+                    print(f"BT   {loss=:<8.2e}")
+                else:
+                    train_start_time = time.perf_counter()
+                    loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
+                    accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
+                    train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
+                    loss_history.append(loss)
+                    if not math.isinf(grad_norm):
+                        grad_norm_history.append(grad_norm)
+                        for name, param in online_network.named_parameters():
+                            layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
+                            layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
+
+                    accumulated_stats["cumul_number_batches_done"] += 1
+                    print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
+
+                    nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
+
+                    # ===============================================
+                    #   UPDATE TARGET NETWORK
+                    # ===============================================
+                    if (
+                        accumulated_stats["cumul_number_single_memories_used"]
+                        >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
+                    ):
+                        accumulated_stats["cumul_number_target_network_updates"] += 1
+                        accumulated_stats[
+                            "cumul_number_single_memories_used_next_target_network_update"
+                        ] += misc.number_memories_trained_on_between_target_network_updates
+                        # print("UPDATE")
+                        nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
+            print("")
+            Communication_Pipe.send(online_network.state_dict())
 
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
