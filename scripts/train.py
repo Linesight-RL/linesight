@@ -7,6 +7,7 @@ import shutil
 import time
 import typing
 import ctypes
+import io
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -55,7 +56,7 @@ def make_untrained_iqn_network():
     )
     return torch.jit.script(model).to("cuda", memory_format=torch.channels_last).train()
 
-def CollectData(Communication_Pipe, Shared_Steps: mp.Value):
+def CollectData(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
     from trackmania_rl import tm_interface_manager
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 
@@ -131,9 +132,9 @@ def CollectData(Communication_Pipe, Shared_Steps: mp.Value):
         map_status = "trained" if map_name in set_maps_trained else "blind"
 
         #Check for weight update
-        if Communication_Pipe.poll():
-            while Communication_Pipe.poll(): #Make sure we get latest weights in the pipe, and make sure the pipe can't start accumulating
-                model_state_dict = Communication_Pipe.recv()
+        if Model_Queue.qsize()>0:
+            while Model_Queue.qsize()>0: #Make sure we get latest weights in the pipe, and make sure the pipe can't start accumulating
+                model_state_dict = Model_Queue.get()
             inference_network.load_state_dict(model_state_dict)
 
         # ===============================================
@@ -155,9 +156,9 @@ def CollectData(Communication_Pipe, Shared_Steps: mp.Value):
         rollout_duration = time.perf_counter() - rollout_start_time
 
         if not tmi.last_rollout_crashed:
-            Communication_Pipe.send((rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number))
+            Rollout_Queue.put((rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number))
 
-if __name__ == "__main__":
+def Learn(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
     tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
     layout_version = "layout_2"
@@ -320,13 +321,15 @@ if __name__ == "__main__":
         tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann
     )
 
-    #Start the worker process
-    Communication_Pipe, Worker_Pipe = mp.Pipe()
-    Worker_Process = mp.Process(target=CollectData, args=(Worker_Pipe,Shared_Steps))
-    Worker_Process.start()
+    def deepcopy_state_dict(state_dict):
+        copied_state_dict = {}
+        for key, tensor in state_dict.items():
+            # Clone the tensor and ensure it's moved out of shared memory
+            copied_state_dict[key] = tensor.detach().clone().cpu()
+        return copied_state_dict
 
     while True: #Trainer loop
-        rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number = Communication_Pipe.recv()
+        rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number = Rollout_Queue.get()
 
         importlib.reload(misc)
 
@@ -576,7 +579,8 @@ if __name__ == "__main__":
                         # print("UPDATE")
                         nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
             print("")
-            Communication_Pipe.send(online_network.state_dict())
+            weights_copy = deepcopy_state_dict(online_network.state_dict())
+            Model_Queue.put(weights_copy)
 
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
@@ -591,9 +595,9 @@ if __name__ == "__main__":
             step_stats = {
                 "gamma": misc.gamma,
                 "n_steps": misc.n_steps,
-                "epsilon": trainer.epsilon,
-                "epsilon_boltzmann": trainer.epsilon_boltzmann,
-                "tau_epsilon_boltzmann": trainer.tau_epsilon_boltzmann,
+                "epsilon": nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value),
+                "epsilon_boltzmann": nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, Shared_Steps.value),
+                "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
                 "learning_rate": learning_rate,
                 "weight_decay": weight_decay,
                 "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
@@ -641,13 +645,12 @@ if __name__ == "__main__":
             #   COLLECT IQN SPREAD
             # ===============================================
 
-            if not tmi.last_rollout_crashed:
-                if online_network.training:
-                    online_network.eval()
-                tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-                per_quantile_output = inferer.infer_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
-                for i, std in enumerate(list(per_quantile_output.std(axis=0))):
-                    step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+            if online_network.training:
+                online_network.eval()
+            tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+            per_quantile_output = inferer.infer_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
+            for i, std in enumerate(list(per_quantile_output.std(axis=0))):
+                step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
 
             # ===============================================
             #   WRITE TO TENSORBOARD
@@ -739,3 +742,16 @@ if __name__ == "__main__":
             torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
             torch.save(scaler.state_dict(), save_dir / "scaler.torch")
             joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")
+
+if __name__ == "__main__":
+    #Start the worker process
+    Rollout_Queue = mp.Queue()
+    Model_Queue = mp.Queue()
+    Worker_Process = mp.Process(target=CollectData, args=(Rollout_Queue,Model_Queue,Shared_Steps))
+    Worker_Process.start()
+
+    Learner_Process = mp.Process(target=Learn, args=(Rollout_Queue,Model_Queue,Shared_Steps))
+    Learner_Process.start()
+
+    Worker_Process.join()
+    Learner_Process.join()
