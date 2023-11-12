@@ -6,6 +6,7 @@ import random
 import shutil
 import time
 import typing
+import ctypes
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, count, cycle
@@ -14,74 +15,17 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import ReplayBuffer
 from torchrl.data.replay_buffers import ListStorage
 from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampler
 
 import trackmania_rl.agents.iqn as iqn
-from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video, tm_interface_manager
+from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video
 from trackmania_rl.buffer_utilities import buffer_collate_function
-from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import patrick_curves, race_time_left_curves, tau_curves
-
-base_dir = Path(__file__).resolve().parents[1]
-
-save_dir = base_dir / "save" / misc.run_name
-save_dir.mkdir(parents=True, exist_ok=True)
-tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
-
-layout_version = "layout_2"
-SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
-    {
-        layout_version: {
-            "eval_agg_ratio": [
-                "Multiline",
-                [
-                    "eval_agg_ratio_trained_author",
-                    "eval_agg_ratio_blind_author",
-                ],
-            ],
-            "eval_ratio_trained_author": [
-                "Multiline",
-                [
-                    "eval_ratio_trained_author",
-                ],
-            ],
-            "eval_ratio_blind_author": [
-                "Multiline",
-                [
-                    "eval_ratio_blind_author",
-                ],
-            ],
-            "explo_race_time_finished": [
-                "Multiline",
-                [
-                    "explo_race_time_finished",
-                ],
-            ],
-            "loss": ["Multiline", ["loss$", "loss_test$"]],
-            "avg_Q": [
-                "Multiline",
-                ["avg_Q"],
-            ],
-            "single_zone_reached": [
-                "Multiline",
-                [
-                    "single_zone_reached",
-                ],
-            ],
-            "grad_norm_history": [
-                "Multiline",
-                [
-                    "grad_norm_history_d9",
-                    "grad_norm_history_d98",
-                ],
-            ],
-        },
-    }
-)
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
@@ -92,13 +36,14 @@ torch.manual_seed(random_seed)
 random.seed(random_seed)
 np.random.seed(random_seed)
 
-# ========================================================
-# Create new stuff
-# ========================================================
+base_dir = Path(__file__).resolve().parents[1]
+save_dir = base_dir / "save" / misc.run_name
+save_dir.mkdir(parents=True, exist_ok=True)
 
+Shared_Steps = mp.Value(ctypes.c_int64)
 
 def make_untrained_iqn_network():
-    return iqn.IQN_Network(
+    model = iqn.IQN_Network(
         float_inputs_dim=misc.float_input_dim,
         float_hidden_dim=misc.float_hidden_dim,
         conv_head_output_dim=misc.conv_head_output_dim,
@@ -108,226 +53,419 @@ def make_untrained_iqn_network():
         float_inputs_mean=misc.float_inputs_mean,
         float_inputs_std=misc.float_inputs_std,
     )
+    return torch.jit.script(model).to("cuda", memory_format=torch.channels_last).train()
 
+def CollectData(Communication_Pipe: mp.connection.Connection, Shared_Steps: mp.Value):
+    from trackmania_rl import tm_interface_manager
+    from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 
-online_network = torch.jit.script(make_untrained_iqn_network()).to("cuda", memory_format=torch.channels_last).train()
-target_network = torch.jit.script(make_untrained_iqn_network()).to("cuda", memory_format=torch.channels_last).train()
-
-print(online_network)
-nn_utilities.count_parameters(online_network)
-
-accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
-accumulated_stats["alltime_min_ms"] = {}
-accumulated_stats["rolling_mean_ms"] = {}
-previous_alltime_min = None
-
-
-# ========================================================
-# Load existing stuff
-# ========================================================
-# noinspection PyBroadException
-try:
-    online_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
-    target_network.load_state_dict(torch.load(save_dir / "weights2.torch"))
-    print(" =========================     Weights loaded !     ================================")
-except:
-    print(" Could not load weights")
-
-# noinspection PyBroadException
-try:
-    accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
-    print(" =========================      Stats loaded !      ================================")
-except:
-    print(" Could not load stats")
-
-if "rolling_mean_ms" not in accumulated_stats.keys():
-    # Temporary to preserve compatibility with old runs that doesn't have this feature. To be removed later.
-    accumulated_stats["rolling_mean_ms"] = {}
-
-accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
-neural_net_reset_counter = 0
-single_reset_flag = misc.single_reset_flag
-
-optimizer1 = torch.optim.RAdam(
-    online_network.parameters(),
-    lr=nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
-    eps=misc.adam_epsilon,
-    betas=(misc.adam_beta1, misc.adam_beta2),
-)
-# optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
-
-scaler = torch.cuda.amp.GradScaler()
-buffer = ReplayBuffer(
-    storage=ListStorage(misc.memory_size),
-    batch_size=misc.batch_size,
-    collate_fn=buffer_collate_function,
-    prefetch=1,
-    sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
-    if misc.prio_alpha > 0
-    else RandomSampler(),
-)
-buffer_test = ReplayBuffer(
-    storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),
-    batch_size=misc.batch_size,
-    collate_fn=buffer_collate_function,
-    sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
-    if misc.prio_alpha > 0
-    else RandomSampler(),
-)
-
-# noinspection PyBroadException
-try:
-    optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
-    scaler.load_state_dict(torch.load(save_dir / "scaler.torch"))
-    print(" =========================     Optimizer loaded !     ================================")
-except:
-    print(" Could not load optimizer")
-
-loss_history = []
-loss_test_history = []
-train_on_batch_duration_history = []
-grad_norm_history = []
-layer_grad_norm_history = defaultdict(list)
-
-# Copy Angelscript plugin to TMInterface dir
-shutil.copyfile(
-    base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as",
-    Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
-)
-
-# ========================================================
-# Make the trainer
-# ========================================================
-trainer = iqn.Trainer(
-    online_network=online_network,
-    target_network=target_network,
-    optimizer=optimizer1,
-    scaler=scaler,
-    batch_size=misc.batch_size,
-    iqn_k=misc.iqn_k,
-    iqn_n=misc.iqn_n,
-    iqn_kappa=misc.iqn_kappa,
-    gamma=misc.gamma,
-    tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann,
-)
-
-# ========================================================
-# Training loop
-# ========================================================
-online_network.train()
-time_last_save = time.time()
-tmi = tm_interface_manager.TMInterfaceManager(
-    base_dir=base_dir,
-    running_speed=misc.running_speed,
-    run_steps_per_action=misc.tm_engine_step_per_action,
-    max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
-    max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
-    interface_name="TMInterface0",
-)
-
-map_cycle_str = str(misc.map_cycle)
-set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
-map_cycle_iter = cycle(chain(*misc.map_cycle))
-
-next_map_tuple = next(map_cycle_iter)
-zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
-map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
-map_status = "trained" if map_name in set_maps_trained else "blind"
-
-# ========================================================
-# Warmup pytorch and numba
-# ========================================================
-for _ in range(5):
-    trainer.infer_online_network(
-        np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
-        np.random.rand(misc.float_input_dim).astype(np.float32),
+    tmi = tm_interface_manager.TMInterfaceManager(
+        base_dir=base_dir,
+        running_speed=misc.running_speed,
+        run_steps_per_action=misc.tm_engine_step_per_action,
+        max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
+        max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
+        interface_name="TMInterface0",
     )
-tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
-for loop_number in count(1):
-    importlib.reload(misc)
+    inference_network = make_untrained_iqn_network()
+    try:
+        inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
+    except:
+        print("Worker could not load weights")
 
-    # ===============================================
-    #   DID THE CYCLE CHANGE ?
-    # ===============================================
-    if str(misc.map_cycle) != map_cycle_str:
-        map_cycle_str = str(misc.map_cycle)
-        set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
-        map_cycle_iter = cycle(chain(*misc.map_cycle))
+    inferer = iqn.Inferer(
+        inference_network,
+        misc.iqn_k,
+        misc.epsilon,
+        misc.epsilon_boltzmann,
+        misc.tau_epsilon_boltzmann
+        )
 
-    # ===============================================
-    #   GET NEXT MAP FROM CYCLE
-    # ===============================================
+    # ========================================================
+    # Warmup pytorch and numba
+    # ========================================================
+    for _ in range(5):
+        inferer.infer_online_network(
+            np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
+            np.random.rand(misc.float_input_dim).astype(np.float32),
+        )
+    tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
-    next_map_tuple = next(map_cycle_iter)
-    if next_map_tuple[2] != zone_centers_filename:
-        zone_centers = load_next_map_zone_centers(next_map_tuple[2], base_dir)
-    map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
+    # ========================================================
+    # Training loop
+    # ========================================================
+    inference_network.train()
+    time_last_save = time.time()
+
+    map_cycle_str = str(misc.map_cycle)
+    set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
+    map_cycle_iter = cycle(chain(*misc.map_cycle))
+
+    map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next(map_cycle_iter)
+    zone_centers = load_next_map_zone_centers(zone_centers_filename, base_dir)
     map_status = "trained" if map_name in set_maps_trained else "blind"
-    # ===============================================
-    #   VERY BASIC TRAINING ANNEALING
-    # ===============================================
 
-    reward_per_ms_press_forward = nn_utilities.from_linear_schedule(
-        misc.reward_per_ms_press_forward_schedule, accumulated_stats["cumul_number_memories_generated"]
+    for loop_number in count(1):
+        importlib.reload(misc)
+
+        inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value)
+        inferer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, Shared_Steps.value)
+        inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+
+        tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
+
+        # ===============================================
+        #   DID THE CYCLE CHANGE ?
+        # ===============================================
+        if str(misc.map_cycle) != map_cycle_str:
+            map_cycle_str = str(misc.map_cycle)
+            set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
+            map_cycle_iter = cycle(chain(*misc.map_cycle))
+
+        # ===============================================
+        #   GET NEXT MAP FROM CYCLE
+        # ===============================================
+
+        map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next(map_cycle_iter)
+        if zone_centers_filename != zone_centers_filename:
+            zone_centers = load_next_map_zone_centers(zone_centers_filename, base_dir)
+        map_status = "trained" if map_name in set_maps_trained else "blind"
+
+        #Check for weight update
+        if Communication_Pipe.poll():
+            while Communication_Pipe.poll(): #Make sure we get latest weights in the pipe, and make sure the pipe can't start accumulating
+                model_state_dict = Communication_Pipe.recv()
+            inference_network.load_state_dict(model_state_dict)
+
+        # ===============================================
+        #   PLAY ONE ROUND
+        # ===============================================
+
+        rollout_start_time = time.perf_counter()
+
+        if inference_network.training and not is_explo:
+            inference_network.eval()
+        elif is_explo and not inference_network.training:
+            inference_network.train()
+
+        rollout_results, end_race_stats = tmi.rollout(
+            exploration_policy=trainer.get_exploration_action,
+            map_path=map_path,
+            zone_centers=zone_centers,
+        )
+        rollout_duration = time.perf_counter() - rollout_start_time
+
+        if not tmi.last_rollout_crashed:
+            Communication_Pipe.send((rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, rollout_duration, loop_number))
+
+if __name__ == "__main__":
+    tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
+
+    layout_version = "layout_2"
+    SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
+        {
+            layout_version: {
+                "eval_agg_ratio": [
+                    "Multiline",
+                    [
+                        "eval_agg_ratio_trained_author",
+                        "eval_agg_ratio_blind_author",
+                    ],
+                ],
+                "eval_ratio_trained_author": [
+                    "Multiline",
+                    [
+                        "eval_ratio_trained_author",
+                    ],
+                ],
+                "eval_ratio_blind_author": [
+                    "Multiline",
+                    [
+                        "eval_ratio_blind_author",
+                    ],
+                ],
+                "explo_race_time_finished": [
+                    "Multiline",
+                    [
+                        "explo_race_time_finished",
+                    ],
+                ],
+                "loss": ["Multiline", ["loss$", "loss_test$"]],
+                "avg_Q": [
+                    "Multiline",
+                    ["avg_Q"],
+                ],
+                "single_zone_reached": [
+                    "Multiline",
+                    [
+                        "single_zone_reached",
+                    ],
+                ],
+                "grad_norm_history": [
+                    "Multiline",
+                    [
+                        "grad_norm_history_d9",
+                        "grad_norm_history_d98",
+                    ],
+                ],
+            },
+        }
     )
-    # LR and weight_decay calculation
-    learning_rate = nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
-    weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
-    # ===============================================
-    #   RELOAD
-    # ===============================================
+    # ========================================================
+    # Create new stuff
+    # ========================================================
 
-    for param_group in optimizer1.param_groups:
-        param_group["lr"] = learning_rate
-        param_group["epsilon"] = misc.adam_epsilon
-        param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
-    trainer.gamma = misc.gamma
-    trainer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-    tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
+    online_network = make_untrained_iqn_network()
+    target_network = make_untrained_iqn_network()
 
-    if isinstance(buffer._sampler, PrioritizedSampler):
-        buffer._sampler._alpha = misc.prio_alpha
-        buffer._sampler._beta = misc.prio_beta
-        buffer._sampler._eps = misc.prio_epsilon
+    print(online_network)
+    nn_utilities.count_parameters(online_network)
 
-    trainer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, accumulated_stats["cumul_number_memories_generated"])
-    trainer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(
-        misc.epsilon_boltzmann_schedule, accumulated_stats["cumul_number_memories_generated"]
+    accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
+    accumulated_stats["alltime_min_ms"] = {}
+    accumulated_stats["rolling_mean_ms"] = {}
+    previous_alltime_min = None
+
+
+    # ========================================================
+    # Load existing stuff
+    # ========================================================
+    # noinspection PyBroadException
+    try:
+        online_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
+        target_network.load_state_dict(torch.load(save_dir / "weights2.torch"))
+        print(" =========================     Weights loaded !     ================================")
+    except:
+        print(" Could not load weights")
+
+    # noinspection PyBroadException
+    try:
+        accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
+        print(" =========================      Stats loaded !      ================================")
+    except:
+        print(" Could not load stats")
+
+    if "rolling_mean_ms" not in accumulated_stats.keys():
+        # Temporary to preserve compatibility with old runs that doesn't have this feature. To be removed later.
+        accumulated_stats["rolling_mean_ms"] = {}
+
+    accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
+    neural_net_reset_counter = 0
+    single_reset_flag = misc.single_reset_flag
+
+    optimizer1 = torch.optim.RAdam(
+        online_network.parameters(),
+        lr=nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+        eps=misc.adam_epsilon,
+        betas=(misc.adam_beta1, misc.adam_beta2),
     )
-    trainer.is_explo = is_explo
+    # optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
-    # ===============================================
-    #   PLAY ONE ROUND
-    # ===============================================
-
-    rollout_start_time = time.time()
-
-    if online_network.training and not is_explo:
-        online_network.eval()
-    elif is_explo and not online_network.training:
-        online_network.train()
-
-    rollout_results, end_race_stats = tmi.rollout(
-        exploration_policy=trainer.get_exploration_action,
-        map_path=map_path,
-        zone_centers=zone_centers,
+    scaler = torch.cuda.amp.GradScaler()
+    buffer = ReplayBuffer(
+        storage=ListStorage(misc.memory_size),
+        batch_size=misc.batch_size,
+        collate_fn=buffer_collate_function,
+        prefetch=1,
+        sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+        if misc.prio_alpha > 0
+        else RandomSampler(),
+    )
+    buffer_test = ReplayBuffer(
+        storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),
+        batch_size=misc.batch_size,
+        collate_fn=buffer_collate_function,
+        sampler=PrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float)
+        if misc.prio_alpha > 0
+        else RandomSampler(),
     )
 
-    if misc.plot_race_time_left_curves and not tmi.last_rollout_crashed and not is_explo and (loop_number // 5) % 17 == 0:
-        race_time_left_curves(rollout_results, trainer, save_dir, map_name)
-        tau_curves(rollout_results, trainer, save_dir, map_name)
-        # patrick_curves(rollout_results, trainer, save_dir, map_name)
+    # noinspection PyBroadException
+    try:
+        optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
+        scaler.load_state_dict(torch.load(save_dir / "scaler.torch"))
+        print(" =========================     Optimizer loaded !     ================================")
+    except:
+        print(" Could not load optimizer")
 
-    if not tmi.last_rollout_crashed:
+    loss_history = []
+    loss_test_history = []
+    train_on_batch_duration_history = []
+    grad_norm_history = []
+    layer_grad_norm_history = defaultdict(list)
+
+    # Copy Angelscript plugin to TMInterface dir
+    shutil.copyfile(
+        base_dir / "trackmania_rl" / "tmi_plugins" / "Python_Link.as",
+        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+    )
+
+    # ========================================================
+    # Make the trainer
+    # ========================================================
+    trainer = iqn.Trainer(
+        online_network=online_network,
+        target_network=target_network,
+        optimizer=optimizer1,
+        scaler=scaler,
+        batch_size=misc.batch_size,
+        iqn_n=misc.iqn_n,
+        iqn_kappa=misc.iqn_kappa,
+        gamma=misc.gamma,
+    )
+
+    #Start the worker process
+    Communication_Pipe, Worker_Pipe = mp.Pipe()
+    Worker_Process = mp.Process(target=CollectData, args=(Worker_Pipe,Shared_Steps))
+    Worker_Process.start()
+
+    while True: #Trainer loop
+        rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, rollout_duration, loop_number = Communication_Pipe.recv()
+
+        importlib.reload(misc)
+
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+
+        for param_group in optimizer1.param_groups:
+            param_group["lr"] = learning_rate
+            param_group["epsilon"] = misc.adam_epsilon
+            param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
+        trainer.gamma = misc.gamma
+
+        # ===============================================
+        #   VERY BASIC TRAINING ANNEALING
+        # ===============================================
+
+        reward_per_ms_press_forward = nn_utilities.from_linear_schedule(
+            misc.reward_per_ms_press_forward_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
+        # LR and weight_decay calculation
+        learning_rate = nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+        weight_decay = misc.weight_decay_lr_ratio * learning_rate
+
+        if isinstance(buffer._sampler, PrioritizedSampler):
+            buffer._sampler._alpha = misc.prio_alpha
+            buffer._sampler._beta = misc.prio_beta
+            buffer._sampler._eps = misc.prio_epsilon
+
+        if misc.plot_race_time_left_curves and not is_explo and (loop_number // 5) % 17 == 0:
+            race_time_left_curves(rollout_results, trainer, save_dir, map_name)
+            tau_curves(rollout_results, trainer, save_dir, map_name)
+            # patrick_curves(rollout_results, trainer, save_dir, map_name)
+
+        # ===============================================
+        #   FILL BUFFER WITH (S, A, R, S') transitions
+        # ===============================================
+        if fill_buffer:
+            (
+                buffer,
+                buffer_test,
+                number_memories_added_train,
+                number_memories_added_test,
+            ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
+                buffer,
+                buffer_test,
+                rollout_results,
+                misc.n_steps,
+                misc.gamma,
+                misc.discard_non_greedy_actions_in_nsteps,
+                reward_per_ms_press_forward,
+            )
+
+            accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
+            Shared_Steps.value = accumulated_stats["cumul_number_memories_generated"]
+            neural_net_reset_counter += number_memories_added_train
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
+                misc.number_times_single_memory_is_used_before_discard * number_memories_added_train
+            )
+            print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
+
+            # ===============================================
+            #   PERIODIC RESET ?
+            # ===============================================
+
+            if neural_net_reset_counter >= misc.reset_every_n_frames_generated or single_reset_flag != misc.single_reset_flag:
+                neural_net_reset_counter = 0
+                single_reset_flag = misc.single_reset_flag
+                accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
+
+                untrained_iqn_network = make_untrained_iqn_network()
+                nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
+
+                with torch.no_grad():
+                    online_network.A_head[2].weight = nn_utilities.linear_combination(
+                        online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
+                    )
+                    online_network.A_head[2].bias = nn_utilities.linear_combination(
+                        online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
+                    )
+                    online_network.V_head[2].weight = nn_utilities.linear_combination(
+                        online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
+                    )
+                    online_network.V_head[2].bias = nn_utilities.linear_combination(
+                        online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
+                    )
+
+            # ===============================================
+            #   LEARN ON BATCH
+            # ===============================================
+
+            if not online_network.training:
+                online_network.train()
+
+            while (
+                len(buffer) >= misc.memory_size_start_learn
+                and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
+                <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
+            ):
+                if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
+                    loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
+                    loss_test_history.append(loss)
+                    print(f"BT   {loss=:<8.2e}")
+                else:
+                    train_start_time = time.perf_counter()
+                    loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
+                    accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
+                    train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
+                    loss_history.append(loss)
+                    if not math.isinf(grad_norm):
+                        grad_norm_history.append(grad_norm)
+                        for name, param in online_network.named_parameters():
+                            layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
+                            layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
+
+                    accumulated_stats["cumul_number_batches_done"] += 1
+                    print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
+
+                    nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
+
+                    # ===============================================
+                    #   UPDATE TARGET NETWORK
+                    # ===============================================
+                    if (
+                        accumulated_stats["cumul_number_single_memories_used"]
+                        >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
+                    ):
+                        accumulated_stats["cumul_number_target_network_updates"] += 1
+                        accumulated_stats[
+                            "cumul_number_single_memories_used_next_target_network_update"
+                        ] += misc.number_memories_trained_on_between_target_network_updates
+                        # print("UPDATE")
+                        nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
+            print("")
+            Communication_Pipe.send(online_network.state_dict())
+
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
 
         # ===============================================
         #   WRITE SINGLE RACE RESULTS TO TENSORBOARD
         # ===============================================
         race_stats_to_write = {
-            f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / ((time.time() - rollout_start_time) * 1000),
+            f"race_time_ratio_{map_name}": end_race_stats["race_time_for_ratio"] / (rollout_duration * 1000),
             f"explo_race_time_{map_status}_{map_name}"
             if is_explo
             else f"eval_race_time_{map_status}_{map_name}": end_race_stats["race_time"] / 1000,
@@ -400,301 +538,200 @@ for loop_number in count(1):
                 walltime=walltime_tb,
             )
 
-    # ===============================================
-    #   SAVE STUFF IF THIS WAS A GOOD RACE
-    # ===============================================
-
-    if not tmi.last_rollout_crashed and end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999):
-        # This is a new alltime_minimum
-        accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
-        if accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs:
-            print("\a")
-            sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
-            (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-            run_to_video.write_actions_in_tmi_format(
-                rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"{map_name}_{end_race_stats['race_time']}.inputs"
-            )
-            joblib.dump(
-                rollout_results["q_values"],
-                save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
-            )
-            torch.save(
-                online_network.state_dict(),
-                save_dir / "best_runs" / "weights1.torch",
-            )
-            torch.save(
-                target_network.state_dict(),
-                save_dir / "best_runs" / "weights2.torch",
-            )
-            torch.save(
-                optimizer1.state_dict(),
-                save_dir / "best_runs" / "optimizer1.torch",
-            )
-            torch.save(
-                scaler.state_dict(),
-                save_dir / "best_runs" / "scaler.torch",
-            )
-            shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
-
-    # ===============================================
-    #   FILL BUFFER WITH (S, A, R, S') transitions
-    # ===============================================
-
-    if fill_buffer and not tmi.last_rollout_crashed:
-        (
-            buffer,
-            buffer_test,
-            number_memories_added_train,
-            number_memories_added_test,
-        ) = buffer_management.fill_buffer_from_rollout_with_n_steps_rule(
-            buffer,
-            buffer_test,
-            rollout_results,
-            misc.n_steps,
-            misc.gamma,
-            misc.discard_non_greedy_actions_in_nsteps,
-            reward_per_ms_press_forward,
-        )
-
-        accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
-        neural_net_reset_counter += number_memories_added_train
-        accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
-            misc.number_times_single_memory_is_used_before_discard * number_memories_added_train
-        )
-        print(f" NMG={accumulated_stats['cumul_number_memories_generated']:<8}")
-
         # ===============================================
-        #   PERIODIC RESET ?
+        #   SAVE STUFF IF THIS WAS A GOOD RACE
         # ===============================================
 
-        if neural_net_reset_counter >= misc.reset_every_n_frames_generated or single_reset_flag != misc.single_reset_flag:
-            neural_net_reset_counter = 0
-            single_reset_flag = misc.single_reset_flag
-            accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
-
-            untrained_iqn_network = make_untrained_iqn_network().to("cuda", memory_format=torch.channels_last)
-            nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
-
-            with torch.no_grad():
-                online_network.A_head[2].weight = nn_utilities.linear_combination(
-                    online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
+        if end_race_stats["race_time"] < accumulated_stats["alltime_min_ms"].get(map_name, 99999999999):
+            # This is a new alltime_minimum
+            accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
+            if accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs:
+                print("\a")
+                sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
+                (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
+                run_to_video.write_actions_in_tmi_format(
+                    rollout_results["actions"], save_dir / "best_runs" / sub_folder_name / f"{map_name}_{end_race_stats['race_time']}.inputs"
                 )
-                online_network.A_head[2].bias = nn_utilities.linear_combination(
-                    online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
+                joblib.dump(
+                    rollout_results["q_values"],
+                    save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
                 )
-                online_network.V_head[2].weight = nn_utilities.linear_combination(
-                    online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
+                torch.save(
+                    online_network.state_dict(),
+                    save_dir / "best_runs" / "weights1.torch",
                 )
-                online_network.V_head[2].bias = nn_utilities.linear_combination(
-                    online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
+                torch.save(
+                    target_network.state_dict(),
+                    save_dir / "best_runs" / "weights2.torch",
                 )
+                torch.save(
+                    optimizer1.state_dict(),
+                    save_dir / "best_runs" / "optimizer1.torch",
+                )
+                torch.save(
+                    scaler.state_dict(),
+                    save_dir / "best_runs" / "scaler.torch",
+                )
+                shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
 
         # ===============================================
-        #   LEARN ON BATCH
+        #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
         # ===============================================
+        if save_aggregated_stats:
+            accumulated_stats["cumul_training_hours"] += (time.time() - time_last_save) / 3600
+            time_last_save = time.time()
 
-        if not online_network.training:
-            online_network.train()
-
-        while (
-            len(buffer) >= misc.memory_size_start_learn
-            and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
-            <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
-        ):
-            if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
-                loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
-                loss_test_history.append(loss)
-                print(f"BT   {loss=:<8.2e}")
-            else:
-                train_start_time = time.perf_counter()
-                loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
-                accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
-                train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
-                loss_history.append(loss)
-                if not math.isinf(grad_norm):
-                    grad_norm_history.append(grad_norm)
-                    for name, param in online_network.named_parameters():
-                        layer_grad_norm_history[f"L2_grad_norm_{name}"].append(torch.norm(param.grad.detach(), 2.0).item())
-                        layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
-
-                accumulated_stats["cumul_number_batches_done"] += 1
-                print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
-
-                nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
-
-                # ===============================================
-                #   UPDATE TARGET NETWORK
-                # ===============================================
-                if (
-                    accumulated_stats["cumul_number_single_memories_used"]
-                    >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
-                ):
-                    accumulated_stats["cumul_number_target_network_updates"] += 1
-                    accumulated_stats[
-                        "cumul_number_single_memories_used_next_target_network_update"
-                    ] += misc.number_memories_trained_on_between_target_network_updates
-                    # print("UPDATE")
-                    nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
-        print("")
-
-    # ===============================================
-    #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
-    # ===============================================
-    if save_aggregated_stats:
-        accumulated_stats["cumul_training_hours"] += (time.time() - time_last_save) / 3600
-        time_last_save = time.time()
-
-        # ===============================================
-        #   COLLECT VARIOUS STATISTICS
-        # ===============================================
-        step_stats = {
-            "gamma": misc.gamma,
-            "n_steps": misc.n_steps,
-            "epsilon": trainer.epsilon,
-            "epsilon_boltzmann": trainer.epsilon_boltzmann,
-            "tau_epsilon_boltzmann": trainer.tau_epsilon_boltzmann,
-            "learning_rate": learning_rate,
-            "weight_decay": weight_decay,
-            "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
-            "memory_size": len(buffer),
-            "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
-        }
-        if len(loss_history) > 0 and len(loss_test_history) > 0:
-            step_stats.update(
-                {
-                    "loss": np.mean(loss_history),
-                    "loss_test": np.mean(loss_test_history),
-                    "train_on_batch_duration": np.median(train_on_batch_duration_history),
-                    "grad_norm_history_q1": np.quantile(grad_norm_history, 0.25),
-                    "grad_norm_history_median": np.quantile(grad_norm_history, 0.5),
-                    "grad_norm_history_q3": np.quantile(grad_norm_history, 0.75),
-                    "grad_norm_history_d9": np.quantile(grad_norm_history, 0.9),
-                    "grad_norm_history_d98": np.quantile(grad_norm_history, 0.98),
-                    "grad_norm_history_max": np.max(grad_norm_history),
-                }
-            )
-            for key, val in layer_grad_norm_history.items():
+            # ===============================================
+            #   COLLECT VARIOUS STATISTICS
+            # ===============================================
+            step_stats = {
+                "gamma": misc.gamma,
+                "n_steps": misc.n_steps,
+                "epsilon": trainer.epsilon,
+                "epsilon_boltzmann": trainer.epsilon_boltzmann,
+                "tau_epsilon_boltzmann": trainer.tau_epsilon_boltzmann,
+                "learning_rate": learning_rate,
+                "weight_decay": weight_decay,
+                "discard_non_greedy_actions_in_nsteps": misc.discard_non_greedy_actions_in_nsteps,
+                "memory_size": len(buffer),
+                "number_times_single_memory_is_used_before_discard": misc.number_times_single_memory_is_used_before_discard,
+            }
+            if len(loss_history) > 0 and len(loss_test_history) > 0:
                 step_stats.update(
                     {
-                        f"{key}_median": np.quantile(val, 0.5),
-                        f"{key}_q3": np.quantile(val, 0.75),
-                        f"{key}_d9": np.quantile(val, 0.9),
-                        f"{key}_d98": np.quantile(val, 0.98),
-                        f"{key}_max": np.max(val),
+                        "loss": np.mean(loss_history),
+                        "loss_test": np.mean(loss_test_history),
+                        "train_on_batch_duration": np.median(train_on_batch_duration_history),
+                        "grad_norm_history_q1": np.quantile(grad_norm_history, 0.25),
+                        "grad_norm_history_median": np.quantile(grad_norm_history, 0.5),
+                        "grad_norm_history_q3": np.quantile(grad_norm_history, 0.75),
+                        "grad_norm_history_d9": np.quantile(grad_norm_history, 0.9),
+                        "grad_norm_history_d98": np.quantile(grad_norm_history, 0.98),
+                        "grad_norm_history_max": np.max(grad_norm_history),
                     }
                 )
+                for key, val in layer_grad_norm_history.items():
+                    step_stats.update(
+                        {
+                            f"{key}_median": np.quantile(val, 0.5),
+                            f"{key}_q3": np.quantile(val, 0.75),
+                            f"{key}_d9": np.quantile(val, 0.9),
+                            f"{key}_d98": np.quantile(val, 0.98),
+                            f"{key}_max": np.max(val),
+                        }
+                    )
 
-        for key, value in accumulated_stats.items():
-            if key not in ["alltime_min_ms", "rolling_mean_ms"]:
-                step_stats[key] = value
-        for key, value in accumulated_stats["alltime_min_ms"].items():
-            step_stats[f"alltime_min_ms_{map_name}"] = value
+            for key, value in accumulated_stats.items():
+                if key not in ["alltime_min_ms", "rolling_mean_ms"]:
+                    step_stats[key] = value
+            for key, value in accumulated_stats["alltime_min_ms"].items():
+                step_stats[f"alltime_min_ms_{map_name}"] = value
 
-        loss_history = []
-        loss_test_history = []
-        train_on_batch_duration_history = []
-        grad_norm_history = []
-        layer_grad_norm_history = defaultdict(list)
+            loss_history = []
+            loss_test_history = []
+            train_on_batch_duration_history = []
+            grad_norm_history = []
+            layer_grad_norm_history = defaultdict(list)
 
-        # ===============================================
-        #   COLLECT IQN SPREAD
-        # ===============================================
+            # ===============================================
+            #   COLLECT IQN SPREAD
+            # ===============================================
 
-        if not tmi.last_rollout_crashed:
-            if online_network.training:
-                online_network.eval()
-            tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-            per_quantile_output = trainer.infer_online_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
-            for i, std in enumerate(list(per_quantile_output.std(axis=0))):
-                step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
+            if not tmi.last_rollout_crashed:
+                if online_network.training:
+                    online_network.eval()
+                tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+                per_quantile_output = trainer.infer_online_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
+                for i, std in enumerate(list(per_quantile_output.std(axis=0))):
+                    step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
 
-        # ===============================================
-        #   WRITE TO TENSORBOARD
-        # ===============================================
+            # ===============================================
+            #   WRITE TO TENSORBOARD
+            # ===============================================
 
-        walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
-        for name, param in online_network.named_parameters():
-            tensorboard_writer.add_scalar(
-                tag=f"layer_{name}_L2",
-                scalar_value=np.sqrt((param**2).mean().detach().cpu().item()),
+            walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
+            for name, param in online_network.named_parameters():
+                tensorboard_writer.add_scalar(
+                    tag=f"layer_{name}_L2",
+                    scalar_value=np.sqrt((param**2).mean().detach().cpu().item()),
+                    global_step=accumulated_stats["cumul_number_frames_played"],
+                    walltime=walltime_tb,
+                )
+            assert len(optimizer1.param_groups) == 1
+            try:
+                for p, (name, _) in zip(optimizer1.param_groups[0]["params"], online_network.named_parameters()):
+                    state = optimizer1.state[p]
+                    exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
+                    mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
+                    tensorboard_writer.add_scalar(
+                        tag=f"lr_ratio_{name}_L2",
+                        scalar_value=np.sqrt((mod_lr**2).mean().detach().cpu().item()),
+                        global_step=accumulated_stats["cumul_number_frames_played"],
+                        walltime=walltime_tb,
+                    )
+                    tensorboard_writer.add_scalar(
+                        tag=f"exp_avg_{name}_L2",
+                        scalar_value=np.sqrt((exp_avg**2).mean().detach().cpu().item()),
+                        global_step=accumulated_stats["cumul_number_frames_played"],
+                        walltime=walltime_tb,
+                    )
+                    tensorboard_writer.add_scalar(
+                        tag=f"exp_avg_sq_{name}_L2",
+                        scalar_value=np.sqrt((exp_avg_sq**2).mean().detach().cpu().item()),
+                        global_step=accumulated_stats["cumul_number_frames_played"],
+                        walltime=walltime_tb,
+                    )
+            except:
+                pass
+
+            for k, v in step_stats.items():
+                tensorboard_writer.add_scalar(
+                    tag=k,
+                    scalar_value=v,
+                    global_step=accumulated_stats["cumul_number_frames_played"],
+                    walltime=walltime_tb,
+                )
+
+            previous_alltime_min = previous_alltime_min or copy.deepcopy(accumulated_stats["alltime_min_ms"])
+
+            tensorboard_writer.add_text(
+                "times_summary",
+                f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} "
+                + " ".join(
+                    [
+                        f"{'**' if v < previous_alltime_min[k] else ''}{k}: {v / 1000:.2f}{'**' if v < previous_alltime_min[k] else ''}"
+                        for k, v in accumulated_stats["alltime_min_ms"].items()
+                    ]
+                ),
                 global_step=accumulated_stats["cumul_number_frames_played"],
                 walltime=walltime_tb,
             )
-        assert len(optimizer1.param_groups) == 1
-        try:
-            for p, (name, _) in zip(optimizer1.param_groups[0]["params"], online_network.named_parameters()):
-                state = optimizer1.state[p]
-                exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
-                mod_lr = 1 / (exp_avg_sq.sqrt() + 1e-4)
-                tensorboard_writer.add_scalar(
-                    tag=f"lr_ratio_{name}_L2",
-                    scalar_value=np.sqrt((mod_lr**2).mean().detach().cpu().item()),
-                    global_step=accumulated_stats["cumul_number_frames_played"],
-                    walltime=walltime_tb,
-                )
-                tensorboard_writer.add_scalar(
-                    tag=f"exp_avg_{name}_L2",
-                    scalar_value=np.sqrt((exp_avg**2).mean().detach().cpu().item()),
-                    global_step=accumulated_stats["cumul_number_frames_played"],
-                    walltime=walltime_tb,
-                )
-                tensorboard_writer.add_scalar(
-                    tag=f"exp_avg_sq_{name}_L2",
-                    scalar_value=np.sqrt((exp_avg_sq**2).mean().detach().cpu().item()),
-                    global_step=accumulated_stats["cumul_number_frames_played"],
-                    walltime=walltime_tb,
-                )
-        except:
-            pass
 
-        for k, v in step_stats.items():
-            tensorboard_writer.add_scalar(
-                tag=k,
-                scalar_value=v,
-                global_step=accumulated_stats["cumul_number_frames_played"],
-                walltime=walltime_tb,
+            previous_alltime_min = copy.deepcopy(accumulated_stats["alltime_min_ms"])
+
+            # ===============================================
+            #   BUFFER STATS
+            # ===============================================
+
+            mean_in_buffer = np.array([experience.state_float for experience in buffer._storage]).mean(axis=0)
+            std_in_buffer = np.array([experience.state_float for experience in buffer._storage]).std(axis=0)
+
+            print("Raw mean in buffer  :", mean_in_buffer.round(1))
+            print("Raw std in buffer   :", std_in_buffer.round(1))
+            print("")
+            print(
+                "Corr mean in buffer :",
+                ((mean_in_buffer - misc.float_inputs_mean) / misc.float_inputs_std).round(1),
             )
+            print("Corr std in buffer  :", (std_in_buffer / misc.float_inputs_std).round(1))
+            print("")
 
-        previous_alltime_min = previous_alltime_min or copy.deepcopy(accumulated_stats["alltime_min_ms"])
+            # ===============================================
+            #   SAVE
+            # ===============================================
 
-        tensorboard_writer.add_text(
-            "times_summary",
-            f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} "
-            + " ".join(
-                [
-                    f"{'**' if v < previous_alltime_min[k] else ''}{k}: {v / 1000:.2f}{'**' if v < previous_alltime_min[k] else ''}"
-                    for k, v in accumulated_stats["alltime_min_ms"].items()
-                ]
-            ),
-            global_step=accumulated_stats["cumul_number_frames_played"],
-            walltime=walltime_tb,
-        )
-
-        previous_alltime_min = copy.deepcopy(accumulated_stats["alltime_min_ms"])
-
-        # ===============================================
-        #   BUFFER STATS
-        # ===============================================
-
-        mean_in_buffer = np.array([experience.state_float for experience in buffer._storage]).mean(axis=0)
-        std_in_buffer = np.array([experience.state_float for experience in buffer._storage]).std(axis=0)
-
-        print("Raw mean in buffer  :", mean_in_buffer.round(1))
-        print("Raw std in buffer   :", std_in_buffer.round(1))
-        print("")
-        print(
-            "Corr mean in buffer :",
-            ((mean_in_buffer - misc.float_inputs_mean) / misc.float_inputs_std).round(1),
-        )
-        print("Corr std in buffer  :", (std_in_buffer / misc.float_inputs_std).round(1))
-        print("")
-
-        # ===============================================
-        #   SAVE
-        # ===============================================
-
-        torch.save(online_network.state_dict(), save_dir / "weights1.torch")
-        torch.save(target_network.state_dict(), save_dir / "weights2.torch")
-        torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
-        torch.save(scaler.state_dict(), save_dir / "scaler.torch")
-        joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")
+            torch.save(online_network.state_dict(), save_dir / "weights1.torch")
+            torch.save(target_network.state_dict(), save_dir / "weights2.torch")
+            torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
+            torch.save(scaler.state_dict(), save_dir / "scaler.torch")
+            joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")

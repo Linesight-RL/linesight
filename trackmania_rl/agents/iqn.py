@@ -131,15 +131,10 @@ class Trainer:
         "optimizer",
         "scaler",
         "batch_size",
-        "iqn_k",
         "iqn_n",
         "iqn_kappa",
-        "epsilon",
-        "epsilon_boltzmann",
         "gamma",
-        "tau_epsilon_boltzmann",
         "IS_average",
-        "is_explo",
     )
 
     def __init__(
@@ -149,26 +144,19 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
         batch_size: int,
-        iqn_k: int,
         iqn_n: int,
         iqn_kappa: float,
         gamma: float,
-        tau_epsilon_boltzmann: float,
     ):
         self.online_network = online_network
         self.target_network = target_network
         self.optimizer = optimizer
         self.scaler = scaler
         self.batch_size = batch_size
-        self.iqn_k = iqn_k
         self.iqn_n = iqn_n
         self.iqn_kappa = iqn_kappa
-        self.epsilon = None
-        self.epsilon_boltzmann = None
         self.gamma = gamma
-        self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.IS_average = deque([], maxlen=100)
-        self.is_explo = None
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -276,6 +264,30 @@ class Trainer:
             if misc.prio_alpha > 0:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
+
+class Inferer:
+    __slots__ = (
+        "inference_network",
+        "iqn_k",
+        "epsilon",
+        "epsilon_boltzmann",
+        "tau_epsilon_boltzmann",
+        "is_explo",
+    )
+
+    def __init__(
+        self,
+        inference_network,
+        iqn_k,
+        epsilon,
+        epsilon_boltzmann,
+        tau_epsilon_boltzmann
+    ):
+        self.inference_network = inference_network
+        self.iqn_k = iqn_k
+        self.epsilon = epsilon
+        self.epsilon_boltzmann = epsilon_boltzmann
+        self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
 
     def infer_online_network(self, img_inputs_uint8, float_inputs, tau=None):
         with torch.no_grad():
