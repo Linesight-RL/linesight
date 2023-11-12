@@ -580,7 +580,8 @@ def Learn(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
                         nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
             print("")
             weights_copy = deepcopy_state_dict(online_network.state_dict())
-            Model_Queue.put(weights_copy)
+            if Model_Queue.empty():
+                Model_Queue.put(weights_copy)
 
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
@@ -745,7 +746,7 @@ def Learn(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
 
 if __name__ == "__main__":
     #Start the worker process
-    Rollout_Queue = mp.Queue()
+    Rollout_Queue = mp.Queue(misc.max_rollout_queue_size)
     Model_Queue = mp.Queue()
     Worker_Process = mp.Process(target=CollectData, args=(Rollout_Queue,Model_Queue,Shared_Steps))
     Worker_Process.start()
