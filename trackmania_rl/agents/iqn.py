@@ -279,17 +279,16 @@ class Inferer:
         self,
         inference_network,
         iqn_k,
-        epsilon,
-        epsilon_boltzmann,
         tau_epsilon_boltzmann
     ):
         self.inference_network = inference_network
         self.iqn_k = iqn_k
-        self.epsilon = epsilon
-        self.epsilon_boltzmann = epsilon_boltzmann
+        self.epsilon = None
+        self.epsilon_boltzmann = None
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
+        self.is_explo = None
 
-    def infer_online_network(self, img_inputs_uint8, float_inputs, tau=None):
+    def infer_network(self, img_inputs_uint8, float_inputs, tau=None):
         with torch.no_grad():
             state_img_tensor = (
                 torch.from_numpy(img_inputs_uint8)
@@ -299,7 +298,7 @@ class Inferer:
             ) / 128
             state_float_tensor = torch.from_numpy(np.expand_dims(float_inputs, axis=0)).to("cuda", non_blocking=True)
             q_values = (
-                self.online_network(
+                self.inference_network(
                     state_img_tensor,
                     state_float_tensor,
                     self.iqn_k,
@@ -312,7 +311,7 @@ class Inferer:
             return q_values
 
     def get_exploration_action(self, img_inputs_uint8, float_inputs):
-        q_values = self.infer_online_network(img_inputs_uint8, float_inputs).mean(axis=0)
+        q_values = self.infer_network(img_inputs_uint8, float_inputs).mean(axis=0)
         r = random.random()
 
         if self.is_explo and r < self.epsilon:

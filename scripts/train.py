@@ -55,7 +55,7 @@ def make_untrained_iqn_network():
     )
     return torch.jit.script(model).to("cuda", memory_format=torch.channels_last).train()
 
-def CollectData(Communication_Pipe: mp.connection.Connection, Shared_Steps: mp.Value):
+def CollectData(Communication_Pipe, Shared_Steps: mp.Value):
     from trackmania_rl import tm_interface_manager
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
 
@@ -77,26 +77,13 @@ def CollectData(Communication_Pipe: mp.connection.Connection, Shared_Steps: mp.V
     inferer = iqn.Inferer(
         inference_network,
         misc.iqn_k,
-        misc.epsilon,
-        misc.epsilon_boltzmann,
         misc.tau_epsilon_boltzmann
         )
-
-    # ========================================================
-    # Warmup pytorch and numba
-    # ========================================================
-    for _ in range(5):
-        inferer.infer_online_network(
-            np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
-            np.random.rand(misc.float_input_dim).astype(np.float32),
-        )
-    tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
     # ========================================================
     # Training loop
     # ========================================================
     inference_network.train()
-    time_last_save = time.time()
 
     map_cycle_str = str(misc.map_cycle)
     set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
@@ -106,12 +93,23 @@ def CollectData(Communication_Pipe: mp.connection.Connection, Shared_Steps: mp.V
     zone_centers = load_next_map_zone_centers(zone_centers_filename, base_dir)
     map_status = "trained" if map_name in set_maps_trained else "blind"
 
+    # ========================================================
+    # Warmup pytorch and numba
+    # ========================================================
+    for _ in range(5):
+        inferer.infer_network(
+            np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
+            np.random.rand(misc.float_input_dim).astype(np.float32),
+        )
+    tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
+
     for loop_number in count(1):
         importlib.reload(misc)
 
         inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value)
         inferer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, Shared_Steps.value)
         inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+        inferer.is_explo = is_explo
 
         tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
 
@@ -150,14 +148,14 @@ def CollectData(Communication_Pipe: mp.connection.Connection, Shared_Steps: mp.V
             inference_network.train()
 
         rollout_results, end_race_stats = tmi.rollout(
-            exploration_policy=trainer.get_exploration_action,
+            exploration_policy=inferer.get_exploration_action,
             map_path=map_path,
             zone_centers=zone_centers,
         )
         rollout_duration = time.perf_counter() - rollout_start_time
 
         if not tmi.last_rollout_crashed:
-            Communication_Pipe.send((rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, rollout_duration, loop_number))
+            Communication_Pipe.send((rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number))
 
 if __name__ == "__main__":
     tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
@@ -227,7 +225,7 @@ if __name__ == "__main__":
     accumulated_stats["alltime_min_ms"] = {}
     accumulated_stats["rolling_mean_ms"] = {}
     previous_alltime_min = None
-
+    time_last_save = time.time()
 
     # ========================================================
     # Load existing stuff
@@ -316,25 +314,21 @@ if __name__ == "__main__":
         gamma=misc.gamma,
     )
 
+    inferer = iqn.Inferer(
+        inference_network=online_network,
+        iqn_k=misc.iqn_k,
+        tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann
+    )
+
     #Start the worker process
     Communication_Pipe, Worker_Pipe = mp.Pipe()
     Worker_Process = mp.Process(target=CollectData, args=(Worker_Pipe,Shared_Steps))
     Worker_Process.start()
 
     while True: #Trainer loop
-        rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, rollout_duration, loop_number = Communication_Pipe.recv()
+        rollout_results, end_race_stats, fill_buffer, is_explo, save_aggregated_stats, map_name, map_status, rollout_duration, loop_number = Communication_Pipe.recv()
 
         importlib.reload(misc)
-
-        # ===============================================
-        #   RELOAD
-        # ===============================================
-
-        for param_group in optimizer1.param_groups:
-            param_group["lr"] = learning_rate
-            param_group["epsilon"] = misc.adam_epsilon
-            param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
-        trainer.gamma = misc.gamma
 
         # ===============================================
         #   VERY BASIC TRAINING ANNEALING
@@ -347,14 +341,24 @@ if __name__ == "__main__":
         learning_rate = nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
         weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
+        # ===============================================
+        #   RELOAD
+        # ===============================================
+
+        for param_group in optimizer1.param_groups:
+            param_group["lr"] = learning_rate
+            param_group["epsilon"] = misc.adam_epsilon
+            param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
+        trainer.gamma = misc.gamma
+
         if isinstance(buffer._sampler, PrioritizedSampler):
             buffer._sampler._alpha = misc.prio_alpha
             buffer._sampler._beta = misc.prio_beta
             buffer._sampler._eps = misc.prio_epsilon
 
         if misc.plot_race_time_left_curves and not is_explo and (loop_number // 5) % 17 == 0:
-            race_time_left_curves(rollout_results, trainer, save_dir, map_name)
-            tau_curves(rollout_results, trainer, save_dir, map_name)
+            race_time_left_curves(rollout_results, inferer, save_dir, map_name)
+            tau_curves(rollout_results, inferer, save_dir, map_name)
             # patrick_curves(rollout_results, trainer, save_dir, map_name)
 
         # ===============================================
@@ -641,7 +645,7 @@ if __name__ == "__main__":
                 if online_network.training:
                     online_network.eval()
                 tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
-                per_quantile_output = trainer.infer_online_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
+                per_quantile_output = inferer.infer_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
                 for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                     step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
 

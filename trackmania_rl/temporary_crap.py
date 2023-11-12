@@ -6,7 +6,7 @@ import torch
 from . import misc
 
 
-def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
+def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
     color_cycle = [
         "red",
         "forestgreen",
@@ -45,7 +45,7 @@ def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
             for j in x_axis:
                 # print(j)
                 rollout_results_copy["state_float"][frame_number][0] = j
-                per_quantile_output = trainer.infer_online_network(
+                per_quantile_output = inferer.infer_network(
                     rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
                 )  # (iqn_k, n_actions)
                 for i, q_val in enumerate(list(per_quantile_output.mean(axis=0))):
@@ -81,7 +81,7 @@ def race_time_left_curves(rollout_results, trainer, save_dir, map_name):
             plt.close()
 
 
-def tau_curves(rollout_results, trainer, save_dir, map_name):
+def tau_curves(rollout_results, inferer, save_dir, map_name):
     if "race_time" not in rollout_results:
         return
 
@@ -97,7 +97,7 @@ def tau_curves(rollout_results, trainer, save_dir, map_name):
         if frame_number > len(rollout_results["frames"]) - 140:
             break
 
-        per_quantile_output = trainer.infer_online_network(
+        per_quantile_output = inferer.infer_network(
             rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
         )  # (iqn_k, n_actions)
 
@@ -117,7 +117,7 @@ def tau_curves(rollout_results, trainer, save_dir, map_name):
         plt.close(figs[i])
 
 
-def patrick_curves(rollout_results, trainer, save_dir, map_name):
+def patrick_curves(rollout_results, inferer, save_dir, map_name):
     if "race_time" not in rollout_results:
         return
 
@@ -136,7 +136,7 @@ def patrick_curves(rollout_results, trainer, save_dir, map_name):
         for ihorz, horizon in enumerate(horizons_to_plot):
             rollout_results_copy["state_float"][frame_number][0] = 140 - horizon
 
-            per_quantile_output = trainer.infer_online_network(
+            per_quantile_output = inferer.infer_network(
                 rollout_results_copy["frames"][frame_number], rollout_results_copy["state_float"][frame_number], tau
             )  # (iqn_k, n_actions)
 
