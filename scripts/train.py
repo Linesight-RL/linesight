@@ -42,6 +42,7 @@ save_dir = base_dir / "save" / misc.run_name
 save_dir.mkdir(parents=True, exist_ok=True)
 
 Shared_Steps = mp.Value(ctypes.c_int64)
+Shared_Steps.value = 0
 
 def make_untrained_iqn_network():
     model = iqn.IQN_Network(
@@ -107,11 +108,6 @@ def CollectData(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
     for loop_number in count(1):
         importlib.reload(misc)
 
-        inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value)
-        inferer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, Shared_Steps.value)
-        inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
-        inferer.is_explo = is_explo
-
         tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
 
         # ===============================================
@@ -130,6 +126,11 @@ def CollectData(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
         if zone_centers_filename != zone_centers_filename:
             zone_centers = load_next_map_zone_centers(zone_centers_filename, base_dir)
         map_status = "trained" if map_name in set_maps_trained else "blind"
+
+        inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value)
+        inferer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, Shared_Steps.value)
+        inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+        inferer.is_explo = is_explo
 
         #Check for weight update
         if Model_Queue.qsize()>0:
@@ -242,6 +243,7 @@ def Learn(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
     # noinspection PyBroadException
     try:
         accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
+        Shared_Steps.value = accumulated_stats["cumul_number_memories_generated"]
         print(" =========================      Stats loaded !      ================================")
     except:
         print(" Could not load stats")
