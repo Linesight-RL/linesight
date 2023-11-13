@@ -121,10 +121,10 @@ def CollectData(Rollout_Queue, Model_Queue, Shared_Steps: mp.Value):
         # ===============================================
         #   GET NEXT MAP FROM CYCLE
         # ===============================================
-
-        map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next(map_cycle_iter)
-        if zone_centers_filename != zone_centers_filename:
+        next_map_tuple = next(map_cycle_iter)
+        if next_map_tuple[2] != zone_centers_filename:
             zone_centers = load_next_map_zone_centers(zone_centers_filename, base_dir)
+        map_name, map_path, zone_centers_filename, is_explo, fill_buffer, save_aggregated_stats = next_map_tuple
         map_status = "trained" if map_name in set_maps_trained else "blind"
 
         inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, Shared_Steps.value)
