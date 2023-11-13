@@ -199,4 +199,8 @@ reference_times = {
         "author": 16.42,
         "gold": 18.0,
     },
+    "hock": {
+        "author": 55.10,
+        "gold": 59.0,
+    },
 }
