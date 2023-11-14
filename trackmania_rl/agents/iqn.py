@@ -262,7 +262,15 @@ class Trainer:
 
             total_loss = total_loss.detach().cpu()
             if misc.prio_alpha > 0:
-                buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
+                mask_update_priority = torch.lt(state_float_tensor[:, 0], misc.min_horizon_to_update_priority_actions).detach().cpu()
+                buffer.update_priority(
+                    batch_info["index"][mask_update_priority],
+                    (outputs_tau3.mean(axis=1) - outputs_target_tau2.mean(axis=1))
+                    .abs()[mask_update_priority]
+                    .detach()
+                    .cpu()
+                    .type(torch.float64),
+                )
         return total_loss, grad_norm
 
 

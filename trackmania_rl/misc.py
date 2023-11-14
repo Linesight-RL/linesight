@@ -27,6 +27,7 @@ cutoff_rollout_if_no_vcp_passed_within_duration_ms = 2_500
 
 temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
+min_horizon_to_update_priority_actions = temporal_mini_race_duration_actions - 40
 # If mini_race_time == mini_race_duration this is the end of the minirace
 margin_to_announce_finish_meters = 700
 
