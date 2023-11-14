@@ -10,16 +10,16 @@ from trackmania_rl import misc
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn
 
-if __name__ == "__main__":
-    # noinspection PyUnresolvedReferences
-    torch.backends.cudnn.benchmark = True
-    torch.set_num_threads(1)
-    random_seed = 444
-    torch.cuda.manual_seed_all(random_seed)
-    torch.manual_seed(random_seed)
-    random.seed(random_seed)
-    np.random.seed(random_seed)
+# noinspection PyUnresolvedReferences
+torch.backends.cudnn.benchmark = True
+torch.set_num_threads(1)
+random_seed = 444
+torch.cuda.manual_seed_all(random_seed)
+torch.manual_seed(random_seed)
+random.seed(random_seed)
+np.random.seed(random_seed)
 
+if __name__ == "__main__":
     base_dir = Path(__file__).resolve().parents[1]
     save_dir = base_dir / "save" / misc.run_name
     save_dir.mkdir(parents=True, exist_ok=True)
