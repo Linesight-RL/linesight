@@ -696,3 +696,5 @@ apply_randomcrop_augmentation = True if is_pb_desktop else False
 n_pixels_to_crop_on_each_side = 2
 
 max_rollout_queue_size = 10
+
+use_jit = True

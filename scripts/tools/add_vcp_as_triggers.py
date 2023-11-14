@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from trackmania_rl.tminterface2 import MessageType, TMInterface
+from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 iface = TMInterface("pasdenom")
 base_dir = Path(__file__).resolve().parents[2]

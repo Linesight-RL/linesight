@@ -1,4 +1,3 @@
-dxcam
 opencv-python
 readwritememory
 tminterface

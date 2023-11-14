@@ -1,4 +1,3 @@
-import ctypes
 import math
 import os
 import socket
@@ -16,9 +15,8 @@ import win32com.client
 import win32gui
 from ReadWriteMemory import ReadWriteMemory
 
-from trackmania_rl.tminterface2 import MessageType, TMInterface
-
-from . import contact_materials, map_loader, misc
+from trackmania_rl import contact_materials, map_loader, misc
+from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 
 def _set_window_focus(
@@ -164,8 +162,6 @@ class TMInterfaceManager:
         time_A_geometry = 0
         time_A_stack = 0
 
-        print("S ", end="")
-
         rollout_results = {
             "current_zone_idx": [],
             "frames": [],
@@ -183,7 +179,7 @@ class TMInterfaceManager:
 
         if (self.iface is None) or (not self.iface.registered):
             assert self.msgtype_response_to_wakeup_TMI is None
-            print("Initialize connection to TMInterface ", end="")
+            print("Initialize connection to TMInterface ")
             self.iface = TMInterface(self.interface_name)
 
             if not self.iface.registered:
@@ -219,7 +215,6 @@ class TMInterfaceManager:
 
         time_last_on_run_step = time.perf_counter()
 
-        print("L ", end="")
         try:
             while not this_rollout_is_finished:
                 if compute_action_asap_floats:
@@ -348,15 +343,12 @@ class TMInterfaceManager:
                     compute_action_asap_floats = False
 
                 msgtype = self.iface._read_int32()
-                # print("msgtype",msgtype)
 
                 # =============================================
                 #        READ INCOMING MESSAGES
                 # =============================================
                 if msgtype == int(MessageType.SC_RUN_STEP_SYNC):
-                    # print("msg_on_run_step")
                     _time = self.iface._read_int32()
-                    # print("_time",_time)
 
                     if _time > 0 and this_rollout_has_seen_t_negative:
                         if _time % 50 == 0:
@@ -392,7 +384,6 @@ class TMInterfaceManager:
                         ):
                             # FAILED TO FINISH IN TIME
                             simulation_state = self.iface.get_simulation_state()
-                            print(f"      --- {simulation_state.race_time:>6} ", end="")
                             race_time = max([simulation_state.race_time, 1e-12])  # Epsilon trick to avoid division by zero
 
                             end_race_stats["race_finished"] = False
@@ -447,7 +438,6 @@ class TMInterfaceManager:
                             time_to_answer_action_step += time.perf_counter_ns() - pc
                             pc = time.perf_counter_ns()
                 elif msgtype == int(MessageType.SC_CHECKPOINT_COUNT_CHANGED_SYNC):
-                    print("CP ", end="")
                     current = self.iface._read_int32()
                     target = self.iface._read_int32()
 
@@ -475,7 +465,6 @@ class TMInterfaceManager:
                             ):  # Handle the case where the floats have been computed but the race ended so we don't actually compute an action
                                 rollout_results["current_zone_idx"].pop(-1)
 
-                            print(f"Z=({rollout_results['current_zone_idx'][-1]})", end="")
                             end_race_stats["race_finished"] = True
                             end_race_stats["race_time"] = simulation_state.race_time
                             rollout_results["race_time"] = simulation_state.race_time
@@ -505,10 +494,6 @@ class TMInterfaceManager:
                                 self.iface.unrequest_frame()
                                 frame_expected = False
 
-                            # self.iface.set_speed(0)
-                            # self.latest_tm_engine_speed_requested = 0
-                            print(f"+++    {simulation_state.race_time:>6} ", end="")
-
                             rollout_results["current_zone_idx"].append(len(zone_centers) - misc.n_zone_centers_extrapolate_after_end_of_map)
                             rollout_results["frames"].append(np.nan)
                             rollout_results["input_w"].append(np.nan)
@@ -527,7 +512,6 @@ class TMInterfaceManager:
                     if self.msgtype_response_to_wakeup_TMI is None:
                         self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_LAP_COUNT_CHANGED_SYNC):
-                    print("LAP ", end="")
                     self.iface._read_int32()
                     self.iface._read_int32()
                     self.iface._respond_to_call(msgtype)
@@ -608,7 +592,6 @@ class TMInterfaceManager:
             self.last_rollout_crashed = True
             ensure_not_minimized(win32gui.FindWindow("TmForever", None))
 
-        print("E", end="")
         return rollout_results, end_race_stats
 
 

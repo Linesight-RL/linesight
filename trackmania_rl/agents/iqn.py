@@ -265,6 +265,7 @@ class Trainer:
                 buffer.update_priority(batch_info["index"], loss.detach().cpu().type(torch.float64))
         return total_loss, grad_norm
 
+
 class Inferer:
     __slots__ = (
         "inference_network",
@@ -275,12 +276,7 @@ class Inferer:
         "is_explo",
     )
 
-    def __init__(
-        self,
-        inference_network,
-        iqn_k,
-        tau_epsilon_boltzmann
-    ):
+    def __init__(self, inference_network, iqn_k, tau_epsilon_boltzmann):
         self.inference_network = inference_network
         self.iqn_k = iqn_k
         self.epsilon = None
@@ -331,3 +327,18 @@ class Inferer:
             np.max(q_values),
             q_values,
         )
+
+
+def make_untrained_iqn_network(jit: bool):
+    model = IQN_Network(
+        float_inputs_dim=misc.float_input_dim,
+        float_hidden_dim=misc.float_hidden_dim,
+        conv_head_output_dim=misc.conv_head_output_dim,
+        dense_hidden_dimension=misc.dense_hidden_dimension,
+        iqn_embedding_dimension=misc.iqn_embedding_dimension,
+        n_actions=len(misc.inputs),
+        float_inputs_mean=misc.float_inputs_mean,
+        float_inputs_std=misc.float_inputs_std,
+    )
+
+    return (torch.jit.script(model) if jit else model).to("cuda", memory_format=torch.channels_last).train()
