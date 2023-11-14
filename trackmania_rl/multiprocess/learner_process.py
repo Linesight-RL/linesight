@@ -199,7 +199,6 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
             end_race_stats,
             fill_buffer,
             is_explo,
-            save_aggregated_stats,
             map_name,
             map_status,
             rollout_duration,
@@ -460,9 +459,9 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
             print("", flush=True)
 
         # ===============================================
-        #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY NOW AND THEN
+        #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY 5 MINUTES
         # ===============================================
-        if save_aggregated_stats:
+        if time.time() - time_last_save > 5 * 60:
             accumulated_stats["cumul_training_hours"] += (time.time() - time_last_save) / 3600
             time_last_save = time.time()
 
