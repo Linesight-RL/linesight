@@ -500,11 +500,24 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
                             f"{key}_median": np.quantile(val, 0.5),
                             f"{key}_q3": np.quantile(val, 0.75),
                             f"{key}_d9": np.quantile(val, 0.9),
-                            f"{key}_d98": np.quantile(val, 0.98),
+                            f"{key}_c98": np.quantile(val, 0.98),
                             f"{key}_max": np.max(val),
                         }
                     )
-
+            if isinstance(buffer._sampler, PrioritizedSampler):
+                all_priorities = np.array([buffer._sampler._sum_tree.at(i) for i in range(len(buffer))])
+                step_stats.update(
+                    {
+                        "priorities_min": np.min(all_priorities),
+                        "priorities_q1": np.quantile(all_priorities, 0.1),
+                        "priorities_mean": np.mean(all_priorities),
+                        "priorities_median": np.quantile(all_priorities, 0.5),
+                        "priorities_q3": np.quantile(all_priorities, 0.75),
+                        "priorities_d9": np.quantile(all_priorities, 0.9),
+                        "priorities_c98": np.quantile(all_priorities, 0.98),
+                        "priorities_max": np.max(all_priorities),
+                    }
+                )
             for key, value in accumulated_stats.items():
                 if key not in ["alltime_min_ms", "rolling_mean_ms"]:
                     step_stats[key] = value
