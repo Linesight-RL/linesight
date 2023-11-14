@@ -29,7 +29,7 @@ from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path):
     tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
 
-    layout_version = "layout_2"
+    layout_version = "layout_3"
     SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
         {
             layout_version: {
@@ -50,6 +50,12 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
                     "Multiline",
                     [
                         "eval_ratio_blind_author",
+                    ],
+                ],
+                "eval_race_time_robust": [
+                    "Multiline",
+                    [
+                        "eval_race_time_robust",
                     ],
                 ],
                 "explo_race_time_finished": [
@@ -74,6 +80,12 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
                     [
                         "grad_norm_history_d9",
                         "grad_norm_history_d98",
+                    ],
+                ],
+                "priorities": [
+                    "Multiline",
+                    [
+                        "priorities",
                     ],
                 ],
             },
