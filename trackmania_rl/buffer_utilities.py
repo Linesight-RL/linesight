@@ -50,9 +50,18 @@ def buffer_collate_function(batch):
         )
     )
 
-    temporal_mini_race_current_time_actions = np.random.randint(
-        low=0, high=misc.temporal_mini_race_duration_actions, size=(len(state_img),), dtype=int
-    )
+    temporal_mini_race_current_time_actions = (
+        np.abs(
+            np.random.randint(
+                low=-misc.oversample_long_term_steps + misc.oversample_maximum_term_steps,
+                high=misc.temporal_mini_race_duration_actions + misc.oversample_maximum_term_steps,
+                size=(len(state_img),),
+                dtype=int,
+            )
+        )
+        - misc.oversample_maximum_term_steps
+    ).clip(min=0)
+
     temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + n_steps
 
     state_float[:, 0] = temporal_mini_race_current_time_actions
