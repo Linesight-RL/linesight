@@ -97,8 +97,9 @@ class IQN_Network(torch.nn.Module):
         concat = torch.cat((img_outputs, float_outputs), 1)
         if tau is None:
             tau = torch.rand(
-                size=(batch_size * num_quantiles, 1), device="cuda", dtype=torch.float32
+                size=(batch_size * num_quantiles // 2, 1), device="cuda", dtype=torch.float32
             )  # (batch_size * num_quantiles, 1) (random numbers)
+            tau = torch.cat((tau, 1 - tau), dim=0)
         quantile_net = torch.cos(
             torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * tau
         )  # (batch_size*num_quantiles, 1)
