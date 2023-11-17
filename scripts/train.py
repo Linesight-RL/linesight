@@ -1,5 +1,8 @@
 import ctypes
+import os
 import random
+import signal
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +23,17 @@ torch.manual_seed(random_seed)
 random.seed(random_seed)
 np.random.seed(random_seed)
 
+
+def signal_handler(sig, frame):
+    print("Received SIGINT signal. Killing all open Trackmania instances.")
+    os.system("taskkill /IM TmForever.exe /f")
+    tprint("Bye bye!", font="tarty1")
+    sys.exit()
+
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+
     print("Run:")
     print("\n" * 2)
     tprint(misc.run_name, font="tarty4")
