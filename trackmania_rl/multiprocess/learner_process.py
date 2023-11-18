@@ -26,7 +26,7 @@ from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
 
-def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tensorboard_dir: Path):
+def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tensorboard_dir: Path):
     tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_dir))
 
     layout_version = "layout_3"
@@ -206,16 +206,24 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
         return copied_state_dict
 
     while True:  # Trainer loop
-        (
-            rollout_results,
-            end_race_stats,
-            fill_buffer,
-            is_explo,
-            map_name,
-            map_status,
-            rollout_duration,
-            loop_number,
-        ) = rollout_queue.get()
+        i_start = random.randrange(len(rollout_queues))
+        for i in range(i_start, i_start + len(rollout_queues)):
+            if not rollout_queues[i % len(rollout_queues)].empty():
+                (
+                    rollout_results,
+                    end_race_stats,
+                    fill_buffer,
+                    is_explo,
+                    map_name,
+                    map_status,
+                    rollout_duration,
+                    loop_number,
+                ) = rollout_queues[i % len(rollout_queues)].get()
+                break
+        else:
+            print("All rollout queues were empty. Learner sleeps 1 second.")
+            time.sleep(1)
+            continue
 
         importlib.reload(misc)
 
@@ -448,7 +456,7 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
                             layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(torch.norm(param.grad.detach(), float("inf")).item())
 
                     accumulated_stats["cumul_number_batches_done"] += 1
-                    print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e}")
+                    print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e} {train_on_batch_duration_history[-1]*1000:<8.1f}")
 
                     nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
 
@@ -466,8 +474,9 @@ def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_
                         # print("UPDATE")
                         nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
             weights_copy = deepcopy_state_dict(online_network.state_dict())
-            if model_queue.empty():
-                model_queue.put(weights_copy)
+            for model_queue in model_queues:
+                if model_queue.empty():
+                    model_queue.put(weights_copy)
             print("", flush=True)
 
         # ===============================================

@@ -602,8 +602,8 @@ max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 
-timeout_during_run_ms = 2_100
-timeout_between_runs_ms = 600_000
+timeout_during_run_ms = 10_100
+timeout_between_runs_ms = 600_000_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
 game_reboot_interval = 3600 * 4  # In seconds
 
@@ -671,8 +671,8 @@ map_cycle += [
     # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True), 1),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True), 4),
     # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True), 1),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", True, True), 4),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl.npy", False, True), 1),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", True, True), 4),
+    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", False, True), 1),
     repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl2.npy", False, False), 1),
     repeat(("yellowmile", f'"The Yellow Mile_.Challenge.Gbx"', "YellowMile_0.5m_cl.npy", False, False), 1),
     repeat(("te86", f'"te 86.Challenge.Gbx"', "te86_0.5m_cl.npy", False, False), 1),
@@ -680,21 +680,13 @@ map_cycle += [
     repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_0.5m_cl.npy", False, False), 1),
 ]
 
-# repeat(("parrots", '"ESL - Parrots are cool.Challenge.Gbx"', "parrots_are_cool_10m_cl.npy", True, True, False), 4),
-# repeat(("parrots", '"ESL - Parrots are cool.Challenge.Gbx"', "parrots_are_cool_10m_cl.npy", False, True, False), 1),
-# repeat(("leaveit", '"Leave it behind.Challenge.Gbx"', "leave_it_behind_10m_cl.npy", True, True, False), 4),
-# repeat(("leaveit", '"Leave it behind.Challenge.Gbx"', "leave_it_behind_10m_cl.npy", False, True, False), 1),
-# repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", True, True,
-#         False), 4),
-# repeat(("leavepast", '"Leave the past where it belongs..Challenge.Gbx"', "leave_past_belong_10m_cl.npy", False, True,
-#         False), 1),
-
 plot_race_time_left_curves = True if is_pb_desktop else True
 
 apply_randomcrop_augmentation = True if is_pb_desktop else False
 n_pixels_to_crop_on_each_side = 2
 
-max_rollout_queue_size = 10
+max_rollout_queue_size = 3
 
 use_jit = True
 base_tmi_port = 8478
+gpu_collectors_count = 1

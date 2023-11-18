@@ -3,6 +3,7 @@ import os
 import random
 import signal
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -50,20 +51,34 @@ if __name__ == "__main__":
     # Prepare multi process utilities
     shared_steps = mp.Value(ctypes.c_int64)
     shared_steps.value = 0
-    rollout_queue = mp.Queue(misc.max_rollout_queue_size)
-    model_queue = mp.Queue()
+    rollout_queues = [mp.Queue(misc.max_rollout_queue_size) for _ in range(misc.gpu_collectors_count)]
+    model_queues = [mp.Queue() for _ in range(misc.gpu_collectors_count)]
 
     # Start worker process
-    collector_process = mp.Process(
-        target=collector_process_fn, args=(rollout_queue, model_queue, shared_steps, base_dir, save_dir, misc.base_tmi_port)
-    )
-    collector_process.start()
+    collector_processes = [
+        mp.Process(
+            target=collector_process_fn,
+            args=(
+                rollout_queue,
+                model_queue,
+                shared_steps,
+                base_dir,
+                save_dir,
+                misc.base_tmi_port + process_number,
+            ),
+        )
+        for rollout_queue, model_queue, process_number in zip(rollout_queues, model_queues, range(misc.gpu_collectors_count))
+    ]
+    for collector_process in collector_processes:
+        collector_process.start()
+        time.sleep(5)
 
     # Start learner process
     learner_process = mp.Process(
-        target=learner_process_fn, args=(rollout_queue, model_queue, shared_steps, base_dir, save_dir, tensorboard_dir)
+        target=learner_process_fn, args=(rollout_queues, model_queues, shared_steps, base_dir, save_dir, tensorboard_dir)
     )
     learner_process.start()
 
-    collector_process.join()
+    for collector_process in collector_processes:
+        collector_process.join()
     learner_process.join()
