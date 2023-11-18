@@ -345,6 +345,7 @@ void Render(){
     auto @newSock = sock.Accept(0);
     if (@newSock !is null) {
         @clientSock = @newSock;
+        newSock.NoDelay = true;
         log("Client connected (IP: " + clientSock.RemoteIP + ")");
         if(GetCurrentGameState() != TM::GameState::StartUp){
             OnConnect();

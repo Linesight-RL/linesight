@@ -6,7 +6,9 @@ from enum import IntEnum, auto
 
 import numpy as np
 from tminterface.structs import CheckpointData, SimStateData
+from sys import platform
 
+Is_Linux = platform == "linux" or platform == "linux2"
 HOST = "127.0.0.1"
 
 
@@ -57,8 +59,13 @@ class TMInterface:
         # https://stackoverflow.com/questions/45864828/msg-waitall-combined-with-so-rcvtimeo
         # https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
         if timeout is not None:
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, struct.pack("q", timeout * 1000))
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("q", timeout * 1000))
+            if Is_Linux: #https://stackoverflow.com/questions/46477448/python-setsockopt-what-is-worng
+                timeout_pack = struct.pack("ll", 2, 0)
+            else:
+                timeout_pack = struct.pack("q", timeout * 1000)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, timeout_pack)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, timeout_pack)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.sock.connect((HOST, self.port))
         self.registered = True
         print("Connected")

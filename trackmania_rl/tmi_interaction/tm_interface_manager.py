@@ -1,44 +1,57 @@
 import math
 import os
 import socket
-import subprocess
 import time
+import subprocess
 
 import cv2
 import numba
 import numpy as np
 import numpy.typing as npt
 import psutil
-import win32.lib.win32con as win32con
-import win32com.client
-
-# noinspection PyPackageRequirements
-import win32gui
-import win32process
-from ReadWriteMemory import ReadWriteMemory
+from sys import platform
 
 from trackmania_rl import contact_materials, map_loader, misc
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
+
+Is_Linux = platform in ["linux","linux2"]
+
+if Is_Linux:
+    from xdo import Xdo
+else:
+    from ReadWriteMemory import ReadWriteMemory
+    import win32.lib.win32con as win32con
+    import win32com.client
+    import win32gui
 
 
 def _set_window_focus(
     trackmania_window,
 ):  # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shell.SendKeys("%")
-    win32gui.SetForegroundWindow(trackmania_window)
+    if Is_Linux:
+        Xdo.focus_window(trackmania_window)
+    else:
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shell.SendKeys("%")
+        win32gui.SetForegroundWindow(trackmania_window)
 
 
 def is_fullscreen(trackmania_window):
-    rect = win32gui.GetWindowPlacement(trackmania_window)[4]
-    return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
+    if Is_Linux:
+        return False #shape = Xdo().get_window_size()
+    else:
+        rect = win32gui.GetWindowPlacement(trackmania_window)[4]
+        return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
 
 
 def ensure_not_minimized(trackmania_window):
-    if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
-        win32gui.ShowWindow(trackmania_window, win32con.SW_RESTORE)  # Unminimize window
-    if is_fullscreen(trackmania_window):
-        _set_window_focus(trackmania_window)
+    if Is_Linux:
+        Xdo().map_window(trackmania_window)
+    else:
+        if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
+            win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
+        if is_fullscreen(trackmania_window):
+            _set_window_focus(trackmania_window)
 
 
 @numba.njit
@@ -93,53 +106,64 @@ class TMInterfaceManager:
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
 
-        def get_hwnds_for_pid(pid):
-            def callback(hwnd, hwnds):
-                _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
+        if Is_Linux:
+            self.tm_window_id = Xdo().search_windows(winname=b"Track",pid=self.tm_process_id)
+        else:
+            def get_hwnds_for_pid(pid):
+                def callback(hwnd, hwnds):
+                    _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
 
-                if found_pid == pid:
-                    hwnds.append(hwnd)
-                return True
+                    if found_pid == pid:
+                        hwnds.append(hwnd)
+                    return True
 
-            hwnds = []
-            win32gui.EnumWindows(callback, hwnds)
-            return hwnds
+                hwnds = []
+                win32gui.EnumWindows(callback, hwnds)
+                return hwnds
 
-        while True:
-            for hwnd in get_hwnds_for_pid(self.tm_process_id):
-                if win32gui.GetWindowText(hwnd).startswith("Track"):
-                    self.tm_window_id = hwnd
-                    return
-            # else:
-            #     raise Exception("Could not find TmForever window id.")
+            while True:
+                for hwnd in get_hwnds_for_pid(self.tm_process_id):
+                    if win32gui.GetWindowText(hwnd).startswith("Track"):
+                        self.tm_window_id = hwnd
+                        return
+                # else:
+                #     raise Exception("Could not find TmForever window id.")
 
     def launch_game(self):
         self.tm_process_id = None
 
-        tmi_process_id = int(
-            subprocess.check_output(
-                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'/configstring=\\"set custom_port '
-                + str(self.tmi_port)
-                + '\\"\'; echo exit $process.id}" TMInterface.lnk'
+        if Is_Linux:
+            pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+            os.system("./launch_game.sh "+str(self.tmi_port))
+            pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+            tmi_pid_candidates = set(pid_after) - set(pid_before)
+            assert(len(tmi_pid_candidates)==1)
+            self.tm_process_id = list(tmi_pid_candidates)[0]
+        else:
+            tmi_process_id = int(
+                subprocess.check_output(
+                    'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'/configstring=\\"set custom_port '
+                    + str(self.tmi_port)
+                    + '\\"\'; echo exit $process.id}" TMInterface.lnk'
+                )
+                .decode()
+                .split("\r\n")[1]
             )
-            .decode()
-            .split("\r\n")[1]
-        )
 
-        print(f"Found {tmi_process_id=}")
+            print(f"Found {tmi_process_id=}")
 
-        tm_processes = list(
-            filter(
-                lambda s: s.startswith("TmForever"),
-                subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+            tm_processes = list(
+                filter(
+                    lambda s: s.startswith("TmForever"),
+                    subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+                )
             )
-        )
-        for process in tm_processes:
-            name, parent_id, process_id = process.split()
-            parent_id = int(parent_id)
-            process_id = int(process_id)
-            if parent_id == tmi_process_id:
-                self.tm_process_id = process_id
+            for process in tm_processes:
+                name, parent_id, process_id = process.split()
+                parent_id = int(parent_id)
+                process_id = int(process_id)
+                if parent_id == tmi_process_id:
+                    self.tm_process_id = process_id
 
         assert self.tm_process_id is not None
         print(f"Found Trackmania process id: {self.tm_process_id=}")
@@ -156,17 +180,23 @@ class TMInterfaceManager:
 
     def close_game(self):
         assert self.tm_process_id is not None
-        os.system(f"taskkill /PID {self.tm_process_id} /f")
+        if Is_Linux:
+            os.system("kill -9 "+str(self.tm_process_id))
+        else:
+            os.system(f"taskkill /PID {self.tm_process_id} /f")
         while self.is_game_running():
             time.sleep(0)
 
+    def game_shortcut_exists(self):
+        return os.path.exists("./launch_game.sh") if Is_Linux else os.path.exists(".\\TMInterface.lnk")
+
     def ensure_game_launched(self):
         if not self.is_game_running():
-            if os.path.exists(".\\TMInterface.lnk"):
+            if self.game_shortcut_exists():
                 print("Game not found. Restarting TMInterface.")
                 self.launch_game()
             else:
-                print("Game needs to be restarted but cannot be. Add TMInterface shortcut to directory.")
+                print("Game needs to be restarted but cannot be. Add TMInterface shortcut to directory (TMInterface.lnk for windows, launch_game.sh for linux).")
 
     def grab_screen(self):
         return self.iface.get_frame(misc.W_downsized, misc.H_downsized)
@@ -196,9 +226,7 @@ class TMInterfaceManager:
         ) = map_loader.precalculate_virtual_checkpoints_information(zone_centers)
 
         self.ensure_game_launched()
-        if time.perf_counter() - self.last_game_reboot > misc.game_reboot_interval and is_fullscreen(
-            self.tm_window_id
-        ):  # If the game is windowed, user may be using the machine and would not want the game to open and close # TODO : might want to remove this condition with parallel rollouts
+        if time.perf_counter() - self.last_game_reboot > misc.game_reboot_interval:
             self.close_game()
             self.iface = None
             self.launch_game()
@@ -654,48 +682,49 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
     def process_prepare(self):
-        remove_fps_cap()
-        remove_map_begin_camera_zoom_in()
-        # custom_resolution(misc.W_screen, misc.H_screen)
-        _set_window_focus(self.tm_window_id)
+        if not Is_Linux:
+            remove_fps_cap()
+            remove_map_begin_camera_zoom_in()
+            # custom_resolution(misc.W_screen, misc.H_screen)
+            _set_window_focus(self.tm_window_id)
+
+if not Is_Linux:
+    def remove_fps_cap():
+        # from @Kim on TrackMania Tool Assisted Discord server
+        process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
+        rwm = ReadWriteMemory()
+        for p in process:
+            pid = int(p.pid)
+            process = rwm.get_process_by_id(pid)
+            process.open()
+            process.write(0x005292F1, 4294919657)
+            process.write(0x005292F1 + 4, 2425393407)
+            process.write(0x005292F1 + 8, 2425393296)
+            process.close()
+            print(f"Disabled FPS cap of process {pid}")
 
 
-def remove_fps_cap():
-    # from @Kim on TrackMania Tool Assisted Discord server
-    process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
-    rwm = ReadWriteMemory()
-    for p in process:
-        pid = int(p.pid)
-        process = rwm.get_process_by_id(pid)
-        process.open()
-        process.write(0x005292F1, 4294919657)
-        process.write(0x005292F1 + 4, 2425393407)
-        process.write(0x005292F1 + 8, 2425393296)
-        process.close()
-        print(f"Disabled FPS cap of process {pid}")
+    def remove_map_begin_camera_zoom_in():
+        # from @Kim on TrackMania Tool Assisted Discord server
+        process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
+        rwm = ReadWriteMemory()
+        for p in process:
+            pid = int(p.pid)
+            process = rwm.get_process_by_id(pid)
+            process.open()
+            process.write(0x00CE8E9C, 0)
+            process.close()
 
 
-def remove_map_begin_camera_zoom_in():
-    # from @Kim on TrackMania Tool Assisted Discord server
-    process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
-    rwm = ReadWriteMemory()
-    for p in process:
-        pid = int(p.pid)
-        process = rwm.get_process_by_id(pid)
-        process.open()
-        process.write(0x00CE8E9C, 0)
-        process.close()
-
-
-def custom_resolution(width, height):  # @aijundi TMI-discord
-    process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
-    rwm = ReadWriteMemory()
-    for p in process:
-        pid = int(p.pid)
-        process = rwm.get_process_by_id(pid)
-        process.open()
-        address = process.read(0xD66FF8) + 0x60
-        address = process.read(address) + 0x9C0
-        process.write(address, width)
-        process.write(address + 4, height)
-        process.close()
+    def custom_resolution(width, height):  # @aijundi TMI-discord
+        process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
+        rwm = ReadWriteMemory()
+        for p in process:
+            pid = int(p.pid)
+            process = rwm.get_process_by_id(pid)
+            process.open()
+            address = process.read(0xD66FF8) + 0x60
+            address = process.read(address) + 0x9C0
+            process.write(address, width)
+            process.write(address + 4, height)
+            process.close()
