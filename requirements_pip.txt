@@ -5,3 +5,4 @@ torchrl
 pprofile
 pygbx
 art
+python-libxdo
