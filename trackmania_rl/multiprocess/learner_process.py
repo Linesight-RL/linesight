@@ -26,8 +26,8 @@ from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
 
-def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path):
-    tensorboard_writer = SummaryWriter(log_dir=str(base_dir / "tensorboard" / misc.run_name))
+def learner_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tensorboard_dir: Path):
+    tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_dir))
 
     layout_version = "layout_3"
     SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(

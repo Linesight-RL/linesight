@@ -11,7 +11,7 @@ from trackmania_rl import misc, nn_utilities
 from trackmania_rl.agents import iqn as iqn
 
 
-def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path):
+def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tmi_port: int):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
     from trackmania_rl.tmi_interaction import tm_interface_manager
 
@@ -21,7 +21,7 @@ def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, bas
         run_steps_per_action=misc.tm_engine_step_per_action,
         max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
         max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
-        interface_name="TMInterface0",
+        tmi_port=tmi_port,
     )
 
     inference_network = iqn.make_untrained_iqn_network(misc.use_jit)

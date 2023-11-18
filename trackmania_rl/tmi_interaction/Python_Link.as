@@ -28,7 +28,7 @@ enum MessageType {
 
 const bool debug = false;
 const string HOST = "127.0.0.1";
-const uint16 PORT = 8477;
+uint16 PORT;
 uint RESPONSE_TIMEOUT = 2000;
 int next_frame_requested_H = -1;
 int next_frame_requested_W = -1;
@@ -39,6 +39,7 @@ auto@ simManager = GetSimulationManager();
 void Init_Socket(){
     if (@sock is null) {
         @sock = Net::Socket();
+        log("Port set to "+PORT);
         sock.Listen(HOST, PORT);
     }
 }
@@ -309,9 +310,28 @@ void OnConnect(){
     WaitForResponse(MessageType::SCOnConnectSync);
 }
 
-void Main(){
+void OnQueueProcessed(int fromTime, int toTime, const string&in commandLine, const array<string>&in args)
+{
+    PORT = uint16(GetVariableDouble("custom_port"));
+    log("Port donadigo" + GetVariableDouble("custom_port"));
     Init_Socket();
 }
+
+void Main()
+{
+    RegisterVariable("custom_port", 0);
+    RegisterCustomCommand("queue_processed", "Internal command", OnQueueProcessed);
+
+    CommandList cmdList;
+    cmdList.Content = "queue_processed";
+    cmdList.Process();
+}
+
+//void Main(){
+//    RegisterVariable("custom_port", 0);
+//    PORT = uint16(GetVariableDouble("custom_port"));
+//    Init_Socket();
+//}
 
 void OnGameStateChanged(TM::GameState state){
     if(state == TM::GameState::Menus && on_connect_queued){

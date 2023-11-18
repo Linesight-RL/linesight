@@ -11,7 +11,7 @@ H_screen = 480
 W_downsized = 160
 H_downsized = 120
 
-run_name = "run_name_to_change"
+run_name = "run_name_to_be_changed"
 running_speed = 80 if is_pb_desktop else 100
 
 tm_engine_step_per_action = 5
@@ -697,3 +697,4 @@ n_pixels_to_crop_on_each_side = 2
 max_rollout_queue_size = 10
 
 use_jit = True
+base_tmi_port = 8478

@@ -8,7 +8,6 @@ import numpy as np
 from tminterface.structs import CheckpointData, SimStateData
 
 HOST = "127.0.0.1"
-PORT = 8477
 
 
 class MessageType(IntEnum):
@@ -39,7 +38,8 @@ class MessageType(IntEnum):
 class TMInterface:
     registered = False
 
-    def __init__(self, name):
+    def __init__(self, port: int):
+        self.port = port
         pass
 
     def close(self):
@@ -59,7 +59,7 @@ class TMInterface:
         if timeout is not None:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, struct.pack("q", timeout * 1000))
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("q", timeout * 1000))
-        self.sock.connect((HOST, PORT))
+        self.sock.connect((HOST, self.port))
         self.registered = True
         print("Connected")
 

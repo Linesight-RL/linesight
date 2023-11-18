@@ -1,6 +1,7 @@
 import math
 import os
 import socket
+import subprocess
 import time
 
 import cv2
@@ -13,6 +14,7 @@ import win32com.client
 
 # noinspection PyPackageRequirements
 import win32gui
+import win32process
 from ReadWriteMemory import ReadWriteMemory
 
 from trackmania_rl import contact_materials, map_loader, misc
@@ -69,7 +71,7 @@ class TMInterfaceManager:
         run_steps_per_action=10,
         max_overall_duration_ms=2000,
         max_minirace_duration_ms=2000,
-        interface_name="TMInterface0",
+        tmi_port=None,
     ):
         # Create TMInterface we will be using to interact with the game client
         self.iface = None
@@ -79,26 +81,82 @@ class TMInterfaceManager:
         self.max_overall_duration_ms = max_overall_duration_ms
         self.max_minirace_duration_ms = max_minirace_duration_ms
         self.timeout_has_been_set = False
-        self.interface_name = interface_name
         self.msgtype_response_to_wakeup_TMI = None
         self.latest_map_path_requested = -2
         self.last_rollout_crashed = False
         self.last_game_reboot = time.perf_counter()
         self.UI_disabled = False
+        self.tmi_port = tmi_port
+        self.tm_process_id = None
+        self.tm_window_id = None
+
+    def get_tm_window_id(self):
+        assert self.tm_process_id is not None
+
+        def get_hwnds_for_pid(pid):
+            def callback(hwnd, hwnds):
+                _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
+
+                if found_pid == pid:
+                    hwnds.append(hwnd)
+                return True
+
+            hwnds = []
+            win32gui.EnumWindows(callback, hwnds)
+            return hwnds
+
+        while True:
+            for hwnd in get_hwnds_for_pid(self.tm_process_id):
+                if win32gui.GetWindowText(hwnd).startswith("Track"):
+                    self.tm_window_id = hwnd
+                    return
+            # else:
+            #     raise Exception("Could not find TmForever window id.")
 
     def launch_game(self):
-        os.system("start .\\TMInterface.lnk")
+        self.tm_process_id = None
+
+        tmi_process_id = int(
+            subprocess.check_output(
+                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'/configstring=\\"set custom_port '
+                + str(self.tmi_port)
+                + '\\"\'; echo exit $process.id}" TMInterface.lnk'
+            )
+            .decode()
+            .split("\r\n")[1]
+        )
+
+        print(f"Found {tmi_process_id=}")
+
+        tm_processes = list(
+            filter(
+                lambda s: s.startswith("TmForever"),
+                subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+            )
+        )
+        for process in tm_processes:
+            name, parent_id, process_id = process.split()
+            parent_id = int(parent_id)
+            process_id = int(process_id)
+            if parent_id == tmi_process_id:
+                self.tm_process_id = process_id
+
+        assert self.tm_process_id is not None
+        print(f"Found Trackmania process id: {self.tm_process_id=}")
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
         self.msgtype_response_to_wakeup_TMI = None
         while not self.is_game_running():
             time.sleep(0)
 
+        self.get_tm_window_id()
+
     def is_game_running(self):
-        return "TmForever.exe" in (p.name() for p in psutil.process_iter())
+        return (self.tm_process_id is not None) and (self.tm_process_id in (p.pid for p in psutil.process_iter()))
 
     def close_game(self):
-        os.system("taskkill /IM TmForever.exe /f")
+        assert self.tm_process_id is not None
+        os.system(f"taskkill /PID {self.tm_process_id} /f")
         while self.is_game_running():
             time.sleep(0)
 
@@ -139,8 +197,8 @@ class TMInterfaceManager:
 
         self.ensure_game_launched()
         if time.perf_counter() - self.last_game_reboot > misc.game_reboot_interval and is_fullscreen(
-            win32gui.FindWindow("TmForever", None)
-        ):  # If the game is windowed, user may be using the machine and would not want the game to open and close
+            self.tm_window_id
+        ):  # If the game is windowed, user may be using the machine and would not want the game to open and close # TODO : might want to remove this condition with parallel rollouts
             self.close_game()
             self.iface = None
             self.launch_game()
@@ -180,7 +238,7 @@ class TMInterfaceManager:
         if (self.iface is None) or (not self.iface.registered):
             assert self.msgtype_response_to_wakeup_TMI is None
             print("Initialize connection to TMInterface ")
-            self.iface = TMInterface(self.interface_name)
+            self.iface = TMInterface(self.tmi_port)
 
             if not self.iface.registered:
                 while True:
@@ -569,13 +627,14 @@ class TMInterfaceManager:
                 elif msgtype == int(MessageType.C_SHUTDOWN):
                     self.iface.close()
                 elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
-                    process_prepare()
+                    self.process_prepare()
                     if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
                         self.iface.execute_command("toggle_console")
                     self.request_speed(1)
                     self.iface.set_on_step_period(self.run_steps_per_action * 10)
                     self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                     self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
+                    self.iface.execute_command(f"set auto_reload_plugins false")
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"cam 1")
                     self.iface.execute_command(f"set temp_save_states_collect false")
@@ -590,9 +649,15 @@ class TMInterfaceManager:
             self.iface.close()
             end_race_stats["tmi_protection_cutoff"] = True
             self.last_rollout_crashed = True
-            ensure_not_minimized(win32gui.FindWindow("TmForever", None))
+            ensure_not_minimized(self.tm_window_id)
 
         return rollout_results, end_race_stats
+
+    def process_prepare(self):
+        remove_fps_cap()
+        remove_map_begin_camera_zoom_in()
+        # custom_resolution(misc.W_screen, misc.H_screen)
+        _set_window_focus(self.tm_window_id)
 
 
 def remove_fps_cap():
@@ -634,10 +699,3 @@ def custom_resolution(width, height):  # @aijundi TMI-discord
         process.write(address, width)
         process.write(address + 4, height)
         process.close()
-
-
-def process_prepare():
-    remove_fps_cap()
-    remove_map_begin_camera_zoom_in()
-    # custom_resolution(misc.W_screen, misc.H_screen)
-    _set_window_focus(win32gui.FindWindow("TmForever", None))
