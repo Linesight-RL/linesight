@@ -102,6 +102,7 @@ class TMInterfaceManager:
         self.tmi_port = tmi_port
         self.tm_process_id = None
         self.tm_window_id = None
+        self.start_states = {}
 
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
@@ -455,14 +456,22 @@ class TMInterfaceManager:
                         self.iface.toggle_interface(False)
                         self.UI_disabled = True
 
-                    if not give_up_signal_has_been_sent:
-                        if map_path != self.latest_map_path_requested:
-                            self.request_map(map_path)
-                            map_change_requested_time = _time
-                        else:
-                            self.iface.give_up()
+                    if _time == 0 and (map_path not in self.start_states):
+                        self.start_states[map_path] = self.iface.get_simulation_state()
+
+                    if (not give_up_signal_has_been_sent) and (map_path != self.latest_map_path_requested):
+                        self.request_map(map_path)
+                        map_change_requested_time = _time
+                        give_up_signal_has_been_sent = True
+                    elif (not give_up_signal_has_been_sent) and (map_path not in self.start_states):
+                        self.iface.give_up()
                         give_up_signal_has_been_sent = True
                     else:
+                        if not give_up_signal_has_been_sent:
+                            self.iface.rewind_to_state(self.start_states[map_path])
+                            _time = 0
+                            give_up_signal_has_been_sent = True
+                            this_rollout_has_seen_t_negative = True
                         if (
                             (_time > self.max_overall_duration_ms or _time > last_progress_improvement_ms + self.max_minirace_duration_ms)
                             and this_rollout_has_seen_t_negative
