@@ -176,12 +176,6 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
     grad_norm_history = []
     layer_grad_norm_history = defaultdict(list)
 
-    # Copy Angelscript plugin to TMInterface dir
-    shutil.copyfile(
-        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
-        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
-    )
-
     # ========================================================
     # Make the trainer
     # ========================================================

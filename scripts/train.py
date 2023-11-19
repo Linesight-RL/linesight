@@ -45,6 +45,12 @@ if __name__ == "__main__":
 
     clear_tm_instances()
 
+    # Copy Angelscript plugin to TMInterface dir
+    shutil.copyfile(
+        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
+        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+    )
+
     print("Run:")
     print("\n" * 2)
     tprint(misc.run_name, font="tarty4")
