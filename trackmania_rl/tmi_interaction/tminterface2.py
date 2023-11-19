@@ -60,7 +60,7 @@ class TMInterface:
         # https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
         if timeout is not None:
             if Is_Linux: #https://stackoverflow.com/questions/46477448/python-setsockopt-what-is-worng
-                timeout_pack = struct.pack("ll", 2, 0)
+                timeout_pack = struct.pack("ll", timeout, 0)
             else:
                 timeout_pack = struct.pack("q", timeout * 1000)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, timeout_pack)
