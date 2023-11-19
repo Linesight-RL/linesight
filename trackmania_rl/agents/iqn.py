@@ -1,5 +1,6 @@
 import math
 import random
+from sys import platform
 from collections import deque
 from typing import Optional, Tuple
 
@@ -10,6 +11,7 @@ from torchrl.data import ReplayBuffer
 from .. import misc  # TODO virer cet import
 from .. import nn_utilities
 
+Is_Linux = platform in ["linux","linux2"]
 
 class CReLU(torch.nn.Module):
     def __init__(self, inplace: bool = False):
@@ -349,5 +351,9 @@ def make_untrained_iqn_network(jit: bool):
         float_inputs_mean=misc.float_inputs_mean,
         float_inputs_std=misc.float_inputs_std,
     )
-
-    return (torch.jit.script(model) if jit else model).to("cuda", memory_format=torch.channels_last).train()
+    if jit:
+        if Is_Linux:
+            model = torch.compile(model, dynamic=False)
+        else:
+            model = torch.jit.script(model)
+    return model.to("cuda", memory_format=torch.channels_last).train()
