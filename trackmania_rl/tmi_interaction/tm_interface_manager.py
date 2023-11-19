@@ -608,7 +608,6 @@ class TMInterfaceManager:
                     self.iface._read_int32()
                     self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
-                    pc6 = time.perf_counter_ns()
                     frame = self.grab_screen()
                     frame_expected = False
                     if (
@@ -617,12 +616,13 @@ class TMInterfaceManager:
                         and not this_rollout_is_finished
                         and compute_action_asap
                     ):
+                        pc6 = time.perf_counter_ns()
                         time_to_grab_frame += pc6 - pc5
                         assert self.latest_tm_engine_speed_requested == 0
                         assert not compute_action_asap_floats
-                        pc7 = time.perf_counter_ns()
                         frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)
                         rollout_results["frames"].append(frame)
+                        pc7 = time.perf_counter_ns()
                         time_A_rgb2gray += pc7 - pc6
 
                         (
