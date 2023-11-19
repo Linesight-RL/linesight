@@ -4,6 +4,7 @@ import random
 import signal
 import sys
 import time
+import os
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,7 @@ from trackmania_rl.multiprocess.learner_process import learner_process_fn
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
 torch.set_num_threads(1)
+torch.set_float32_matmul_precision('high')
 random_seed = 444
 torch.cuda.manual_seed_all(random_seed)
 torch.manual_seed(random_seed)
@@ -31,9 +33,17 @@ def signal_handler(sig, frame):
     tprint("Bye bye!", font="tarty1")
     sys.exit()
 
+def clear_tm_instances():
+    if misc.is_linux:
+        os.system("pkill -9 TmForever.exe")
+    else:
+        os.system("taskkill TmForever.exe /F")
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
+
+    clear_tm_instances()
 
     print("Run:")
     print("\n" * 2)

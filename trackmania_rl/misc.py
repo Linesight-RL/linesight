@@ -1,7 +1,10 @@
 from itertools import chain, repeat
+from sys import platform
 
 import numpy as np
 import psutil
+
+is_linux = platform in ["linux","linux2"]
 
 is_pb_desktop = psutil.virtual_memory().total > 5e10
 
@@ -64,11 +67,11 @@ iqn_kappa = 1
 use_ddqn = False
 
 prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
-prio_epsilon = np.float32(1e-6)  # Defaults to 10^-6 in stable-baselines
+prio_epsilon = np.float32(2e-3)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 50_000 if is_pb_desktop else 800_000
-memory_size_start_learn = 400
+memory_size = 50_000 if is_pb_desktop else 50_000
+memory_size_start_learn = 2_000
 number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
 offset_cumul_number_single_memories_used = memory_size_start_learn * (
     64 - 4

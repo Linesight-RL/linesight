@@ -27,8 +27,8 @@ def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, bas
     inference_network = iqn.make_untrained_iqn_network(misc.use_jit)
     try:
         inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
-    except:
-        print("Worker could not load weights")
+    except Exception as e:
+        print("Worker could not load weights, exception:",e)
 
     inferer = iqn.Inferer(inference_network, misc.iqn_k, misc.tau_epsilon_boltzmann)
 

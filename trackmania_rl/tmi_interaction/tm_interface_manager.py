@@ -9,14 +9,11 @@ import numba
 import numpy as np
 import numpy.typing as npt
 import psutil
-from sys import platform
 
 from trackmania_rl import contact_materials, map_loader, misc
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
-Is_Linux = platform in ["linux","linux2"]
-
-if Is_Linux:
+if misc.is_linux:
     from xdo import Xdo
 else:
     from ReadWriteMemory import ReadWriteMemory
@@ -28,7 +25,7 @@ else:
 def _set_window_focus(
     trackmania_window,
 ):  # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
-    if Is_Linux:
+    if misc.is_linux:
         Xdo.focus_window(trackmania_window)
     else:
         shell = win32com.client.Dispatch("WScript.Shell")
@@ -37,7 +34,7 @@ def _set_window_focus(
 
 
 def is_fullscreen(trackmania_window):
-    if Is_Linux:
+    if misc.is_linux:
         return False #shape = Xdo().get_window_size()
     else:
         rect = win32gui.GetWindowPlacement(trackmania_window)[4]
@@ -45,7 +42,7 @@ def is_fullscreen(trackmania_window):
 
 
 def ensure_not_minimized(trackmania_window):
-    if Is_Linux:
+    if misc.is_linux:
         Xdo().map_window(trackmania_window)
     else:
         if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
@@ -107,7 +104,7 @@ class TMInterfaceManager:
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
 
-        if Is_Linux:
+        if misc.is_linux:
             self.tm_window_id = Xdo().search_windows(winname=b"Track",pid=self.tm_process_id)
         else:
             def get_hwnds_for_pid(pid):
@@ -133,7 +130,7 @@ class TMInterfaceManager:
     def launch_game(self):
         self.tm_process_id = None
 
-        if Is_Linux:
+        if misc.is_linux:
             pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
             os.system("./launch_game.sh "+str(self.tmi_port))
             pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
@@ -181,7 +178,7 @@ class TMInterfaceManager:
 
     def close_game(self):
         assert self.tm_process_id is not None
-        if Is_Linux:
+        if misc.is_linux:
             os.system("kill -9 "+str(self.tm_process_id))
         else:
             os.system(f"taskkill /PID {self.tm_process_id} /f")
@@ -189,7 +186,7 @@ class TMInterfaceManager:
             time.sleep(0)
 
     def game_shortcut_exists(self):
-        return os.path.exists("./launch_game.sh") if Is_Linux else os.path.exists(".\\TMInterface.lnk")
+        return os.path.exists("./launch_game.sh") if misc.is_linux else os.path.exists(".\\TMInterface.lnk")
 
     def ensure_game_launched(self):
         if not self.is_game_running():
@@ -691,13 +688,13 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
     def process_prepare(self):
-        if not Is_Linux:
+        if not misc.is_linux:
             remove_fps_cap()
             remove_map_begin_camera_zoom_in()
             # custom_resolution(misc.W_screen, misc.H_screen)
             _set_window_focus(self.tm_window_id)
 
-if not Is_Linux:
+if not misc.is_linux:
     def remove_fps_cap():
         # from @Kim on TrackMania Tool Assisted Discord server
         process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
