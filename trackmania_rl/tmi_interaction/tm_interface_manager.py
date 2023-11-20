@@ -1,8 +1,8 @@
 import math
 import os
 import socket
-import time
 import subprocess
+import time
 
 import cv2
 import numba
@@ -16,10 +16,10 @@ from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 if misc.is_linux:
     from xdo import Xdo
 else:
-    from ReadWriteMemory import ReadWriteMemory
     import win32.lib.win32con as win32con
     import win32com.client
     import win32gui
+    from ReadWriteMemory import ReadWriteMemory
 
 
 def _set_window_focus(
@@ -35,7 +35,7 @@ def _set_window_focus(
 
 def is_fullscreen(trackmania_window):
     if misc.is_linux:
-        return False #shape = Xdo().get_window_size()
+        return False  # shape = Xdo().get_window_size()
     else:
         rect = win32gui.GetWindowPlacement(trackmania_window)[4]
         return rect[0] == 0 and rect[1] == 0 and rect[2] == misc.W_screen and rect[3] == misc.H_screen
@@ -45,7 +45,9 @@ def ensure_not_minimized(trackmania_window):
     if misc.is_linux:
         Xdo().map_window(trackmania_window)
     else:
-        if win32gui.IsIconic(trackmania_window):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
+        if win32gui.IsIconic(
+            trackmania_window
+        ):  # https://stackoverflow.com/questions/54560987/restore-window-without-setting-to-foreground
             win32gui.ShowWindow(trackmania_window, win32con.SW_SHOWNORMAL)  # Unminimize window
         if is_fullscreen(trackmania_window):
             _set_window_focus(trackmania_window)
@@ -105,8 +107,9 @@ class TMInterfaceManager:
         assert self.tm_process_id is not None
 
         if misc.is_linux:
-            self.tm_window_id = Xdo().search_windows(winname=b"Track",pid=self.tm_process_id)
+            self.tm_window_id = Xdo().search_windows(winname=b"Track", pid=self.tm_process_id)
         else:
+
             def get_hwnds_for_pid(pid):
                 def callback(hwnd, hwnds):
                     _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
@@ -132,10 +135,10 @@ class TMInterfaceManager:
 
         if misc.is_linux:
             pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-            os.system("./launch_game.sh "+str(self.tmi_port))
+            os.system("./launch_game.sh " + str(self.tmi_port))
             pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
             tmi_pid_candidates = set(pid_after) - set(pid_before)
-            assert(len(tmi_pid_candidates)==1)
+            assert len(tmi_pid_candidates) == 1
             self.tm_process_id = list(tmi_pid_candidates)[0]
         else:
             tmi_process_id = int(
@@ -179,7 +182,7 @@ class TMInterfaceManager:
     def close_game(self):
         assert self.tm_process_id is not None
         if misc.is_linux:
-            os.system("kill -9 "+str(self.tm_process_id))
+            os.system("kill -9 " + str(self.tm_process_id))
         else:
             os.system(f"taskkill /PID {self.tm_process_id} /f")
         while self.is_game_running():
@@ -194,7 +197,11 @@ class TMInterfaceManager:
                 print("Game not found. Restarting TMInterface.")
                 self.launch_game()
             else:
-                print("Game needs to be restarted but cannot be. Add TMInterface shortcut to directory (TMInterface.lnk for windows, launch_game.sh for linux).")
+                print(
+                    """Game needs to be restarted but cannot be.
+                    Add TMInterface shortcut inside /scripts directory (TMInterface.lnk for windows, launch_game.sh for linux).
+                    """
+                )
 
     def grab_screen(self):
         return self.iface.get_frame(misc.W_downsized, misc.H_downsized)
@@ -694,7 +701,9 @@ class TMInterfaceManager:
             # custom_resolution(misc.W_screen, misc.H_screen)
             _set_window_focus(self.tm_window_id)
 
+
 if not misc.is_linux:
+
     def remove_fps_cap():
         # from @Kim on TrackMania Tool Assisted Discord server
         process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
@@ -709,7 +718,6 @@ if not misc.is_linux:
             process.close()
             print(f"Disabled FPS cap of process {pid}")
 
-
     def remove_map_begin_camera_zoom_in():
         # from @Kim on TrackMania Tool Assisted Discord server
         process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
@@ -720,7 +728,6 @@ if not misc.is_linux:
             process.open()
             process.write(0x00CE8E9C, 0)
             process.close()
-
 
     def custom_resolution(width, height):  # @aijundi TMI-discord
         process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())

@@ -21,7 +21,8 @@ from torchrl.data.replay_buffers import PrioritizedSampler, RandomSampler
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
-from trackmania_rl.buffer_utilities import CustomPrioritizedSampler, buffer_collate_function
+from trackmania_rl.buffer_utilities import (CustomPrioritizedSampler,
+                                            buffer_collate_function)
 from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 

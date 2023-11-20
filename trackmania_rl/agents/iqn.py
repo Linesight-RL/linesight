@@ -7,8 +7,8 @@ import numpy as np
 import torch
 from torchrl.data import ReplayBuffer
 
-from .. import misc  # TODO virer cet import
-from .. import nn_utilities
+from .. import misc, nn_utilities
+
 
 class CReLU(torch.nn.Module):
     def __init__(self, inplace: bool = False):

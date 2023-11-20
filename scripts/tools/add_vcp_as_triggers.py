@@ -1,10 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
-iface = TMInterface("pasdenom")
+iface = TMInterface(8477)
 base_dir = Path(__file__).resolve().parents[2]
 vcp = np.load(base_dir / "maps" / "B05-Race_0.5m_cl.npy")
 

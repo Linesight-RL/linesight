@@ -1,17 +1,16 @@
 import ctypes
 import os
 import random
+import shutil
 import signal
 import sys
 import time
-import os
 from pathlib import Path
 
 import numpy as np
 import torch
 import torch.multiprocessing as mp
 from art import tprint
-
 from trackmania_rl import misc
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn
@@ -19,7 +18,7 @@ from trackmania_rl.multiprocess.learner_process import learner_process_fn
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
 torch.set_num_threads(1)
-torch.set_float32_matmul_precision('high')
+torch.set_float32_matmul_precision("high")
 random_seed = 444
 torch.cuda.manual_seed_all(random_seed)
 torch.manual_seed(random_seed)
@@ -33,6 +32,7 @@ def signal_handler(sig, frame):
     tprint("Bye bye!", font="tarty1")
     sys.exit()
 
+
 def clear_tm_instances():
     if misc.is_linux:
         os.system("pkill -9 TmForever.exe")
@@ -44,12 +44,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     clear_tm_instances()
-
-    # Copy Angelscript plugin to TMInterface dir
-    shutil.copyfile(
-        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
-        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
-    )
 
     print("Run:")
     print("\n" * 2)
@@ -63,6 +57,12 @@ if __name__ == "__main__":
     save_dir = base_dir / "save" / misc.run_name
     save_dir.mkdir(parents=True, exist_ok=True)
     tensorboard_dir = base_dir / "tensorboard" / misc.run_name
+
+    # Copy Angelscript plugin to TMInterface dir
+    shutil.copyfile(
+        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
+        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+    )
 
     # Prepare multi process utilities
     shared_steps = mp.Value(ctypes.c_int64)

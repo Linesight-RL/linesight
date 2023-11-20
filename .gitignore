@@ -21,3 +21,5 @@
 /dxcam*
 /old_tensorboard
 /scripts/TMInterface.lnk
+tminterface.cpython-311-x86_64-linux-gnu.so
+Nadeo.ini
