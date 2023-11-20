@@ -28,7 +28,11 @@ np.random.seed(random_seed)
 
 def signal_handler(sig, frame):
     print("Received SIGINT signal. Killing all open Trackmania instances.")
-    os.system("taskkill /IM TmForever.exe /f")
+    clear_tm_instances()
+
+    for child in mp.active_children():
+        child.kill()
+
     tprint("Bye bye!", font="tarty1")
     sys.exit()
 
