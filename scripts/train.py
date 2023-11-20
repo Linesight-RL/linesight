@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Copy Angelscript plugin to TMInterface dir
     shutil.copyfile(
         base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
-        Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as",
+        misc.target_python_link_path,
     )
 
     # Prepare multi process utilities

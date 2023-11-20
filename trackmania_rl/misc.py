@@ -1,4 +1,6 @@
+import os
 from itertools import chain, repeat
+from pathlib import Path
 from sys import platform
 
 import numpy as np
@@ -692,3 +694,11 @@ max_rollout_queue_size = 3
 use_jit = True
 base_tmi_port = 8478
 gpu_collectors_count = 1
+
+target_python_link_path = (
+    Path(os.path.expanduser("~")) / "windocs" / "TMInterface" / "Plugins" / "Python_Link.as"
+    if is_pb_desktop and is_linux
+    else Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as"
+)
+
+linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"

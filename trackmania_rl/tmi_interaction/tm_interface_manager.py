@@ -135,7 +135,7 @@ class TMInterfaceManager:
 
         if misc.is_linux:
             pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-            os.system("./launch_game.sh " + str(self.tmi_port))
+            os.system(misc.linux_launch_game_path + " " + str(self.tmi_port))
             pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
             tmi_pid_candidates = set(pid_after) - set(pid_before)
             assert len(tmi_pid_candidates) == 1
@@ -189,7 +189,7 @@ class TMInterfaceManager:
             time.sleep(0)
 
     def game_shortcut_exists(self):
-        return os.path.exists("./launch_game.sh") if misc.is_linux else os.path.exists(".\\TMInterface.lnk")
+        return os.path.exists(misc.linux_launch_game_path) if misc.is_linux else os.path.exists(".\\TMInterface.lnk")
 
     def ensure_game_launched(self):
         if not self.is_game_running():
