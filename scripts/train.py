@@ -11,8 +11,10 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 from art import tprint
+from torch.multiprocessing import Lock
 
 from trackmania_rl import misc
+from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn
 
@@ -73,7 +75,9 @@ if __name__ == "__main__":
     shared_steps = mp.Value(ctypes.c_int64)
     shared_steps.value = 0
     rollout_queues = [mp.Queue(misc.max_rollout_queue_size) for _ in range(misc.gpu_collectors_count)]
-    model_queues = [mp.Queue() for _ in range(misc.gpu_collectors_count)]
+    shared_network_lock = Lock()
+    _, uncompiled_shared_network = make_untrained_iqn_network(jit=misc.use_jit)
+    uncompiled_shared_network.share_memory()
 
     # Start worker process
     collector_processes = [
@@ -81,14 +85,15 @@ if __name__ == "__main__":
             target=collector_process_fn,
             args=(
                 rollout_queue,
-                model_queue,
+                uncompiled_shared_network,
+                shared_network_lock,
                 shared_steps,
                 base_dir,
                 save_dir,
                 misc.base_tmi_port + process_number,
             ),
         )
-        for rollout_queue, model_queue, process_number in zip(rollout_queues, model_queues, range(misc.gpu_collectors_count))
+        for rollout_queue, process_number in zip(rollout_queues, range(misc.gpu_collectors_count))
     ]
     for collector_process in collector_processes:
         collector_process.start()
@@ -96,7 +101,8 @@ if __name__ == "__main__":
 
     # Start learner process
     learner_process = mp.Process(
-        target=learner_process_fn, args=(rollout_queues, model_queues, shared_steps, base_dir, save_dir, tensorboard_dir)
+        target=learner_process_fn,
+        args=(rollout_queues, uncompiled_shared_network, shared_network_lock, shared_steps, base_dir, save_dir, tensorboard_dir),
     )
     learner_process.start()
 

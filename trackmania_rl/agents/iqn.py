@@ -338,7 +338,7 @@ class Inferer:
 
 
 def make_untrained_iqn_network(jit: bool):
-    model = IQN_Network(
+    uncompiled_model = IQN_Network(
         float_inputs_dim=misc.float_input_dim,
         float_hidden_dim=misc.float_hidden_dim,
         conv_head_output_dim=misc.conv_head_output_dim,
@@ -350,7 +350,10 @@ def make_untrained_iqn_network(jit: bool):
     )
     if jit:
         if misc.is_linux:
-            model = torch.compile(model, dynamic=False)
+            model = torch.compile(uncompiled_model, dynamic=False)
         else:
-            model = torch.jit.script(model)
-    return model.to("cuda", memory_format=torch.channels_last).train()
+            model = torch.jit.script(uncompiled_model)
+    return (
+        model.to("cuda", memory_format=torch.channels_last).train(),
+        uncompiled_model.to("cuda", memory_format=torch.channels_last).train(),
+    )

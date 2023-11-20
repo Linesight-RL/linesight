@@ -11,7 +11,9 @@ from trackmania_rl import misc, nn_utilities
 from trackmania_rl.agents import iqn as iqn
 
 
-def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tmi_port: int):
+def collector_process_fn(
+    rollout_queue, uncompiled_shared_network, shared_network_lock, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tmi_port: int
+):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
     from trackmania_rl.tmi_interaction import tm_interface_manager
 
@@ -24,7 +26,7 @@ def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, bas
         tmi_port=tmi_port,
     )
 
-    inference_network = iqn.make_untrained_iqn_network(misc.use_jit)
+    inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(misc.use_jit)
     try:
         inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
     except Exception as e:
@@ -80,13 +82,9 @@ def collector_process_fn(rollout_queue, model_queue, shared_steps: mp.Value, bas
         inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
         inferer.is_explo = is_explo
 
-        # Check for weight update
-        if not model_queue.empty():  # Make sure we get latest weights in the pipe, and make sure the pipe can't start accumulating
-            while True:
-                model_state_dict = model_queue.get()
-                if model_queue.empty():
-                    inference_network.load_state_dict(model_state_dict)
-                    break
+        # Update weights of the inference network
+        with shared_network_lock:
+            uncompiled_inference_network.load_state_dict(uncompiled_shared_network.state_dict())
 
         # ===============================================
         #   PLAY ONE ROUND

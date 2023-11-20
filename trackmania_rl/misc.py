@@ -702,3 +702,5 @@ target_python_link_path = (
 )
 
 linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"
+
+send_shared_network_every_n_batches = 10

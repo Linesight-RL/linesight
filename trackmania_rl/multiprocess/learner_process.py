@@ -27,7 +27,15 @@ from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
 
-def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tensorboard_dir: Path):
+def learner_process_fn(
+    rollout_queues,
+    uncompiled_shared_network,
+    shared_network_lock,
+    shared_steps: mp.Value,
+    base_dir: Path,
+    save_dir: Path,
+    tensorboard_dir: Path,
+):
     tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_dir))
 
     layout_version = "layout_3"
@@ -97,8 +105,8 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
     # Create new stuff
     # ========================================================
 
-    online_network = make_untrained_iqn_network(misc.use_jit)
-    target_network = make_untrained_iqn_network(misc.use_jit)
+    online_network, uncompiled_online_network = make_untrained_iqn_network(misc.use_jit)
+    target_network, _ = make_untrained_iqn_network(misc.use_jit)
 
     print(online_network)
     nn_utilities.count_parameters(online_network)
@@ -454,6 +462,9 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
                     print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e} {train_on_batch_duration_history[-1]*1000:<8.1f}")
 
                     nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
+                    if accumulated_stats["cumul_number_batches_done"] % misc.send_shared_network_every_n_batches == 0:
+                        with shared_network_lock:
+                            uncompiled_shared_network.load_state_dict(uncompiled_online_network.state_dict())
 
                     # ===============================================
                     #   UPDATE TARGET NETWORK
@@ -468,16 +479,6 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
                         ] += misc.number_memories_trained_on_between_target_network_updates
                         # print("UPDATE")
                         nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
-            weights_copy = deepcopy_state_dict(online_network.state_dict())
-            for model_queue in model_queues:
-                # Empty the queue if there was still something there.
-                # The queue can never contain more than 1 item.
-                try:
-                    model_queue.get_nowait()
-                except queue.Empty:
-                    pass
-                # Then push the latest version of the weights in the queue.
-                model_queue.put(weights_copy)
             print("", flush=True)
 
         # ===============================================
