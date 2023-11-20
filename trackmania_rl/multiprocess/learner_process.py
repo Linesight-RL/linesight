@@ -2,6 +2,7 @@ import copy
 import importlib
 import math
 import os
+import queue
 import random
 import shutil
 import time
@@ -471,7 +472,10 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
             for model_queue in model_queues:
                 # Empty the queue if there was still something there.
                 # The queue can never contain more than 1 item.
-                model_queue.get_nowait()
+                try:
+                    model_queue.get_nowait()
+                except queue.Empty:
+                    pass
                 # Then push the latest version of the weights in the queue.
                 model_queue.put(weights_copy)
             print("", flush=True)
