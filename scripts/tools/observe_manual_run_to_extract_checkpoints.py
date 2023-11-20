@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from tminterface.client import Client, run_client
 from tminterface.interface import TMInterface
+
 from trackmania_rl.geometry import extract_cp_distance_interval
 
 

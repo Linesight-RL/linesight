@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 iface = TMInterface(8477)

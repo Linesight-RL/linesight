@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 from art import tprint
+
 from trackmania_rl import misc
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn

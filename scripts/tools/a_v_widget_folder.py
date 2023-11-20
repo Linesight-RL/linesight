@@ -1,11 +1,11 @@
 import subprocess
 import time
 from pathlib import Path
-from typing import List
 
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+
 from trackmania_rl import run_to_video
 
 tmi_dir = Path("C:\\Users\\chopi\\Documents\\TMInterface\\Scripts")

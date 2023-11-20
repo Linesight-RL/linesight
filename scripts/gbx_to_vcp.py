@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from pygbx import Gbx, GbxType
+
 from trackmania_rl.geometry import extract_cp_distance_interval
 
 
