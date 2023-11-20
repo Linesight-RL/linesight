@@ -470,8 +470,11 @@ def learner_process_fn(rollout_queues, model_queues, shared_steps: mp.Value, bas
                         nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
             weights_copy = deepcopy_state_dict(online_network.state_dict())
             for model_queue in model_queues:
-                if model_queue.empty():
-                    model_queue.put(weights_copy)
+                # Empty the queue if there was still something there.
+                # The queue can never contain more than 1 item.
+                model_queue.get_nowait()
+                # Then push the latest version of the weights in the queue.
+                model_queue.put(weights_copy)
             print("", flush=True)
 
         # ===============================================
