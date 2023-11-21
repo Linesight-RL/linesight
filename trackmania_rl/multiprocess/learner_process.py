@@ -14,13 +14,12 @@ import numpy as np
 import torch
 from torch import multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
-from torchrl.data import ListStorage, ReplayBuffer
-from torchrl.data.replay_buffers import PrioritizedSampler, RandomSampler
+from torchrl.data.replay_buffers import PrioritizedSampler
 
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
-from trackmania_rl.buffer_utilities import CustomPrioritizedSampler, buffer_collate_function
+from trackmania_rl.buffer_utilities import make_buffers
 from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
 
@@ -154,23 +153,9 @@ def learner_process_fn(
     # optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
     scaler = torch.cuda.amp.GradScaler()
-    buffer = ReplayBuffer(
-        storage=ListStorage(misc.memory_size),
-        batch_size=misc.batch_size,
-        collate_fn=buffer_collate_function,
-        prefetch=1,
-        sampler=CustomPrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
-        if misc.prio_alpha > 0
-        else RandomSampler(),
-    )
-    buffer_test = ReplayBuffer(
-        storage=ListStorage(int(misc.memory_size * misc.buffer_test_ratio)),
-        batch_size=misc.batch_size,
-        collate_fn=buffer_collate_function,
-        sampler=CustomPrioritizedSampler(misc.memory_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
-        if misc.prio_alpha > 0
-        else RandomSampler(),
-    )
+    buffer, buffer_test = make_buffers(misc.memory_size_phase1)
+    memory_size_start_learn = misc.memory_size_start_learn_phase1
+    offset_cumul_number_single_memories_used = misc.offset_cumul_number_single_memories_used_phase1
 
     # noinspection PyBroadException
     try:
@@ -230,6 +215,15 @@ def learner_process_fn(
             continue
 
         importlib.reload(misc)
+
+        if (
+            accumulated_stats["cumul_number_frames_played"] > misc.transition_steps_phase2
+            and buffer._storage.max_size == misc.memory_size_phase1
+        ):
+            buffer, buffer_test = make_buffers(misc.memory_size_phase2)
+            memory_size_start_learn = misc.memory_size_start_learn_phase2
+            offset_cumul_number_single_memories_used = misc.offset_cumul_number_single_memories_used_phase2
+            accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
 
         # ===============================================
         #   VERY BASIC TRAINING ANNEALING
@@ -439,8 +433,8 @@ def learner_process_fn(
                 online_network.train()
 
             while (
-                len(buffer) >= misc.memory_size_start_learn
-                and accumulated_stats["cumul_number_single_memories_used"] + misc.offset_cumul_number_single_memories_used
+                len(buffer) >= memory_size_start_learn
+                and accumulated_stats["cumul_number_single_memories_used"] + offset_cumul_number_single_memories_used
                 <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
             ):
                 if (random.random() < misc.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
@@ -450,7 +444,11 @@ def learner_process_fn(
                 else:
                     train_start_time = time.perf_counter()
                     loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
-                    accumulated_stats["cumul_number_single_memories_used"] += misc.batch_size
+                    accumulated_stats["cumul_number_single_memories_used"] += (
+                        10 * misc.batch_size
+                        if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size == misc.memory_size_phase2)
+                        else misc.batch_size
+                    )  # do fewer batches while memory is not full and we are i
                     train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
                     loss_history.append(loss)
                     if not math.isinf(grad_norm):

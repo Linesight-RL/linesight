@@ -72,15 +72,26 @@ prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER pa
 prio_epsilon = np.float32(2e-3)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-memory_size = 50_000 if is_pb_desktop else 50_000
-memory_size_start_learn = 20_000
-number_times_single_memory_is_used_before_discard = 64 - 4  # 32 // 4
-offset_cumul_number_single_memories_used = memory_size_start_learn * (
+number_times_single_memory_is_used_before_discard = 60  # 32 // 4
+
+memory_size_phase1 = 50_000 if is_pb_desktop else 50_000
+memory_size_start_learn_phase1 = 20_000
+offset_cumul_number_single_memories_used_phase1 = memory_size_start_learn_phase1 * number_times_single_memory_is_used_before_discard
+
+transition_steps_phase2 = 4_000_000
+memory_size_phase2 = 800_000 if is_pb_desktop else 800_000
+memory_size_start_learn_phase2 = 200_000 if is_pb_desktop else 200_000
+offset_cumul_number_single_memories_used_phase2 = memory_size_start_learn_phase2 * number_times_single_memory_is_used_before_discard
+
+offset_cumul_number_single_memories_used = memory_size_start_learn_phase1 * (
     64 - 4
 )  # memory_size_start_learn * number_times_single_memory_is_used_before_discard
+
 # Sign and effet of offset_cumul_number_single_memories_used:
 # Positive : We need to generate more memories before we start learning.
 # Negative : The first memories we generate will be used for more batches.
+# If offset_cumul_number_single_memories_used == memory_size_start_learn * number_times_single_memory_is_used_before_discard then there is no offset
+
 apply_horizontal_flip_augmentation = False
 flip_augmentation_ratio = 0.5
 flip_pair_indices_to_swap = [
@@ -119,6 +130,8 @@ batch_size = 512
 lr_schedule = [
     (0, 1e-3),
     (2_000_000, 5e-5),
+    (7_000_000, 5e-5),
+    (9_000_000, 1e-5),
 ]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4

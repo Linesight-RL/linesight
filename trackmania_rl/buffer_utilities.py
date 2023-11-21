@@ -5,7 +5,8 @@ from typing import Any, Dict, Union
 import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
-from torchrl.data.replay_buffers.samplers import PrioritizedSampler
+from torchrl.data import ListStorage, ReplayBuffer
+from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampler
 from torchrl.data.replay_buffers.storages import Storage
 from torchrl.data.replay_buffers.utils import INT_CLASSES, _to_numpy
 
@@ -262,3 +263,24 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         self._default_priority_ratio = state_dict["_default_priority_ratio"]
         self._sum_tree = state_dict.pop("_sum_tree")
         self._min_tree = state_dict.pop("_min_tree")
+
+
+def make_buffers(buffer_size):
+    buffer = ReplayBuffer(
+        storage=ListStorage(buffer_size),
+        batch_size=misc.batch_size,
+        collate_fn=buffer_collate_function,
+        prefetch=1,
+        sampler=CustomPrioritizedSampler(buffer_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
+        if misc.prio_alpha > 0
+        else RandomSampler(),
+    )
+    buffer_test = ReplayBuffer(
+        storage=ListStorage(int(buffer_size * misc.buffer_test_ratio)),
+        batch_size=misc.batch_size,
+        collate_fn=buffer_collate_function,
+        sampler=CustomPrioritizedSampler(buffer_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
+        if misc.prio_alpha > 0
+        else RandomSampler(),
+    )
+    return buffer, buffer_test
