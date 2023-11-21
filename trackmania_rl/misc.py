@@ -24,6 +24,7 @@ ms_per_action = ms_per_tm_engine_step * tm_engine_step_per_action
 n_zone_centers_in_inputs = 40
 one_every_n_zone_centers_in_inputs = 20
 n_zone_centers_extrapolate_after_end_of_map = 1000
+n_zone_centers_extrapolate_before_start_of_map = 20
 n_prev_actions_in_inputs = 5
 n_contact_material_physics_behavior_types = 4  # See contact_materials.py
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000

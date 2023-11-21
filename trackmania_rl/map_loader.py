@@ -13,7 +13,9 @@ def load_next_map_zone_centers(zone_centers_filename, base_dir):
     # ==================================================================================
     zone_centers = np.vstack(
         (
-            2 * zone_centers[0] - zone_centers[1],
+            zone_centers[0]
+            + np.expand_dims(zone_centers[0] - zone_centers[1], axis=0)
+            * np.expand_dims(np.arange(misc.n_zone_centers_extrapolate_before_start_of_map, 0, -1), axis=1),
             zone_centers,
             zone_centers[-1]
             + np.expand_dims(zone_centers[-1] - zone_centers[-2], axis=0)

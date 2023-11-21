@@ -295,7 +295,7 @@ class TMInterfaceManager:
         self.last_rollout_crashed = False
 
         _time = -3000
-        current_zone_idx = 1
+        current_zone_idx = misc.n_zone_centers_extrapolate_before_start_of_map
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
