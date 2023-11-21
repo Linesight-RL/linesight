@@ -80,6 +80,7 @@ class TMInterfaceManager:
     def __init__(
         self,
         base_dir,
+        game_spawning_lock,
         running_speed=1,
         run_steps_per_action=10,
         max_overall_duration_ms=2000,
@@ -103,6 +104,7 @@ class TMInterfaceManager:
         self.tm_process_id = None
         self.tm_window_id = None
         self.start_states = {}
+        self.game_spawning_lock = game_spawning_lock
 
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
@@ -135,12 +137,13 @@ class TMInterfaceManager:
         self.tm_process_id = None
 
         if misc.is_linux:
-            pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-            os.system(misc.linux_launch_game_path + " " + str(self.tmi_port))
-            pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-            tmi_pid_candidates = set(pid_after) - set(pid_before)
-            assert len(tmi_pid_candidates) == 1
-            self.tm_process_id = list(tmi_pid_candidates)[0]
+            with self.game_spawning_lock:
+                pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+                os.system(misc.linux_launch_game_path + " " + str(self.tmi_port))
+                pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+                tmi_pid_candidates = set(pid_after) - set(pid_before)
+                assert len(tmi_pid_candidates) == 1
+                self.tm_process_id = list(tmi_pid_candidates)[0]
         else:
             tmi_process_id = int(
                 subprocess.check_output(

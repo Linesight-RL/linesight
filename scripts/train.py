@@ -76,6 +76,7 @@ if __name__ == "__main__":
     shared_steps.value = 0
     rollout_queues = [mp.Queue(misc.max_rollout_queue_size) for _ in range(misc.gpu_collectors_count)]
     shared_network_lock = Lock()
+    game_spawning_lock = Lock()
     _, uncompiled_shared_network = make_untrained_iqn_network(jit=misc.use_jit)
     uncompiled_shared_network.share_memory()
 
@@ -96,6 +97,7 @@ if __name__ == "__main__":
                 rollout_queue,
                 uncompiled_shared_network,
                 shared_network_lock,
+                game_spawning_lock,
                 shared_steps,
                 base_dir,
                 save_dir,

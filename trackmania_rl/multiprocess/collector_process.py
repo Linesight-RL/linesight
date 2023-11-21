@@ -12,13 +12,14 @@ from trackmania_rl.agents import iqn as iqn
 
 
 def collector_process_fn(
-    rollout_queue, uncompiled_shared_network, shared_network_lock, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tmi_port: int
+    rollout_queue, uncompiled_shared_network, shared_network_lock, game_spawning_lock, shared_steps: mp.Value, base_dir: Path, save_dir: Path, tmi_port: int
 ):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
     from trackmania_rl.tmi_interaction import tm_interface_manager
 
     tmi = tm_interface_manager.TMInterfaceManager(
         base_dir=base_dir,
+        game_spawning_lock=game_spawning_lock,
         running_speed=misc.running_speed,
         run_steps_per_action=misc.tm_engine_step_per_action,
         max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
