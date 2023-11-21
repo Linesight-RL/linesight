@@ -124,17 +124,20 @@ def learner_process_fn(
     try:
         online_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
         target_network.load_state_dict(torch.load(save_dir / "weights2.torch"))
-        print(" =========================     Weights loaded !     ================================")
+        print(" =====================     Learner weights loaded !     ============================")
     except:
-        print(" Could not load weights")
+        print(" Learner could not load weights")
+
+    with shared_network_lock:
+        uncompiled_shared_network.load_state_dict(uncompiled_online_network.state_dict())
 
     # noinspection PyBroadException
     try:
         accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
         shared_steps.value = accumulated_stats["cumul_number_memories_generated"]
-        print(" =========================      Stats loaded !      ================================")
+        print(" =====================      Learner stats loaded !      ============================")
     except:
-        print(" Could not load stats")
+        print(" Learner could not load stats")
 
     if "rolling_mean_ms" not in accumulated_stats.keys():
         # Temporary to preserve compatibility with old runs that doesn't have this feature. To be removed later.
