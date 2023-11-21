@@ -334,7 +334,7 @@ def learner_process_fn(
             ):
                 race_stats_to_write[f"split_{map_name}_{i}"] = split_time
 
-        walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
+        walltime_tb = time.time()
         for tag, value in race_stats_to_write.items():
             tensorboard_writer.add_scalar(
                 tag=tag,
@@ -571,7 +571,7 @@ def learner_process_fn(
             #   WRITE TO TENSORBOARD
             # ===============================================
 
-            walltime_tb = float(accumulated_stats["cumul_training_hours"] * 3600) + time.time() - time_last_save
+            walltime_tb = time.time()
             for name, param in online_network.named_parameters():
                 tensorboard_writer.add_scalar(
                     tag=f"layer_{name}_L2",
