@@ -187,13 +187,6 @@ def learner_process_fn(
 
     inferer = iqn.Inferer(inference_network=online_network, iqn_k=misc.iqn_k, tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann)
 
-    def deepcopy_state_dict(state_dict):
-        copied_state_dict = {}
-        for key, tensor in state_dict.items():
-            # Clone the tensor and ensure it's moved out of shared memory
-            copied_state_dict[key] = tensor.detach().clone().cpu()
-        return copied_state_dict
-
     while True:  # Trainer loop
         i_start = random.randrange(len(rollout_queues))
         for i in range(i_start, i_start + len(rollout_queues)):
