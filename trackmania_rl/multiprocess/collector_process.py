@@ -34,6 +34,11 @@ def collector_process_fn(
 
     inferer = iqn.Inferer(inference_network, misc.iqn_k, misc.tau_epsilon_boltzmann)
 
+    def update_network():
+        # Update weights of the inference network
+        with shared_network_lock:
+            uncompiled_inference_network.load_state_dict(uncompiled_shared_network.state_dict())
+
     # ========================================================
     # Training loop
     # ========================================================
@@ -82,10 +87,6 @@ def collector_process_fn(
         inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
         inferer.is_explo = is_explo
 
-        # Update weights of the inference network
-        with shared_network_lock:
-            uncompiled_inference_network.load_state_dict(uncompiled_shared_network.state_dict())
-
         # ===============================================
         #   PLAY ONE ROUND
         # ===============================================
@@ -97,10 +98,13 @@ def collector_process_fn(
         elif is_explo and not inference_network.training:
             inference_network.train()
 
+        update_network()
+
         rollout_results, end_race_stats = tmi.rollout(
             exploration_policy=inferer.get_exploration_action,
             map_path=map_path,
             zone_centers=zone_centers,
+            update_network=update_network,
         )
         rollout_duration = time.perf_counter() - rollout_start_time
         print("", flush=True)

@@ -3,6 +3,7 @@ import os
 import socket
 import subprocess
 import time
+from typing import Callable, Optional
 
 import cv2
 import numba
@@ -222,7 +223,7 @@ class TMInterfaceManager:
         self.latest_map_path_requested = map_path
         self.UI_disabled = False
 
-    def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray):
+    def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray, update_network: Callable):
         (
             zone_transitions,
             distance_between_zone_transitions,
@@ -523,6 +524,10 @@ class TMInterfaceManager:
                                     compute_action_asap_floats = True
                                     frame_expected = True
                                     self.iface.request_frame(misc.W_downsized, misc.H_downsized)
+
+                                if _time % (10 * self.run_steps_per_action * misc.update_inference_network_every_n_actions) == 0:
+                                    update_network()
+
                     # ============================
                     # END ON RUN STEP
                     # ============================

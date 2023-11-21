@@ -133,8 +133,8 @@ overall_reset_mul_factor = 0.01  # 0 : nothing happens ; 1 : full reset
 clip_grad_value = 1000
 clip_grad_norm = 30
 
-number_memories_trained_on_between_target_network_updates = 512
-soft_update_tau = 0.005
+number_memories_trained_on_between_target_network_updates = 2048
+soft_update_tau = 0.02
 
 float_inputs_mean = np.array(
     [
@@ -689,7 +689,7 @@ plot_race_time_left_curves = True if is_pb_desktop else True
 apply_randomcrop_augmentation = True if is_pb_desktop else False
 n_pixels_to_crop_on_each_side = 2
 
-max_rollout_queue_size = 3
+max_rollout_queue_size = 1
 
 use_jit = True
 base_tmi_port = 8478
@@ -704,3 +704,4 @@ target_python_link_path = (
 linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"
 
 send_shared_network_every_n_batches = 10
+update_inference_network_every_n_actions = 20
