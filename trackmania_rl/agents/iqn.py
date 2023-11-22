@@ -134,7 +134,6 @@ class Trainer:
         "iqn_n",
         "iqn_kappa",
         "gamma",
-        "IS_average",
     )
 
     def __init__(
@@ -156,7 +155,6 @@ class Trainer:
         self.iqn_n = iqn_n
         self.iqn_kappa = iqn_kappa
         self.gamma = gamma
-        self.IS_average = deque([], maxlen=100)
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -174,8 +172,7 @@ class Trainer:
                     gammas_terminal,
                 ) = batch
                 if misc.prio_alpha > 0:
-                    self.IS_average.append(batch_info["_weight"].mean())
-                    IS_weights = torch.from_numpy(batch_info["_weight"] / np.mean(self.IS_average)).to("cuda", non_blocking=True)
+                    IS_weights = torch.from_numpy(batch_info["_weight"]).to("cuda", non_blocking=True)
 
                 rewards = rewards.unsqueeze(-1).repeat(
                     [self.iqn_n, 1]
