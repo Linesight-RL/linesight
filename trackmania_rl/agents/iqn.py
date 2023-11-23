@@ -1,6 +1,5 @@
 import math
 import random
-from collections import deque
 from typing import Optional, Tuple
 
 import numpy as np
@@ -135,6 +134,7 @@ class Trainer:
         "iqn_n",
         "iqn_kappa",
         "gamma",
+        "typical_self_loss",
     )
 
     def __init__(
@@ -156,6 +156,23 @@ class Trainer:
         self.iqn_n = iqn_n
         self.iqn_kappa = iqn_kappa
         self.gamma = gamma
+        self.typical_self_loss = 0.01
+
+    def iqn_loss(self, outputs1, outputs2, tau_outputs2):
+        TD_error = outputs1[:, :, None, :] - outputs2[:, None, :, :]
+        # (batch_size, iqn_n, iqn_n, 1)
+        # Huber loss, my alternative
+        loss = torch.where(
+            torch.abs(TD_error) <= self.iqn_kappa,
+            0.5 * TD_error**2,
+            self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
+        )
+        tau = tau_outputs2.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+        tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+        loss = (
+            (torch.where(TD_error < 0, 1 - tau, tau) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+        )  # pinball loss # (batch_size, )
+        return loss
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
@@ -229,19 +246,15 @@ class Trainer:
                 q__st__online__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
-            TD_error = outputs_target_tau2[:, :, None, :] - outputs_tau3[:, None, :, :]
-            # (batch_size, iqn_n, iqn_n, 1)    WTF ????????
-            # Huber loss, my alternative
-            loss = torch.where(
-                torch.abs(TD_error) <= self.iqn_kappa,
-                0.5 * TD_error**2,
-                self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
-            )
-            tau3 = tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
-            tau3 = tau3[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-            loss = (
-                (torch.where(TD_error < 0, 1 - tau3, tau3) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
-            )  # pinball loss # (batch_size, )
+            loss = self.iqn_loss(outputs_target_tau2, outputs_tau3, tau3)
+
+            target_self_loss = self.iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach())
+            # outputs_self_loss = self.iqn_loss(outputs_tau3.detach(), outputs_tau3.detach(), tau3.detach())
+
+            # self_loss = target_self_loss# + 0.2 * outputs_self_loss
+            self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
+
+            loss *= self.typical_self_loss / target_self_loss.clamp(min=self.typical_self_loss / 5)
 
             total_loss = torch.sum(IS_weights * loss if misc.prio_alpha > 0 else loss)
 
