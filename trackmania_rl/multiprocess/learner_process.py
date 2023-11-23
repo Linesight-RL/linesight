@@ -21,7 +21,7 @@ from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.buffer_utilities import make_buffers
 from trackmania_rl.map_reference_times import reference_times
-from trackmania_rl.temporary_crap import race_time_left_curves, tau_curves
+from trackmania_rl.temporary_crap import highest_prio_transitions, race_time_left_curves, tau_curves
 
 
 def learner_process_fn(
@@ -636,6 +636,12 @@ def learner_process_fn(
             )
             print("Corr std in buffer  :", (std_in_buffer / misc.float_inputs_std).round(1))
             print("")
+
+            # ===============================================
+            #   HIGH PRIORITY TRANSITIONS
+            # ===============================================
+            if misc.make_highest_prio_figures and isinstance(buffer._sampler, PrioritizedSampler):
+                highest_prio_transitions(buffer, save_dir)
 
             # ===============================================
             #   SAVE

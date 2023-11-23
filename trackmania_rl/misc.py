@@ -699,7 +699,7 @@ map_cycle += [
 ]
 
 plot_race_time_left_curves = True if is_pb_desktop else True
-
+make_highest_prio_figures = True
 apply_randomcrop_augmentation = True if is_pb_desktop else False
 n_pixels_to_crop_on_each_side = 2
 
