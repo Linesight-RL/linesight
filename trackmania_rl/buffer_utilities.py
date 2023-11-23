@@ -261,6 +261,21 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         self._sum_tree = state_dict.pop("_sum_tree")
 
 
+def copy_buffer_content_to_other_buffer(source_buffer, target_buffer):
+    assert source_buffer._storage.max_size <= target_buffer._storage.max_size
+
+    for i in range(len(source_buffer)):
+        target_buffer.add(source_buffer._storage[i])
+
+    if isinstance(source_buffer._sampler, CustomPrioritizedSampler) and isinstance(target_buffer._sampler, CustomPrioritizedSampler):
+        target_buffer._sampler._average_priority = source_buffer._sampler._average_priority
+        target_buffer._sampler._uninitialized_memories = source_buffer._sampler._uninitialized_memories
+
+    if isinstance(source_buffer._sampler, PrioritizedSampler) and isinstance(target_buffer._sampler, PrioritizedSampler):
+        for i in range(len(source_buffer)):
+            target_buffer._sampler._sum_tree[i] = source_buffer._sampler._sum_tree.at(i)
+
+
 def make_buffers(buffer_size):
     buffer = ReplayBuffer(
         storage=ListStorage(buffer_size),
@@ -280,3 +295,11 @@ def make_buffers(buffer_size):
         else RandomSampler(),
     )
     return buffer, buffer_test
+
+
+def resize_buffers(buffer, buffer_test, new_buffer_size):
+    new_buffer, new_buffer_test = make_buffers(new_buffer_size)
+    copy_buffer_content_to_other_buffer(buffer, new_buffer)
+    copy_buffer_content_to_other_buffer(buffer_test, new_buffer_test)
+    del buffer, buffer_test
+    return new_buffer, new_buffer_test

@@ -19,9 +19,13 @@ from torchrl.data.replay_buffers import PrioritizedSampler
 from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
-from trackmania_rl.buffer_utilities import make_buffers
+from trackmania_rl.buffer_utilities import make_buffers, resize_buffers
 from trackmania_rl.map_reference_times import reference_times
-from trackmania_rl.temporary_crap import highest_prio_transitions, race_time_left_curves, tau_curves
+from trackmania_rl.temporary_crap import (
+    highest_prio_transitions,
+    race_time_left_curves,
+    tau_curves,
+)
 
 
 def learner_process_fn(
@@ -213,7 +217,7 @@ def learner_process_fn(
             accumulated_stats["cumul_number_frames_played"] > misc.transition_steps_phase2
             and buffer._storage.max_size == misc.memory_size_phase1
         ):
-            buffer, buffer_test = make_buffers(misc.memory_size_phase2)
+            buffer, buffer_test = resize_buffers(buffer, buffer_test, misc.memory_size_phase2)
             memory_size_start_learn = misc.memory_size_start_learn_phase2
             offset_cumul_number_single_memories_used = misc.offset_cumul_number_single_memories_used_phase2
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
