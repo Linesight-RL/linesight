@@ -35,29 +35,29 @@ def learner_process_fn(
 ):
     tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_dir))
 
-    layout_version = "layout_3"
+    layout_version = "lay_mono"
     SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
         {
             layout_version: {
-                "eval_agg_ratio": [
-                    "Multiline",
-                    [
-                        "eval_agg_ratio_trained_author",
-                        "eval_agg_ratio_blind_author",
-                    ],
-                ],
-                "eval_ratio_trained_author": [
-                    "Multiline",
-                    [
-                        "eval_ratio_trained_author",
-                    ],
-                ],
-                "eval_ratio_blind_author": [
-                    "Multiline",
-                    [
-                        "eval_ratio_blind_author",
-                    ],
-                ],
+                # "eval_agg_ratio": [
+                #     "Multiline",
+                #     [
+                #         "eval_agg_ratio_trained_author",
+                #         "eval_agg_ratio_blind_author",
+                #     ],
+                # ],
+                # "eval_ratio_trained_author": [
+                #     "Multiline",
+                #     [
+                #         "eval_ratio_trained_author",
+                #     ],
+                # ],
+                # "eval_ratio_blind_author": [
+                #     "Multiline",
+                #     [
+                #         "eval_ratio_blind_author",
+                #     ],
+                # ],
                 "eval_race_time_robust": [
                     "Multiline",
                     [
