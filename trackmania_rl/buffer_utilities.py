@@ -180,7 +180,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         eps: float = 1e-8,
         dtype: torch.dtype = torch.float,
         reduction: str = "max",
-        default_priority_ratio: float = 3.0,
+        default_priority_ratio: float = 2.0,
     ) -> None:
         super(CustomPrioritizedSampler, self).__init__(max_capacity, alpha, beta, eps, dtype, reduction)
         self._average_priority = None
@@ -191,7 +191,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
     def default_priority(self) -> float:
         if self._average_priority is None:
             self._uninitialized_memories += 1.0
-            return 0.5
+            return 0.4
         else:
             return self._default_priority_ratio * self._average_priority
 
@@ -259,7 +259,6 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         self._average_priority = state_dict["_average_priority"]
         self._default_priority_ratio = state_dict["_default_priority_ratio"]
         self._sum_tree = state_dict.pop("_sum_tree")
-
 
 
 def make_buffers(buffer_size):
