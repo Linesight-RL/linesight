@@ -93,6 +93,18 @@ def from_linear_schedule(schedule, current_step):
         return begin_value + ((end_value - begin_value) * (current_step - schedule_begin_step)) / annealing_period
 
 
+def from_staircase_schedule(schedule, current_step):
+    schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
+    assert schedule[0][0] == 0
+    schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
+    if schedule_end_index == -1:
+        return schedule[-1][1]
+    else:
+        assert schedule_end_index >= 1
+        begin_value = schedule[schedule_end_index - 1][1]
+        return begin_value
+
+
 def count_parameters(model):
     # from https://stackoverflow.com/questions/49201236/check-the-total-number-of-parameters-in-a-pytorch-model
     table = PrettyTable(["Modules", "Parameters"])

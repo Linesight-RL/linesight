@@ -16,7 +16,7 @@ from torch import multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data.replay_buffers import PrioritizedSampler
 
-from trackmania_rl import buffer_management, misc, nn_utilities, run_to_video
+from trackmania_rl import buffer_management, misc, run_to_video, utilities
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.buffer_utilities import make_buffers, resize_buffers
@@ -110,7 +110,7 @@ def learner_process_fn(
     target_network, _ = make_untrained_iqn_network(misc.use_jit)
 
     print(online_network)
-    nn_utilities.count_parameters(online_network)
+    utilities.count_parameters(online_network)
 
     accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
     accumulated_stats["alltime_min_ms"] = {}
@@ -150,16 +150,18 @@ def learner_process_fn(
 
     optimizer1 = torch.optim.RAdam(
         online_network.parameters(),
-        lr=nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+        lr=utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
         eps=misc.adam_epsilon,
         betas=(misc.adam_beta1, misc.adam_beta2),
     )
     # optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
     scaler = torch.cuda.amp.GradScaler()
-    buffer, buffer_test = make_buffers(misc.memory_size_phase1)
-    memory_size_start_learn = misc.memory_size_start_learn_phase1
-    offset_cumul_number_single_memories_used = misc.offset_cumul_number_single_memories_used_phase1
+    memory_size, memory_size_start_learn = utilities.from_staircase_schedule(
+        misc.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]
+    )
+    buffer, buffer_test = make_buffers(memory_size)
+    offset_cumul_number_single_memories_used = memory_size_start_learn * misc.number_times_single_memory_is_used_before_discard
 
     # noinspection PyBroadException
     try:
@@ -213,24 +215,22 @@ def learner_process_fn(
 
         importlib.reload(misc)
 
-        if (
-            accumulated_stats["cumul_number_frames_played"] > misc.transition_steps_phase2
-            and buffer._storage.max_size == misc.memory_size_phase1
-        ):
-            buffer, buffer_test = resize_buffers(buffer, buffer_test, misc.memory_size_phase2)
-            memory_size_start_learn = misc.memory_size_start_learn_phase2
-            offset_cumul_number_single_memories_used = misc.offset_cumul_number_single_memories_used_phase2
-            accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
-
+        new_memory_size, new_memory_size_start_learn = utilities.from_staircase_schedule(
+            misc.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
+        if new_memory_size != memory_size:
+            buffer, buffer_test = resize_buffers(buffer, buffer_test, new_memory_size)
+            memory_size_start_learn = new_memory_size_start_learn
+            memory_size = new_memory_size
         # ===============================================
         #   VERY BASIC TRAINING ANNEALING
         # ===============================================
 
-        reward_per_ms_press_forward = nn_utilities.from_linear_schedule(
+        reward_per_ms_press_forward = utilities.from_linear_schedule(
             misc.reward_per_ms_press_forward_schedule, accumulated_stats["cumul_number_memories_generated"]
         )
         # LR and weight_decay calculation
-        learning_rate = nn_utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+        learning_rate = utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
         weight_decay = misc.weight_decay_lr_ratio * learning_rate
 
         # ===============================================
@@ -406,19 +406,19 @@ def learner_process_fn(
                 accumulated_stats["cumul_number_single_memories_should_have_been_used"] += misc.additional_transition_after_reset
 
                 untrained_iqn_network = make_untrained_iqn_network(misc.use_jit)
-                nn_utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
+                utilities.soft_copy_param(online_network, untrained_iqn_network, misc.overall_reset_mul_factor)
 
                 with torch.no_grad():
-                    online_network.A_head[2].weight = nn_utilities.linear_combination(
+                    online_network.A_head[2].weight = utilities.linear_combination(
                         online_network.A_head[2].weight, untrained_iqn_network.A_head[2].weight, misc.last_layer_reset_factor
                     )
-                    online_network.A_head[2].bias = nn_utilities.linear_combination(
+                    online_network.A_head[2].bias = utilities.linear_combination(
                         online_network.A_head[2].bias, untrained_iqn_network.A_head[2].bias, misc.last_layer_reset_factor
                     )
-                    online_network.V_head[2].weight = nn_utilities.linear_combination(
+                    online_network.V_head[2].weight = utilities.linear_combination(
                         online_network.V_head[2].weight, untrained_iqn_network.V_head[2].weight, misc.last_layer_reset_factor
                     )
-                    online_network.V_head[2].bias = nn_utilities.linear_combination(
+                    online_network.V_head[2].bias = utilities.linear_combination(
                         online_network.V_head[2].bias, untrained_iqn_network.V_head[2].bias, misc.last_layer_reset_factor
                     )
 
@@ -443,9 +443,9 @@ def learner_process_fn(
                     loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
                     accumulated_stats["cumul_number_single_memories_used"] += (
                         10 * misc.batch_size
-                        if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size == misc.memory_size_phase2)
+                        if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size > 200_000)
                         else misc.batch_size
-                    )  # do fewer batches while memory is not full and we are i
+                    )  # do fewer batches while memory is not full
                     train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
                     loss_history.append(loss)
                     if not math.isinf(grad_norm):
@@ -457,7 +457,7 @@ def learner_process_fn(
                     accumulated_stats["cumul_number_batches_done"] += 1
                     print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e} {train_on_batch_duration_history[-1]*1000:<8.1f}")
 
-                    nn_utilities.custom_weight_decay(online_network, 1 - weight_decay)
+                    utilities.custom_weight_decay(online_network, 1 - weight_decay)
                     if accumulated_stats["cumul_number_batches_done"] % misc.send_shared_network_every_n_batches == 0:
                         with shared_network_lock:
                             uncompiled_shared_network.load_state_dict(uncompiled_online_network.state_dict())
@@ -474,7 +474,7 @@ def learner_process_fn(
                             "cumul_number_single_memories_used_next_target_network_update"
                         ] += misc.number_memories_trained_on_between_target_network_updates
                         # print("UPDATE")
-                        nn_utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
+                        utilities.soft_copy_param(target_network, online_network, misc.soft_update_tau)
             print("", flush=True)
 
         # ===============================================
@@ -490,8 +490,8 @@ def learner_process_fn(
             step_stats = {
                 "gamma": misc.gamma,
                 "n_steps": misc.n_steps,
-                "epsilon": nn_utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value),
-                "epsilon_boltzmann": nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value),
+                "epsilon": utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value),
+                "epsilon_boltzmann": utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value),
                 "tau_epsilon_boltzmann": misc.tau_epsilon_boltzmann,
                 "learning_rate": learning_rate,
                 "weight_decay": weight_decay,

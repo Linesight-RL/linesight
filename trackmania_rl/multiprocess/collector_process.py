@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import multiprocessing as mp
 
-from trackmania_rl import misc, nn_utilities
+from trackmania_rl import misc, utilities
 from trackmania_rl.agents import iqn as iqn
 
 
@@ -90,8 +90,8 @@ def collector_process_fn(
         map_name, map_path, zone_centers_filename, is_explo, fill_buffer = next_map_tuple
         map_status = "trained" if map_name in set_maps_trained else "blind"
 
-        inferer.epsilon = nn_utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value)
-        inferer.epsilon_boltzmann = nn_utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value)
+        inferer.epsilon = utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value)
+        inferer.epsilon_boltzmann = utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value)
         inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
         inferer.is_explo = is_explo
 

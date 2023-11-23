@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torchrl.data import ReplayBuffer
 
-from .. import misc, nn_utilities
+from .. import misc, utilities
 
 
 class CReLU(torch.nn.Module):
@@ -79,12 +79,12 @@ class IQN_Network(torch.nn.Module):
         for module in [self.img_head, self.float_feature_extractor, self.A_head[:-1], self.V_head[:-1]]:
             for m in module:
                 if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
-                    nn_utilities.init_orthogonal(m, activation_gain)
-        nn_utilities.init_orthogonal(
+                    utilities.init_orthogonal(m, activation_gain)
+        utilities.init_orthogonal(
             self.iqn_fc[0], np.sqrt(2) * activation_gain
         )  # Since cosine has a variance of 1/2, and we would like to exit iqn_fc with a variance of 1, we need a weight variance double that of what a normal leaky relu would need
         for module in [self.A_head[-1], self.V_head[-1]]:
-            nn_utilities.init_orthogonal(module)
+            utilities.init_orthogonal(module)
 
     def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
