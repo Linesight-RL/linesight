@@ -108,7 +108,6 @@ if __name__ == "__main__":
     ]
     for collector_process in collector_processes:
         collector_process.start()
-        time.sleep(5)
 
     for collector_process in collector_processes:
         collector_process.join()
