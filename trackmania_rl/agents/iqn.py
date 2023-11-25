@@ -95,7 +95,7 @@ class IQN_Network(torch.nn.Module):
         concat = torch.cat((img_outputs, float_outputs), 1)
         if tau is None:
             tau = (
-                torch.arange(num_quantiles // 2, device="cuda", dtype=torch.float32).unsqueeze(1).repeat(1, batch_size).reshape((-1, 1))
+                torch.arange(num_quantiles // 2, device="cuda", dtype=torch.float32).repeat_interleave(batch_size).unsqueeze(1)
                 + torch.rand(size=(batch_size * num_quantiles // 2, 1), device="cuda", dtype=torch.float32)
             ) / num_quantiles  # (batch_size * num_quantiles, 1) (random numbers)
             tau = torch.cat((tau, 1 - tau), dim=0)
