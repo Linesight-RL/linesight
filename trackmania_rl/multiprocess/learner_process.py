@@ -220,6 +220,9 @@ def learner_process_fn(
         )
         if new_memory_size != memory_size:
             buffer, buffer_test = resize_buffers(buffer, buffer_test, new_memory_size)
+            offset_cumul_number_single_memories_used += (
+                new_memory_size_start_learn - memory_size_start_learn
+            ) * misc.number_times_single_memory_is_used_before_discard
             memory_size_start_learn = new_memory_size_start_learn
             memory_size = new_memory_size
         # ===============================================
