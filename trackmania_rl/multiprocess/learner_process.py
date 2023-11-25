@@ -35,12 +35,10 @@ def learner_process_fn(
     shared_steps: mp.Value,
     base_dir: Path,
     save_dir: Path,
-    tensorboard_dir: Path,
+    tensorboard_base_dir: Path,
 ):
-    tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_dir))
-
     layout_version = "lay_mono"
-    SummaryWriter(log_dir=str(base_dir / "tensorboard" / layout_version)).add_custom_scalars(
+    SummaryWriter(log_dir=str(tensorboard_base_dir / layout_version)).add_custom_scalars(
         {
             layout_version: {
                 # "eval_agg_ratio": [
@@ -171,6 +169,11 @@ def learner_process_fn(
     except:
         print(" Could not load optimizer")
 
+    tensorboard_suffix = utilities.from_staircase_schedule(
+        misc.tensorboard_suffix_schedule, accumulated_stats["cumul_number_memories_generated"]
+    )
+    tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_base_dir / (misc.run_name + tensorboard_suffix)))
+
     loss_history = []
     loss_test_history = []
     train_on_batch_duration_history = []
@@ -214,6 +217,13 @@ def learner_process_fn(
             continue
 
         importlib.reload(misc)
+
+        new_tensorboard_suffix = utilities.from_staircase_schedule(
+            misc.tensorboard_suffix_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
+        if new_tensorboard_suffix != tensorboard_suffix:
+            tensorboard_suffix = new_tensorboard_suffix
+            tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_base_dir / (misc.run_name + tensorboard_suffix)))
 
         new_memory_size, new_memory_size_start_learn = utilities.from_staircase_schedule(
             misc.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]

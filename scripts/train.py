@@ -63,7 +63,7 @@ if __name__ == "__main__":
     base_dir = Path(__file__).resolve().parents[1]
     save_dir = base_dir / "save" / misc.run_name
     save_dir.mkdir(parents=True, exist_ok=True)
-    tensorboard_dir = base_dir / "tensorboard" / misc.run_name
+    tensorboard_base_dir = base_dir / "tensorboard"
 
     # Copy Angelscript plugin to TMInterface dir
     shutil.copyfile(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # Start learner process
     learner_process = mp.Process(
         target=learner_process_fn,
-        args=(rollout_queues, uncompiled_shared_network, shared_network_lock, shared_steps, base_dir, save_dir, tensorboard_dir),
+        args=(rollout_queues, uncompiled_shared_network, shared_network_lock, shared_steps, base_dir, save_dir, tensorboard_base_dir),
     )
     learner_process.start()
 

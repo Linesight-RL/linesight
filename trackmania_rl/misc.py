@@ -76,7 +76,19 @@ number_times_single_memory_is_used_before_discard = 60  # 32 // 4
 
 memory_size_schedule = [
     (0, (50_000, 20_000)),
-    (4_000_000, (800_000, 200_000)),
+    (3_000_000, (800_000, 200_000)),
+]
+lr_schedule = [
+    (0, 1e-3),
+    (2_000_000, 5e-5),
+    (6_000_000, 5e-5),
+    (8_000_000, 1e-5),
+]
+tensorboard_suffix_schedule = [
+    (0, ""),
+    # (3_000_000, "_1"),
+    # (15_000_000, "_2"),
+    # (30_000_000, "_3"),
 ]
 
 apply_horizontal_flip_augmentation = False
@@ -114,12 +126,6 @@ indices_floats_sign_inversion = [
 ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
 batch_size = 512
-lr_schedule = [
-    (0, 1e-3),
-    (2_000_000, 5e-5),
-    (7_000_000, 5e-5),
-    (9_000_000, 1e-5),
-]
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
 adam_beta1 = 0.9
