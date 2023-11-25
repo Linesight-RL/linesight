@@ -71,6 +71,9 @@ if __name__ == "__main__":
         misc.target_python_link_path,
     )
 
+    if misc.is_linux:
+        os.system(f"chmod +x {misc.linux_launch_game_path}")
+
     # Prepare multi process utilities
     shared_steps = mp.Value(ctypes.c_int64)
     shared_steps.value = 0
