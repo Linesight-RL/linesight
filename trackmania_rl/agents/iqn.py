@@ -164,13 +164,13 @@ class Trainer:
         # Huber loss, my alternative
         loss = torch.where(
             torch.abs(TD_error) <= self.iqn_kappa,
-            0.5 * TD_error**2,
-            self.iqn_kappa * (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
+            (0.5 / self.iqn_kappa) * TD_error**2,
+            (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
         )
         tau = tau_outputs2.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
         tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
         loss = (
-            (torch.where(TD_error < 0, 1 - tau, tau) * loss / self.iqn_kappa).sum(dim=2).mean(dim=1)[:, 0]
+            (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]
         )  # pinball loss # (batch_size, )
         return loss
 
