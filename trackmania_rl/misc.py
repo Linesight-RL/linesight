@@ -142,6 +142,7 @@ clip_grad_norm = 30
 
 number_memories_trained_on_between_target_network_updates = 2048
 soft_update_tau = 0.02
+n_transitions_to_plot_in_distribution_curves = 0
 
 float_inputs_mean = np.array(
     [

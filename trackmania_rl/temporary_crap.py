@@ -1,7 +1,9 @@
+import random
 import shutil
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as plticker
 import numpy as np
 import torch
 from PIL import Image
@@ -180,3 +182,182 @@ def highest_prio_transitions(buffer, save_dir):
                 .repeat(4, 0)
                 .repeat(4, 1)
             ).save(save_dir / "high_prio_figures" / f"{high_error_idx}_{idx}_{buffer._storage[idx].n_steps}_{prios[idx]:.2f}.png")
+
+
+def iqn_loss(
+    outputs1, outputs2, tau_outputs2, num_quantiles
+):  #### MUST CLEAN THE UGLY COPY  PASTE THAT WAS NECESSARY BECAUSE IQN LOSS NEEDS TO ACCESS SELF.IQN_KAPPA
+    # 1 : target
+    # 2 : output
+    TD_error = outputs1[:, :, None, :] - outputs2[:, None, :, :]
+    # (batch_size, iqn_n, iqn_n, 1)
+    # Huber loss, my alternative
+    loss = torch.where(
+        torch.abs(TD_error) <= misc.iqn_kappa,
+        (0.5 / misc.iqn_kappa) * TD_error**2,
+        (torch.abs(TD_error) - 0.5 * misc.iqn_kappa),
+    )
+    tau = tau_outputs2.reshape([num_quantiles, 1, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+    tau = tau[:, None, :, :].expand([-1, num_quantiles, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+    loss = (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
+    return loss
+
+
+def get_output_and_target_for_transition(transition, online_network, target_network, num_quantiles):
+    (
+        state_img_tensor,
+        state_float_tensor,
+        actions,
+        rewards,
+        next_state_img_tensor,
+        next_state_float_tensor,
+        gammas_terminal,
+    ) = transition
+
+    transition_is_terminal = (gammas_terminal[0] > 0).cpu().item()
+
+    delta = next_state_float_tensor[0, 0] - state_float_tensor[0, 0]
+    state_float_tensor[0, 0] = (0 - misc.float_inputs_mean[0]) / misc.float_inputs_std[0]
+    next_state_float_tensor[0, 0] = state_float_tensor[0, 0] + delta
+
+    tau = torch.linspace(0, 1, num_quantiles, device="cuda").reshape(-1, 1)
+    with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+        with torch.no_grad():
+            rewards = rewards.unsqueeze(-1).repeat(
+                [num_quantiles, 1]
+            )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+            gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([num_quantiles, 1])  # (batch_size*iqn_n, 1)
+            actions = actions.unsqueeze(-1).repeat([num_quantiles, 1])  # (batch_size*iqn_n, 1)
+            #
+            #   Use target_network to evaluate the action chosen, per quantile.
+            #
+            q__stpo__target__quantiles_tau2, _ = target_network(
+                next_state_img_tensor, next_state_float_tensor, num_quantiles, tau=tau
+            )  # (batch_size*iqn_n,n_actions)
+            #
+            #   Use online network to choose an action for next state.
+            #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
+            #
+            outputs_target_tau2 = (
+                rewards + gammas_terminal * q__stpo__target__quantiles_tau2.max(dim=1, keepdim=True)[0]
+            )  # (batch_size*iqn_n, 1)
+            #
+            #   This is our target
+            #
+            outputs_target_tau2 = outputs_target_tau2.reshape([num_quantiles, 1, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+            q__st__online__quantiles_tau3, tau3 = online_network(
+                state_img_tensor, state_float_tensor, num_quantiles, tau=tau
+            )  # (batch_size*iqn_n,n_actions)
+            outputs_tau3 = (
+                q__st__online__quantiles_tau3.gather(1, actions).reshape([num_quantiles, 1, 1]).transpose(0, 1)
+            )  # (batch_size, iqn_n, 1)
+
+    losses = {
+        "target_self_loss": iqn_loss(outputs_target_tau2, outputs_target_tau2, tau, num_quantiles).cpu().item(),
+        "output_self_loss": iqn_loss(outputs_tau3, outputs_tau3, tau, num_quantiles).cpu().item(),
+        "real_loss": iqn_loss(outputs_target_tau2, outputs_tau3, tau, num_quantiles).cpu().item(),
+    }
+
+    return (
+        transition_is_terminal * outputs_tau3.cpu().numpy().ravel().astype(np.float32),
+        transition_is_terminal * outputs_target_tau2.cpu().numpy().ravel().astype(np.float32),
+        losses,
+    )
+
+
+def distribution_curves(buffer, save_dir, online_network, target_network):
+    shutil.rmtree(save_dir / "distribution_curves", ignore_errors=True)
+    (save_dir / "distribution_curves").mkdir(parents=True, exist_ok=True)
+
+    first_transition_to_plot = random.randrange(4000, len(buffer) - misc.n_transitions_to_plot_in_distribution_curves)
+
+    num_quantiles = 16
+    my_dpi = 100
+    max_height = 60
+
+    for i in range(first_transition_to_plot, first_transition_to_plot + misc.n_transitions_to_plot_in_distribution_curves):
+        fig, ax = plt.subplots(figsize=(640 / my_dpi, 480 / my_dpi), dpi=my_dpi)
+
+        quantiles_output, quantiles_target, losses = get_output_and_target_for_transition(
+            buffer[[i]], online_network, target_network, num_quantiles
+        )
+
+        quantiles_output = np.sort(quantiles_output)
+        quantiles_target = np.sort(quantiles_target)
+
+        if (np.min(quantiles_output) == np.max(quantiles_output)) and (np.min(quantiles_output) == 0.0):
+            # terminal transition, can't be interpreted as long term
+            continue
+
+        x_output = 0.5 * (quantiles_output[1:] + quantiles_output[:-1])
+        height_output = np.clip(
+            1 / ((num_quantiles - 1) * (quantiles_output[1:] - quantiles_output[:-1]) + 5e-4), a_min=None, a_max=max_height
+        )
+        width_output = 1 / ((num_quantiles - 1) * height_output)
+
+        ax.bar(x=x_output, height=height_output, width=width_output)
+        ax.vlines(
+            0.5 * (quantiles_output[1:] + quantiles_output[:-1])[[1, 3, 7, -4, -2]],
+            0,
+            np.max(height_output),
+            linestyles="dotted",
+            color="lightblue",
+        )
+        ax.vlines(quantiles_output[[0, 15]], 0, np.max(height_output), linestyles="dotted", color="lightblue")
+
+        x_target = 0.5 * (quantiles_target[1:] + quantiles_target[:-1])
+        height_target = np.clip(
+            1 / ((num_quantiles - 1) * (quantiles_target[1:] - quantiles_target[:-1]) + 5e-4), a_min=None, a_max=max_height
+        )
+        width_target = 1 / ((num_quantiles - 1) * height_target)
+
+        ax.bar(x=x_target, height=-height_target, width=width_target)
+        ax.vlines(
+            0.5 * (quantiles_target[1:] + quantiles_target[:-1])[[1, 3, 7, -4, -2]],
+            0,
+            -np.max(height_target),
+            linestyles="dotted",
+            color="orange",
+        )
+        ax.vlines(quantiles_target[[0, 15]], 0, -np.max(height_target), linestyles="dotted", color="orange")
+
+        ax.set_axisbelow(True)
+        ax.grid(color="#E0E0E0")
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+        loc = plticker.MultipleLocator(base=0.025)  # this locator puts ticks at regular intervals
+        ax.xaxis.set_major_locator(loc)
+
+        ax.set_title("    ".join([f"{1000*v:.2f}" for k, v in losses.items()]))
+        for k, v in losses.items():
+            print(k)
+
+        print("")
+        print("")
+        print("")
+        print("")
+
+        fig.canvas.draw()
+        image_from_plot = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        image_from_plot = image_from_plot.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
+        Image.fromarray(
+            (
+                np.hstack(
+                    (
+                        np.expand_dims(
+                            np.hstack((buffer._storage[i].state_img.squeeze(), buffer._storage[i].next_state_img.squeeze()))
+                            .repeat(4, 0)
+                            .repeat(4, 1),
+                            axis=-1,
+                        ).repeat(3, axis=-1),
+                        image_from_plot,
+                    )
+                )
+            )
+        ).save(save_dir / "distribution_curves" / f"{i}_{buffer._storage[i].n_steps}.png")
+        plt.close()

@@ -22,6 +22,7 @@ from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.buffer_utilities import make_buffers, resize_buffers
 from trackmania_rl.map_reference_times import reference_times
 from trackmania_rl.temporary_crap import (
+    distribution_curves,
     highest_prio_transitions,
     race_time_left_curves,
     tau_curves,
@@ -264,6 +265,7 @@ def learner_process_fn(
         if misc.plot_race_time_left_curves and not is_explo and (loop_number // 5) % 17 == 0:
             race_time_left_curves(rollout_results, inferer, save_dir, map_name)
             tau_curves(rollout_results, inferer, save_dir, map_name)
+            distribution_curves(buffer, save_dir, online_network, target_network)
             # patrick_curves(rollout_results, trainer, save_dir, map_name)
 
         accumulated_stats["cumul_number_frames_played"] += len(rollout_results["frames"])
