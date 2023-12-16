@@ -261,7 +261,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         self._sum_tree = state_dict.pop("_sum_tree")
 
 
-def copy_buffer_content_to_other_buffer(source_buffer, target_buffer):
+def copy_buffer_content_to_other_buffer(source_buffer: ReplayBuffer, target_buffer: ReplayBuffer) -> None:
     assert source_buffer._storage.max_size <= target_buffer._storage.max_size
 
     for i in range(len(source_buffer)):
@@ -276,7 +276,7 @@ def copy_buffer_content_to_other_buffer(source_buffer, target_buffer):
             target_buffer._sampler._sum_tree[i] = source_buffer._sampler._sum_tree.at(i)
 
 
-def make_buffers(buffer_size):
+def make_buffers(buffer_size: int) -> tuple[ReplayBuffer, ReplayBuffer]:
     buffer = ReplayBuffer(
         storage=ListStorage(buffer_size),
         batch_size=misc.batch_size,
@@ -297,9 +297,8 @@ def make_buffers(buffer_size):
     return buffer, buffer_test
 
 
-def resize_buffers(buffer, buffer_test, new_buffer_size):
+def resize_buffers(buffer: ReplayBuffer, buffer_test: ReplayBuffer, new_buffer_size: int) -> tuple[ReplayBuffer, ReplayBuffer]:
     new_buffer, new_buffer_test = make_buffers(new_buffer_size)
     copy_buffer_content_to_other_buffer(buffer, new_buffer)
     copy_buffer_content_to_other_buffer(buffer_test, new_buffer_test)
-    del buffer, buffer_test
     return new_buffer, new_buffer_test
