@@ -266,6 +266,9 @@ def get_output_and_target_for_transition(transition, online_network, target_netw
 
 
 def distribution_curves(buffer, save_dir, online_network, target_network):
+    if misc.n_transitions_to_plot_in_distribution_curves == 0:
+        return
+
     shutil.rmtree(save_dir / "distribution_curves", ignore_errors=True)
     (save_dir / "distribution_curves").mkdir(parents=True, exist_ok=True)
 
