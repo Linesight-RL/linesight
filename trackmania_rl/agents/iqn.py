@@ -169,9 +169,7 @@ class Trainer:
         )
         tau = tau_outputs2.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
         tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-        loss = (
-            (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]
-        )  # pinball loss # (batch_size, )
+        loss = (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
         return loss
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
