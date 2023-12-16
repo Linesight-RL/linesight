@@ -7,7 +7,7 @@ import numpy as np
 import psutil
 
 is_linux = platform in ["linux", "linux2"]
-is_pb_desktop = psutil.virtual_memory().total > 5e10
+is_pb_desktop = psutil.cpu_count() < 32
 
 W_screen = 640
 H_screen = 480
