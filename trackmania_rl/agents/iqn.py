@@ -158,18 +158,18 @@ class Trainer:
         self.gamma = gamma
         self.typical_self_loss = 0.01
 
-    def iqn_loss(self, outputs1, outputs2, tau_outputs2):
-        TD_error = outputs1[:, :, None, :] - outputs2[:, None, :, :]
+    def iqn_loss(self, targets, outputs, tau_outputs):
+        TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
         # (batch_size, iqn_n, iqn_n, 1)
         # Huber loss, my alternative
         loss = torch.where(
-            torch.abs(TD_error) <= self.iqn_kappa,
+            torch.lt(torch.abs(TD_error), self.iqn_kappa),
             (0.5 / self.iqn_kappa) * TD_error**2,
             (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
         )
-        tau = tau_outputs2.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+        tau = tau_outputs.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
         tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-        loss = (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
+        loss = (torch.where(torch.lt(TD_error, 0), 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
         return loss
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
