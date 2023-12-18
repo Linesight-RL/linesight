@@ -252,7 +252,7 @@ class Trainer:
             # self_loss = target_self_loss# + 0.2 * outputs_self_loss
             self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
 
-            loss *= self.typical_self_loss / target_self_loss.clamp(min=self.typical_self_loss / 2.5)
+            loss *= self.typical_self_loss / target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)
 
             total_loss = torch.sum(IS_weights * loss if misc.prio_alpha > 0 else loss)
 

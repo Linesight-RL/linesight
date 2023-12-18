@@ -720,3 +720,5 @@ linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_
 
 send_shared_network_every_n_batches = 10
 update_inference_network_every_n_actions = 20
+
+target_self_loss_clamp_ratio = 5
