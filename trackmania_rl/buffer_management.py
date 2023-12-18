@@ -6,6 +6,7 @@ from torchrl.data import ReplayBuffer
 
 from . import misc
 from .experience_replay.experience_replay_interface import Experience
+from .reward_shaping import speedslide_quality_tarmac
 
 
 def fill_buffer_from_rollout_with_n_steps_rule(
@@ -15,7 +16,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_steps_max: int,
     gamma: float,
     discard_non_greedy_actions_in_nsteps: bool,
-    reward_per_ms_press_forward: float,
+    speedslide_reward: float,
 ):
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
@@ -38,7 +39,10 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         reward_into[i] += (
             rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
         ) * misc.reward_per_m_advanced_along_centerline
-        reward_into[i] += rollout_results["input_w"][i - 1] * reward_per_ms_press_forward * misc.ms_per_action
+        if i < n_frames - 1 and np.all(rollout_results["state_float"][i][25:29]):
+            reward_into[i] += speedslide_reward * (
+                1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1)
+            )  # TODO : indices 25:29, 56 and 58 are hardcoded, this is bad....
 
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes

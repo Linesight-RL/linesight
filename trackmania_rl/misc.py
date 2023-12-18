@@ -50,14 +50,17 @@ tau_epsilon_boltzmann = 0.01
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
+speedslide_reward_schedule = [
+    (0, 0),
+    (2_000_000, 0),
+    (6_000_000, 0),
+]
+
 n_steps = 3
 constant_reward_per_ms = -6 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
 gamma = 1
-reward_per_ms_press_forward_schedule = [
-    (0, 0),
-]
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types + 1
 float_hidden_dim = 256
 conv_head_output_dim = 5632

@@ -240,12 +240,12 @@ def learner_process_fn(
         #   VERY BASIC TRAINING ANNEALING
         # ===============================================
 
-        reward_per_ms_press_forward = utilities.from_linear_schedule(
-            misc.reward_per_ms_press_forward_schedule, accumulated_stats["cumul_number_memories_generated"]
-        )
         # LR and weight_decay calculation
         learning_rate = utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
         weight_decay = misc.weight_decay_lr_ratio * learning_rate
+        speedslide_reward = utilities.from_linear_schedule(
+            misc.speedslide_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
 
         # ===============================================
         #   RELOAD
@@ -400,7 +400,7 @@ def learner_process_fn(
                 misc.n_steps,
                 misc.gamma,
                 misc.discard_non_greedy_actions_in_nsteps,
-                reward_per_ms_press_forward,
+                speedslide_reward,
             )
 
             accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
