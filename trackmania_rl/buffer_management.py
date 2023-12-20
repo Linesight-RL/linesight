@@ -39,6 +39,10 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         reward_into[i] += (
             rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
         ) * misc.reward_per_m_advanced_along_centerline
+        if i < n_frames - 1 and rollout_results["state_float"][i][58] > 0:
+            reward_into[i] += misc.final_speed_reward_per_m_per_s * (
+                np.linalg.norm(rollout_results["state_float"][i][56:59]) - np.linalg.norm(rollout_results["state_float"][i - 1][56:59])
+            )
         if i < n_frames - 1 and np.all(rollout_results["state_float"][i][25:29]):
             reward_into[i] += speedslide_reward * max(
                 0, 1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1)

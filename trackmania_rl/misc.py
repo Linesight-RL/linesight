@@ -52,8 +52,6 @@ buffer_test_ratio = 0.05
 
 speedslide_reward_schedule = [
     (0, 0),
-    (2_000_000, 0),
-    (6_000_000, 0),
 ]
 
 n_steps = 3
@@ -722,3 +720,6 @@ send_shared_network_every_n_batches = 10
 update_inference_network_every_n_actions = 20
 
 target_self_loss_clamp_ratio = 5
+
+final_speed_reward_as_if_duration_s = 0
+final_speed_reward_per_m_per_s = reward_per_m_advanced_along_centerline * final_speed_reward_as_if_duration_s
