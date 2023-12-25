@@ -1,5 +1,6 @@
 import random
 import shutil
+from itertools import islice
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -9,7 +10,16 @@ import torch
 from PIL import Image
 
 from . import misc
+from .agents.iqn import iqn_loss
 
+def batched(iterable, n): #Can be included from itertools with python >=3.12
+    "Batch data into lists of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    if n < 1:
+      raise ValueError('n must be >= 1')
+    it = iter(iterable)
+    while (batch := list(islice(it, n))):
+      yield batch
 
 def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
     color_cycle = [
@@ -184,26 +194,7 @@ def highest_prio_transitions(buffer, save_dir):
             ).save(save_dir / "high_prio_figures" / f"{high_error_idx}_{idx}_{buffer._storage[idx].n_steps}_{prios[idx]:.2f}.png")
 
 
-def iqn_loss(
-    outputs1, outputs2, tau_outputs2, num_quantiles
-):  #### MUST CLEAN THE UGLY COPY  PASTE THAT WAS NECESSARY BECAUSE IQN LOSS NEEDS TO ACCESS SELF.IQN_KAPPA
-    # 1 : target
-    # 2 : output
-    TD_error = outputs1[:, :, None, :] - outputs2[:, None, :, :]
-    # (batch_size, iqn_n, iqn_n, 1)
-    # Huber loss, my alternative
-    loss = torch.where(
-        torch.abs(TD_error) <= misc.iqn_kappa,
-        (0.5 / misc.iqn_kappa) * TD_error**2,
-        (torch.abs(TD_error) - 0.5 * misc.iqn_kappa),
-    )
-    tau = tau_outputs2.reshape([num_quantiles, 1, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
-    tau = tau[:, None, :, :].expand([-1, num_quantiles, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-    loss = (torch.where(TD_error < 0, 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
-    return loss
-
-
-def get_output_and_target_for_transition(transition, online_network, target_network, num_quantiles):
+def get_output_and_target_for_batch(batch, online_network, target_network, num_quantiles):
     (
         state_img_tensor,
         state_float_tensor,
@@ -212,15 +203,16 @@ def get_output_and_target_for_transition(transition, online_network, target_netw
         next_state_img_tensor,
         next_state_float_tensor,
         gammas_terminal,
-    ) = transition
+    ) = batch
+    batch_size = len(state_img_tensor)
 
-    transition_is_terminal = (gammas_terminal[0] > 0).cpu().item()
+    is_terminal = (gammas_terminal > 0)
 
-    delta = next_state_float_tensor[0, 0] - state_float_tensor[0, 0]
-    state_float_tensor[0, 0] = (0 - misc.float_inputs_mean[0]) / misc.float_inputs_std[0]
-    next_state_float_tensor[0, 0] = state_float_tensor[0, 0] + delta
+    delta = next_state_float_tensor[:, 0] - state_float_tensor[:, 0]
+    state_float_tensor[:, 0] = (0 - misc.float_inputs_mean[0]) / misc.float_inputs_std[0]
+    next_state_float_tensor[:, 0] = state_float_tensor[:, 0] + delta
 
-    tau = torch.linspace(0, 1, num_quantiles, device="cuda").reshape(-1, 1)
+    tau = torch.linspace(0, 1, num_quantiles, device="cuda").repeat_interleave(batch_size).unsqueeze(1)
     with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
         with torch.no_grad():
             rewards = rewards.unsqueeze(-1).repeat(
@@ -244,29 +236,44 @@ def get_output_and_target_for_transition(transition, online_network, target_netw
             #
             #   This is our target
             #
-            outputs_target_tau2 = outputs_target_tau2.reshape([num_quantiles, 1, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+            outputs_target_tau2 = outputs_target_tau2.reshape([num_quantiles, batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
             q__st__online__quantiles_tau3, tau3 = online_network(
                 state_img_tensor, state_float_tensor, num_quantiles, tau=tau
             )  # (batch_size*iqn_n,n_actions)
             outputs_tau3 = (
-                q__st__online__quantiles_tau3.gather(1, actions).reshape([num_quantiles, 1, 1]).transpose(0, 1)
+                q__st__online__quantiles_tau3.gather(1, actions).reshape([num_quantiles, batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
     losses = {
-        "target_self_loss": iqn_loss(outputs_target_tau2, outputs_target_tau2, tau, num_quantiles).cpu().item(),
-        "output_self_loss": iqn_loss(outputs_tau3, outputs_tau3, tau, num_quantiles).cpu().item(),
-        "real_loss": iqn_loss(outputs_target_tau2, outputs_tau3, tau, num_quantiles).cpu().item(),
+        "target_self_loss": iqn_loss(outputs_target_tau2, outputs_target_tau2, tau, num_quantiles, batch_size).cpu().numpy(),
+        "output_self_loss": iqn_loss(outputs_tau3, outputs_tau3, tau, num_quantiles, batch_size).cpu().numpy(),
+        "real_loss": iqn_loss(outputs_target_tau2, outputs_tau3, tau, num_quantiles, batch_size).cpu().numpy(),
     }
 
     return (
-        transition_is_terminal * outputs_tau3.cpu().numpy().ravel().astype(np.float32),
-        transition_is_terminal * outputs_target_tau2.cpu().numpy().ravel().astype(np.float32),
+        (is_terminal * outputs_tau3).cpu().numpy().astype(np.float32),
+        (is_terminal * outputs_target_tau2).cpu().numpy().astype(np.float32),
         losses,
     )
 
+def loss_distribution(buffer, save_dir, online_network, target_network):
+    shutil.rmtree(save_dir / "loss_distribution", ignore_errors=True)
+    (save_dir / "loss_distribution").mkdir(parents=True, exist_ok=True)
+    buffer_loss = []
+    for batch in batched(range(len(buffer)),misc.batch_size):
+        quantiles_output, quantiles_target, losses = get_output_and_target_for_batch(
+            buffer[batch], online_network, target_network, misc.iqn_n
+        )
+        buffer_loss.extend(losses["real_loss"])
+    plt.figure()
+    plt.hist(buffer_loss)
+    plt.yscale('log')
+    plt.title("Buffer Size:"+str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution.png')
+
 
 def distribution_curves(buffer, save_dir, online_network, target_network):
-    if misc.n_transitions_to_plot_in_distribution_curves == 0:
+    if misc.n_transitions_to_plot_in_distribution_curves <= 0:
         return
 
     shutil.rmtree(save_dir / "distribution_curves", ignore_errors=True)
@@ -281,7 +288,7 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
     for i in range(first_transition_to_plot, first_transition_to_plot + misc.n_transitions_to_plot_in_distribution_curves):
         fig, ax = plt.subplots(figsize=(640 / my_dpi, 480 / my_dpi), dpi=my_dpi)
 
-        quantiles_output, quantiles_target, losses = get_output_and_target_for_transition(
+        quantiles_output, quantiles_target, losses = get_output_and_target_for_batch(
             buffer[[i]], online_network, target_network, num_quantiles
         )
 
@@ -335,7 +342,7 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
         loc = plticker.MultipleLocator(base=0.025)  # this locator puts ticks at regular intervals
         ax.xaxis.set_major_locator(loc)
 
-        ax.set_title("    ".join([f"{1000*v:.2f}" for k, v in losses.items()]))
+        ax.set_title("    ".join([f"{1000*v:.2f}" for k, v[0] in losses.items()]))
         for k, v in losses.items():
             print(k)
 

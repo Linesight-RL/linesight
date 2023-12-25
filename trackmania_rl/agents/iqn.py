@@ -123,6 +123,21 @@ class IQN_Network(torch.nn.Module):
 
 # ==========================================================================================================================
 
+@torch.compile
+def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
+    TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
+    # (batch_size, iqn_n, iqn_n, 1)
+    # Huber loss, my alternative
+    loss = torch.where(
+        torch.lt(torch.abs(TD_error), misc.iqn_kappa),
+        (0.5 / misc.iqn_kappa) * TD_error**2,
+        (torch.abs(TD_error) - 0.5 * misc.iqn_kappa),
+    )
+    tau = tau_outputs.reshape([num_quantiles, batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+    tau = tau[:, None, :, :].expand([-1, num_quantiles, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
+    loss = (torch.where(torch.lt(TD_error, 0), 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
+    return loss
+
 
 class Trainer:
     __slots__ = (
@@ -132,9 +147,9 @@ class Trainer:
         "scaler",
         "batch_size",
         "iqn_n",
-        "iqn_kappa",
         "gamma",
         "typical_self_loss",
+        "typical_clamped_self_loss"
     )
 
     def __init__(
@@ -145,7 +160,6 @@ class Trainer:
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
         batch_size: int,
         iqn_n: int,
-        iqn_kappa: float,
         gamma: float,
     ):
         self.online_network = online_network
@@ -154,22 +168,23 @@ class Trainer:
         self.scaler = scaler
         self.batch_size = batch_size
         self.iqn_n = iqn_n
-        self.iqn_kappa = iqn_kappa
         self.gamma = gamma
         self.typical_self_loss = 0.01
+        self.typical_clamped_self_loss = 0.01
 
-    def iqn_loss(self, targets, outputs, tau_outputs):
-        TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
-        # (batch_size, iqn_n, iqn_n, 1)
-        # Huber loss, my alternative
-        loss = torch.where(
-            torch.lt(torch.abs(TD_error), self.iqn_kappa),
-            (0.5 / self.iqn_kappa) * TD_error**2,
-            (torch.abs(TD_error) - 0.5 * self.iqn_kappa),
+    def iqn_loss_prime(self,outputs_target, outputs, tau):
+        TD_error = outputs_target[:, :, None, :] - outputs[:, None, :, :]
+        loss_prime = torch.where(
+            torch.abs(TD_error) <= misc.iqn_kappa,
+            TD_error,
+            misc.iqn_kappa * torch.sign(TD_error),
         )
-        tau = tau_outputs.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
+        tau = tau.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
         tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-        loss = (torch.where(torch.lt(TD_error, 0), 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
+        loss = (
+            (torch.where(TD_error < 0, 1 - tau, tau) / misc.iqn_kappa)
+        )*loss_prime  # pinball loss 
+        loss = torch.abs(loss.mean(dim=1)).sum(dim=1)[:, 0]# (batch_size, )
         return loss
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
@@ -239,20 +254,36 @@ class Trainer:
             q__st__online__quantiles_tau3, tau3 = self.online_network(
                 state_img_tensor, state_float_tensor, self.iqn_n, tau=None
             )  # (batch_size*iqn_n,n_actions)
-
             outputs_tau3 = (
                 q__st__online__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
-            loss = self.iqn_loss(outputs_target_tau2, outputs_tau3, tau3)
+            '''with torch.no_grad():
+                q__stpo__target__quantiles_tau3, _ = self.target_network(
+                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=tau3
+                )  # (batch_size*iqn_n,n_actions)
+                outputs_target_tau3 = (
+                    rewards + gammas_terminal * q__stpo__target__quantiles_tau3.max(dim=1, keepdim=True)[0]
+                )  # (batch_size*iqn_n, 1)
+                outputs_target_tau3 = outputs_target_tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(
+                    0, 1
+                )  # (batch_size, iqn_n, 1)'''
 
-            target_self_loss = self.iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach())
-            # outputs_self_loss = self.iqn_loss(outputs_tau3.detach(), outputs_tau3.detach(), tau3.detach())
+            loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc.iqn_n, misc.batch_size)
+
+            #target_self_loss_prime = self.iqn_loss_prime(outputs_target_tau3.detach(), outputs_target_tau3.detach(), tau3.detach())
+            #target_self_loss = iqn_loss(outputs_target_tau3.detach(), outputs_target_tau3.detach(), tau3.detach(), misc.iqn_n, misc.batch_size)
+            target_self_loss = iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc.iqn_n, misc.batch_size)
+            # outputs_self_loss = iqn_loss(outputs_tau3.detach(), outputs_tau3.detach(), tau3.detach(), misc.iqn_n, misc.batch_size)
 
             # self_loss = target_self_loss# + 0.2 * outputs_self_loss
             self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
 
-            loss *= self.typical_self_loss / target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)
+            correction_clamped = target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)
+
+            self.typical_clamped_self_loss = 0.99 * self.typical_self_loss + 0.01 * correction_clamped.mean()
+
+            loss *= self.typical_clamped_self_loss / correction_clamped
 
             total_loss = torch.sum(IS_weights * loss if misc.prio_alpha > 0 else loss)
 
