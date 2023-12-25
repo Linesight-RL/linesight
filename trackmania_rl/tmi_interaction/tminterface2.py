@@ -34,6 +34,7 @@ class MessageType(IntEnum):
     C_UNREQUEST_FRAME = auto()
     C_TOGGLE_INTERFACE = auto()
     C_IS_IN_MENUS = auto()
+    C_GET_INPUTS = auto()
 
 
 class TMInterface:
@@ -132,6 +133,11 @@ class TMInterface:
     def is_in_menus(self):
         self.sock.sendall(struct.pack("i", MessageType.C_IS_IN_MENUS))
         return self._read_int32() > 0
+
+    def get_inputs(self):
+        self.sock.sendall(struct.pack("i",MessageType.C_GET_INPUTS))
+        string_length = self._read_int32()
+        return self.sock.recv(string_length, socket.MSG_WAITALL).decode('utf-8')
 
     def _respond_to_call(self, response_type):
         self.sock.sendall(struct.pack("i", np.int32(response_type)))

@@ -24,6 +24,7 @@ enum MessageType {
     CUnrequestFrame = 20,
     CToggleInterface = 21,
     CIsInMenus = 22,
+    CGetInputs = 23,
 }
 
 const bool debug = false;
@@ -250,6 +251,14 @@ int HandleMessage()
         case MessageType::CIsInMenus: {
             const int response = GetCurrentGameState()==TM::GameState::Menus? 1 : 0;
             clientSock.Write(response);
+            break;
+        }
+
+        case MessageType::CGetInputs: {
+            TM::InputEventBuffer@ inputs = simManager.get_InputEvents();
+            const string input_text = inputs.ToCommandsText();
+            clientSock.Write(int32(input_text.Length));
+            clientSock.Write(input_text);
             break;
         }
 
