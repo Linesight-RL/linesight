@@ -172,21 +172,6 @@ class Trainer:
         self.typical_self_loss = 0.01
         self.typical_clamped_self_loss = 0.01
 
-    def iqn_loss_prime(self,outputs_target, outputs, tau):
-        TD_error = outputs_target[:, :, None, :] - outputs[:, None, :, :]
-        loss_prime = torch.where(
-            torch.abs(TD_error) <= misc.iqn_kappa,
-            TD_error,
-            misc.iqn_kappa * torch.sign(TD_error),
-        )
-        tau = tau.reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
-        tau = tau[:, None, :, :].expand([-1, self.iqn_n, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
-        loss = (
-            (torch.where(TD_error < 0, 1 - tau, tau) / misc.iqn_kappa)
-        )*loss_prime  # pinball loss 
-        loss = torch.abs(loss.mean(dim=1)).sum(dim=1)[:, 0]# (batch_size, )
-        return loss
-
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
         self.optimizer.zero_grad(set_to_none=True)
 
@@ -258,21 +243,8 @@ class Trainer:
                 q__st__online__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
-            '''with torch.no_grad():
-                q__stpo__target__quantiles_tau3, _ = self.target_network(
-                    next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=tau3
-                )  # (batch_size*iqn_n,n_actions)
-                outputs_target_tau3 = (
-                    rewards + gammas_terminal * q__stpo__target__quantiles_tau3.max(dim=1, keepdim=True)[0]
-                )  # (batch_size*iqn_n, 1)
-                outputs_target_tau3 = outputs_target_tau3.reshape([self.iqn_n, self.batch_size, 1]).transpose(
-                    0, 1
-                )  # (batch_size, iqn_n, 1)'''
-
             loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc.iqn_n, misc.batch_size)
 
-            #target_self_loss_prime = self.iqn_loss_prime(outputs_target_tau3.detach(), outputs_target_tau3.detach(), tau3.detach())
-            #target_self_loss = iqn_loss(outputs_target_tau3.detach(), outputs_target_tau3.detach(), tau3.detach(), misc.iqn_n, misc.batch_size)
             target_self_loss = iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc.iqn_n, misc.batch_size)
             # outputs_self_loss = iqn_loss(outputs_tau3.detach(), outputs_tau3.detach(), tau3.detach(), misc.iqn_n, misc.batch_size)
 
