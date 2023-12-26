@@ -38,13 +38,15 @@ min_horizon_to_update_priority_actions = temporal_mini_race_duration_actions - 4
 # If mini_race_time == mini_race_duration this is the end of the minirace
 margin_to_announce_finish_meters = 700
 
+global_schedule_speed = 1
+
 epsilon_schedule = [
     (0, 0.1),
-    (1_000_000, 0.03),
+    (1_000_000 * global_schedule_speed, 0.03),
 ]
 epsilon_boltzmann_schedule = [
     (0, 0.15),
-    (1_000_000, 0.03),
+    (1_000_000 * global_schedule_speed, 0.03),
 ]
 tau_epsilon_boltzmann = 0.01
 discard_non_greedy_actions_in_nsteps = True
@@ -77,19 +79,20 @@ number_times_single_memory_is_used_before_discard = 60  # 32 // 4
 
 memory_size_schedule = [
     (0, (50_000, 20_000)),
-    (3_000_000, (800_000, 200_000)),
+    (6_000_000 * global_schedule_speed, (800_000, 200_000)),
 ]
 lr_schedule = [
     (0, 1e-3),
-    (2_000_000, 5e-5),
-    (6_000_000, 5e-5),
-    (8_000_000, 1e-5),
+    (2_000_000 * global_schedule_speed, 5e-5),
+    (10_000_000 * global_schedule_speed, 5e-5),
+    (14_000_000 * global_schedule_speed, 1e-5),
 ]
 tensorboard_suffix_schedule = [
     (0, ""),
-    # (3_000_000, "_1"),
-    # (15_000_000, "_2"),
-    # (30_000_000, "_3"),
+    (6_000_000 * global_schedule_speed, "_2"),
+    (15_000_000 * global_schedule_speed, "_3"),
+    (30_000_000 * global_schedule_speed, "_4"),
+    (45_000_000 * global_schedule_speed, "_5"),
 ]
 
 apply_horizontal_flip_augmentation = False
