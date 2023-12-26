@@ -123,6 +123,7 @@ class IQN_Network(torch.nn.Module):
 
 # ==========================================================================================================================
 
+
 @torch.compile(disable=not misc.is_linux)
 def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
     TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
@@ -149,7 +150,7 @@ class Trainer:
         "iqn_n",
         "gamma",
         "typical_self_loss",
-        "typical_clamped_self_loss"
+        "typical_clamped_self_loss",
     )
 
     def __init__(
@@ -245,10 +246,10 @@ class Trainer:
 
             loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc.iqn_n, misc.batch_size)
 
-            target_self_loss = iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc.iqn_n, misc.batch_size)
-            # outputs_self_loss = iqn_loss(outputs_tau3.detach(), outputs_tau3.detach(), tau3.detach(), misc.iqn_n, misc.batch_size)
+            target_self_loss = iqn_loss(
+                outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc.iqn_n, misc.batch_size
+            )
 
-            # self_loss = target_self_loss# + 0.2 * outputs_self_loss
             self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
 
             correction_clamped = target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)

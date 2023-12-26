@@ -1,7 +1,7 @@
 import random
 import shutil
-from itertools import islice
 from collections import defaultdict
+from itertools import islice
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
@@ -12,14 +12,16 @@ from PIL import Image
 from . import misc
 from .agents.iqn import iqn_loss
 
-def batched(iterable, n): #Can be included from itertools with python >=3.12
+
+def batched(iterable, n):  # Can be included from itertools with python >=3.12
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G
     if n < 1:
-      raise ValueError('n must be >= 1')
+        raise ValueError("n must be >= 1")
     it = iter(iterable)
-    while (batch := list(islice(it, n))):
-      yield batch
+    while batch := list(islice(it, n)):
+        yield batch
+
 
 def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
     color_cycle = [
@@ -206,7 +208,7 @@ def get_output_and_target_for_batch(batch, online_network, target_network, num_q
     ) = batch
     batch_size = len(state_img_tensor)
 
-    is_terminal = (gammas_terminal > 0)
+    is_terminal = gammas_terminal > 0
 
     delta = next_state_float_tensor[:, 0] - state_float_tensor[:, 0]
     state_float_tensor[:, 0] = (0 - misc.float_inputs_mean[0]) / misc.float_inputs_std[0]
@@ -256,11 +258,12 @@ def get_output_and_target_for_batch(batch, online_network, target_network, num_q
         losses,
     )
 
+
 def loss_distribution(buffer, save_dir, online_network, target_network):
     shutil.rmtree(save_dir / "loss_distribution", ignore_errors=True)
     (save_dir / "loss_distribution").mkdir(parents=True, exist_ok=True)
     buffer_loss = []
-    for batch in batched(range(len(buffer)),misc.batch_size):
+    for batch in batched(range(len(buffer)), misc.batch_size):
         quantiles_output, quantiles_target, losses = get_output_and_target_for_batch(
             buffer[batch], online_network, target_network, misc.iqn_n
         )
@@ -269,22 +272,22 @@ def loss_distribution(buffer, save_dir, online_network, target_network):
     buffer_loss_mean = buffer_loss.mean()
     plt.figure()
     plt.hist(buffer_loss, bins=50, density=True)
-    plt.vlines(buffer_loss_mean,0,1, color='red')
-    plt.yscale('log')
-    plt.title("Buffer Size:"+str(len(buffer)))
-    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution.png')
+    plt.vlines(buffer_loss_mean, 0, 1, color="red")
+    plt.yscale("log")
+    plt.title("Buffer Size:" + str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / "loss_distribution.png")
 
     plt.figure()
-    plt.hist(buffer_loss/buffer_loss_mean,bins=50, density=True)
-    plt.yscale('log')
-    plt.title("Buffer Size:"+str(len(buffer)))
-    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution_mean_units.png')
+    plt.hist(buffer_loss / buffer_loss_mean, bins=50, density=True)
+    plt.yscale("log")
+    plt.title("Buffer Size:" + str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / "loss_distribution_mean_units.png")
 
     plt.figure()
-    plt.hist(buffer_loss_mean/buffer_loss,bins=50, density=True)
-    plt.yscale('log')
-    plt.title("Buffer Size:"+str(len(buffer)))
-    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution_inverse_mean_units.png')
+    plt.hist(buffer_loss_mean / buffer_loss, bins=50, density=True)
+    plt.yscale("log")
+    plt.title("Buffer Size:" + str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / "loss_distribution_inverse_mean_units.png")
 
 
 def distribution_curves(buffer, save_dir, online_network, target_network):
