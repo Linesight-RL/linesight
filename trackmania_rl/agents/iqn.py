@@ -123,7 +123,7 @@ class IQN_Network(torch.nn.Module):
 
 # ==========================================================================================================================
 
-@torch.compile
+@torch.compile(disable=not misc.is_linux)
 def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
     TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
     # (batch_size, iqn_n, iqn_n, 1)
