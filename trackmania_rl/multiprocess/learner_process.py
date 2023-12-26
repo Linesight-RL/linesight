@@ -262,7 +262,7 @@ def learner_process_fn(
             buffer._sampler._beta = misc.prio_beta
             buffer._sampler._eps = misc.prio_epsilon
 
-        if misc.plot_race_time_left_curves and not is_explo : #and (loop_number // 5) % 17 == 0
+        if misc.plot_race_time_left_curves and not is_explo and (loop_number // 5) % 17 == 0:
             race_time_left_curves(rollout_results, inferer, save_dir, map_name)
             tau_curves(rollout_results, inferer, save_dir, map_name)
             distribution_curves(buffer, save_dir, online_network, target_network)
