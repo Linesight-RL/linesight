@@ -265,11 +265,26 @@ def loss_distribution(buffer, save_dir, online_network, target_network):
             buffer[batch], online_network, target_network, misc.iqn_n
         )
         buffer_loss.extend(losses["real_loss"])
+    buffer_loss = np.array(buffer_loss)
+    buffer_loss_mean = buffer_loss.mean()
     plt.figure()
-    plt.hist(buffer_loss)
+    plt.hist(buffer_loss, bins=50, density=True)
+    plt.vlines(buffer_loss_mean,0,1, color='red')
     plt.yscale('log')
     plt.title("Buffer Size:"+str(len(buffer)))
     plt.savefig(save_dir / "loss_distribution" / 'loss_distribution.png')
+
+    plt.figure()
+    plt.hist(buffer_loss/buffer_loss_mean,bins=50, density=True)
+    plt.yscale('log')
+    plt.title("Buffer Size:"+str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution_mean_units.png')
+
+    plt.figure()
+    plt.hist(buffer_loss_mean/buffer_loss,bins=50, density=True)
+    plt.yscale('log')
+    plt.title("Buffer Size:"+str(len(buffer)))
+    plt.savefig(save_dir / "loss_distribution" / 'loss_distribution_inverse_mean_units.png')
 
 
 def distribution_curves(buffer, save_dir, online_network, target_network):

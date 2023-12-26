@@ -253,7 +253,7 @@ class Trainer:
 
             correction_clamped = target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)
 
-            self.typical_clamped_self_loss = 0.99 * self.typical_self_loss + 0.01 * correction_clamped.mean()
+            self.typical_clamped_self_loss = 0.99 * self.typical_clamped_self_loss + 0.01 * correction_clamped.mean()
 
             loss *= self.typical_clamped_self_loss / correction_clamped
 
