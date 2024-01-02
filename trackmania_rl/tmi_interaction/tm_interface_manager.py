@@ -458,6 +458,7 @@ class TMInterfaceManager:
 
                     if not self.timeout_has_been_set:
                         self.iface.set_timeout(misc.timeout_during_run_ms)
+                        self.iface.execute_command(f"cam 1")
                         self.timeout_has_been_set = True
 
                     if not self.UI_disabled and _time < map_change_requested_time:
@@ -685,7 +686,6 @@ class TMInterfaceManager:
                     self.iface.execute_command(f"set autologin {'pb4608' if misc.is_pb_desktop else 'agade09'}")
                     self.iface.execute_command(f"set auto_reload_plugins false")
                     self.iface.execute_command(f"set skip_map_load_screens true")
-                    self.iface.execute_command(f"cam 1")
                     self.iface.execute_command(f"set temp_save_states_collect false")
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
