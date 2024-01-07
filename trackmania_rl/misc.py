@@ -52,7 +52,10 @@ tau_epsilon_boltzmann = 0.01
 discard_non_greedy_actions_in_nsteps = True
 buffer_test_ratio = 0.05
 
-speedslide_reward_schedule = [
+engineered_speedslide_reward_schedule = [
+    (0, 0),
+]
+engineered_neoslide_reward_schedule = [
     (0, 0),
 ]
 

@@ -242,8 +242,11 @@ def learner_process_fn(
         # LR and weight_decay calculation
         learning_rate = utilities.from_exponential_schedule(misc.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
         weight_decay = misc.weight_decay_lr_ratio * learning_rate
-        speedslide_reward = utilities.from_linear_schedule(
-            misc.speedslide_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+        engineered_speedslide_reward = utilities.from_linear_schedule(
+            misc.engineered_speedslide_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
+        engineered_neoslide_reward = utilities.from_linear_schedule(
+            misc.engineered_neoslide_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
         )
         gamma = utilities.from_linear_schedule(misc.gamma_schedule, accumulated_stats["cumul_number_memories_generated"])
 
@@ -379,7 +382,8 @@ def learner_process_fn(
                 misc.n_steps,
                 gamma,
                 misc.discard_non_greedy_actions_in_nsteps,
-                speedslide_reward,
+                engineered_speedslide_reward,
+                engineered_neoslide_reward,
             )
 
             accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test

@@ -26,7 +26,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     n_steps_max: int,
     gamma: float,
     discard_non_greedy_actions_in_nsteps: bool,
-    speedslide_reward: float,
+    engineered_speedslide_reward: float,
+    engineered_neoslide_reward: float,
 ):
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
@@ -49,14 +50,22 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         reward_into[i] += (
             rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
         ) * misc.reward_per_m_advanced_along_centerline
-        if i < n_frames - 1 and rollout_results["state_float"][i][58] > 0:
-            reward_into[i] += misc.final_speed_reward_per_m_per_s * (
-                np.linalg.norm(rollout_results["state_float"][i][56:59]) - np.linalg.norm(rollout_results["state_float"][i - 1][56:59])
-            )
-        if i < n_frames - 1 and np.all(rollout_results["state_float"][i][25:29]):
-            reward_into[i] += speedslide_reward * max(
-                0, 1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1)
-            )  # TODO : indices 25:29, 56 and 58 are hardcoded, this is bad....
+        if i < n_frames - 1:
+            if rollout_results["state_float"][i][58] > 0:
+                # car has velocity *forward*
+                reward_into[i] += misc.final_speed_reward_per_m_per_s * (
+                    np.linalg.norm(rollout_results["state_float"][i][56:59]) - np.linalg.norm(rollout_results["state_float"][i - 1][56:59])
+                )
+            if np.all(rollout_results["state_float"][i][25:29]):
+                # all wheels touch the ground
+                reward_into[i] += engineered_speedslide_reward * max(
+                    0, 1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1)
+                )  # TODO : indices 25:29, 56 and 58 are hardcoded, this is bad....
+
+            # lateral speed is higher than 2 meters per second
+            reward_into[i] += (
+                engineered_neoslide_reward if abs(rollout_results["state_float"][i][56]) >= 2.0 else 0
+            )  # TODO : 56 is hardcoded, this is bad....
 
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
