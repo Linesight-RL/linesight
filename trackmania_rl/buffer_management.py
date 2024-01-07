@@ -9,6 +9,16 @@ from .experience_replay.experience_replay_interface import Experience
 from .reward_shaping import speedslide_quality_tarmac
 
 
+def get_potential(state_float):
+    # https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf
+    vector_vcp_to_vcp_further_ahead = state_float[65:68] - state_float[62:65]
+    vector_vcp_to_vcp_further_ahead_normalized = vector_vcp_to_vcp_further_ahead / np.linalg.norm(vector_vcp_to_vcp_further_ahead)
+
+    return (
+        misc.shaped_reward_dist_to_cur_vcp * max(1.5, min(misc.shaped_reward_cap_dist_to_cur_vcp, np.linalg.norm(state_float[62:65])))
+    ) + (misc.shaped_reward_point_to_vcp_ahead * (vector_vcp_to_vcp_further_ahead_normalized[2] - 1))
+
+
 def fill_buffer_from_rollout_with_n_steps_rule(
     buffer: ReplayBuffer,
     buffer_test: ReplayBuffer,
@@ -67,6 +77,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
         state_img = rollout_results["frames"][i]
         state_float = rollout_results["state_float"][i]
+        state_potential = get_potential(rollout_results["state_float"][i])
 
         # Get action that was played
         action = rollout_results["actions"][i]
@@ -76,20 +87,24 @@ def fill_buffer_from_rollout_with_n_steps_rule(
         if not next_state_has_passed_finish:
             next_state_img = rollout_results["frames"][i + n_steps]
             next_state_float = rollout_results["state_float"][i + n_steps]
+            next_state_potential = get_potential(rollout_results["state_float"][i + n_steps])
         else:
             # It doesn't matter what next_state_img and next_state_float contain, as the transition will be forced to be final
             next_state_img = state_img
             next_state_float = state_float
+            next_state_potential = 0
 
         buffer_to_fill.add(
             Experience(
                 state_img,
                 state_float,
+                state_potential,
                 action,
                 n_steps,
                 rewards,
                 next_state_img,
                 next_state_float,
+                next_state_potential,
                 gammas,
                 terminal_actions,
             ),

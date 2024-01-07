@@ -726,3 +726,7 @@ target_self_loss_clamp_ratio = 4
 
 final_speed_reward_as_if_duration_s = 0
 final_speed_reward_per_m_per_s = reward_per_m_advanced_along_centerline * final_speed_reward_as_if_duration_s
+
+shaped_reward_dist_to_cur_vcp = 0
+shaped_reward_cap_dist_to_cur_vcp = 15
+shaped_reward_point_to_vcp_ahead = 0

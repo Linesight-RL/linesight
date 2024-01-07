@@ -13,7 +13,14 @@ from torchrl.data.replay_buffers.utils import INT_CLASSES, _to_numpy
 
 from . import misc
 
-to_torch_dtype = {"uint8": torch.uint8, "float32": torch.float32, "int64": torch.int64, "float": torch.float64, "int": torch.int}
+to_torch_dtype = {
+    "uint8": torch.uint8,
+    "float32": torch.float32,
+    "int64": torch.int64,
+    "float": torch.float32,
+    "int": torch.int,
+    "float64": torch.float32,
+}
 
 
 def fast_collate_cpu(batch, attr_name):
@@ -35,16 +42,30 @@ def send_to_gpu(batch, attr_name):
 
 
 def buffer_collate_function(batch):
-    state_img, state_float, action, rewards, next_state_img, next_state_float, gammas, terminal_actions, n_steps = tuple(
+    (
+        state_img,
+        state_float,
+        state_potential,
+        action,
+        rewards,
+        next_state_img,
+        next_state_float,
+        next_state_potential,
+        gammas,
+        terminal_actions,
+        n_steps,
+    ) = tuple(
         map(
             lambda attr_name: fast_collate_cpu(batch, attr_name),
             [
                 "state_img",
                 "state_float",
+                "state_potential",
                 "action",
                 "rewards",
                 "next_state_img",
                 "next_state_float",
+                "next_state_potential",
                 "gammas",
                 "terminal_actions",
                 "n_steps",
@@ -79,6 +100,9 @@ def buffer_collate_function(batch):
     gammas = np.where(terminal, 0, gammas)
 
     rewards = np.take_along_axis(rewards, possibly_reduced_n_steps[:, None] - 1, axis=1).squeeze(-1)
+
+    rewards += np.where(terminal, 0, gammas * next_state_potential)
+    rewards -= state_potential
 
     state_img, state_float, action, rewards, next_state_img, next_state_float, gammas = tuple(
         map(
