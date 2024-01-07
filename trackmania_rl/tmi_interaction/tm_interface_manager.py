@@ -357,8 +357,8 @@ class TMInterfaceManager:
                         ],
                         dtype=np.float32,
                     )
-
-                    current_zone_idx = update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position)
+                    if sim_state_position[1] > misc.deck_height:
+                        current_zone_idx = update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position)
 
                     if current_zone_idx > rollout_results["furthest_zone_idx"]:
                         last_progress_improvement_ms = sim_state_race_time
