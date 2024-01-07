@@ -62,5 +62,5 @@ def extract_cp_distance_interval(raw_position_list: List, target_distance_betwee
             (2 * raw_position_list[-1] - zone_centers[-1])[None, :],
         )
     )
-    np.save(base_dir / "maps" / "map.npy", np.array(zone_centers).round(1))
+    np.save(base_dir / "maps" / "map.npy", np.array(zone_centers).round(4))
     return zone_centers
