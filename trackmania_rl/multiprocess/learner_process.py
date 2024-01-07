@@ -2,7 +2,6 @@ import copy
 import importlib
 import math
 import random
-import shutil
 import time
 import typing
 from collections import defaultdict
@@ -16,7 +15,7 @@ from torch import multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data.replay_buffers import PrioritizedSampler
 
-from trackmania_rl import buffer_management, misc, run_to_video, utilities
+from trackmania_rl import buffer_management, misc, utilities
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.analysis_metrics import (
