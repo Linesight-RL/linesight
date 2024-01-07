@@ -60,7 +60,6 @@ n_steps = 3
 constant_reward_per_ms = -6 / 5000
 reward_per_m_advanced_along_centerline = 5 / 500
 
-gamma = 1
 float_input_dim = 26 + 3 * n_zone_centers_in_inputs + 4 * n_prev_actions_in_inputs + 4 * n_contact_material_physics_behavior_types + 1
 float_hidden_dim = 256
 conv_head_output_dim = 5632
@@ -93,6 +92,9 @@ tensorboard_suffix_schedule = [
     (15_000_000 * global_schedule_speed, "_3"),
     (30_000_000 * global_schedule_speed, "_4"),
     (45_000_000 * global_schedule_speed, "_5"),
+]
+gamma_schedule = [
+    (0, 1),
 ]
 
 apply_horizontal_flip_augmentation = False

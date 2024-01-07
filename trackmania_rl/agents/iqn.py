@@ -148,7 +148,6 @@ class Trainer:
         "scaler",
         "batch_size",
         "iqn_n",
-        "gamma",
         "typical_self_loss",
         "typical_clamped_self_loss",
     )
@@ -161,7 +160,6 @@ class Trainer:
         scaler: torch.cuda.amp.grad_scaler.GradScaler,
         batch_size: int,
         iqn_n: int,
-        gamma: float,
     ):
         self.online_network = online_network
         self.target_network = target_network
@@ -169,7 +167,6 @@ class Trainer:
         self.scaler = scaler
         self.batch_size = batch_size
         self.iqn_n = iqn_n
-        self.gamma = gamma
         self.typical_self_loss = 0.01
         self.typical_clamped_self_loss = 0.01
 

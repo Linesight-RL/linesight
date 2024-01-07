@@ -192,7 +192,6 @@ def learner_process_fn(
         scaler=scaler,
         batch_size=misc.batch_size,
         iqn_n=misc.iqn_n,
-        gamma=misc.gamma,
     )
 
     inferer = iqn.Inferer(inference_network=online_network, iqn_k=misc.iqn_k, tau_epsilon_boltzmann=misc.tau_epsilon_boltzmann)
@@ -246,6 +245,7 @@ def learner_process_fn(
         speedslide_reward = utilities.from_linear_schedule(
             misc.speedslide_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
         )
+        gamma = utilities.from_linear_schedule(misc.gamma_schedule, accumulated_stats["cumul_number_memories_generated"])
 
         # ===============================================
         #   RELOAD
@@ -255,7 +255,6 @@ def learner_process_fn(
             param_group["lr"] = learning_rate
             param_group["epsilon"] = misc.adam_epsilon
             param_group["betas"] = (misc.adam_beta1, misc.adam_beta2)
-        trainer.gamma = misc.gamma
 
         if isinstance(buffer._sampler, PrioritizedSampler):
             buffer._sampler._alpha = misc.prio_alpha
@@ -378,7 +377,7 @@ def learner_process_fn(
                 buffer_test,
                 rollout_results,
                 misc.n_steps,
-                misc.gamma,
+                gamma,
                 misc.discard_non_greedy_actions_in_nsteps,
                 speedslide_reward,
             )
@@ -483,7 +482,7 @@ def learner_process_fn(
             #   COLLECT VARIOUS STATISTICS
             # ===============================================
             step_stats = {
-                "gamma": misc.gamma,
+                "gamma": gamma,
                 "n_steps": misc.n_steps,
                 "epsilon": utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value),
                 "epsilon_boltzmann": utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value),
