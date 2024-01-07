@@ -8,6 +8,4 @@ def speedslide_quality_tarmac(speed_x: float, speed_z: float):
         np.interp(speed_z * 3.6, [0, 100, 200, 300, 400, 500], [80, 80, 75, 67, 60, 55]) * material_max_side_friction_multiplier
     )
     side_friction = 20 * abs(speed_x)
-    if side_friction > max_side_friction:
-        return (side_friction - max_side_friction) / max_side_friction
-    return 0.0
+    return (side_friction - max_side_friction) / max_side_friction if side_friction > max_side_friction else 0.0
