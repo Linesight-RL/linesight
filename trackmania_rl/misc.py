@@ -730,3 +730,5 @@ final_speed_reward_per_m_per_s = reward_per_m_advanced_along_centerline * final_
 shaped_reward_dist_to_cur_vcp = 0
 shaped_reward_cap_dist_to_cur_vcp = 15
 shaped_reward_point_to_vcp_ahead = 0
+
+threshold_to_save_all_runs_ms = 9999999999

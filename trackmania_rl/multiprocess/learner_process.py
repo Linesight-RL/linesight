@@ -356,34 +356,13 @@ def learner_process_fn(
             # This is a new alltime_minimum
             accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
             if accumulated_stats["cumul_number_frames_played"] > misc.frames_before_save_best_runs:
-                print("\a")
-                sub_folder_name = f"{map_name}_{end_race_stats['race_time']}"
-                (save_dir / "best_runs" / sub_folder_name).mkdir(parents=True, exist_ok=True)
-                run_to_video.write_actions_in_tmi_format(
-                    rollout_results["actions"],
-                    save_dir / "best_runs" / sub_folder_name / f"{map_name}_{end_race_stats['race_time']}.inputs",
-                )
-                joblib.dump(
-                    rollout_results["q_values"],
-                    save_dir / "best_runs" / sub_folder_name / f"q_values.joblib",
-                )
-                torch.save(
-                    online_network.state_dict(),
-                    save_dir / "best_runs" / "weights1.torch",
-                )
-                torch.save(
-                    target_network.state_dict(),
-                    save_dir / "best_runs" / "weights2.torch",
-                )
-                torch.save(
-                    optimizer1.state_dict(),
-                    save_dir / "best_runs" / "optimizer1.torch",
-                )
-                torch.save(
-                    scaler.state_dict(),
-                    save_dir / "best_runs" / "scaler.torch",
-                )
-                shutil.copy(base_dir / "trackmania_rl" / "misc.py", save_dir / "best_runs" / sub_folder_name / "misc.py.save")
+                name = f"{map_name}_{end_race_stats['race_time']}.inputs"
+                utilities.save_run(base_dir, save_dir / "best_runs" / name, rollout_results, name, inputs_only=False)
+                utilities.save_checkpoint(save_dir / "best_runs", online_network, target_network, optimizer1, scaler)
+
+        if end_race_stats["race_time"] < misc.threshold_to_save_all_runs_ms:
+            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}.inputs"
+            utilities.save_run(base_dir, save_dir / "good_runs", rollout_results, name, inputs_only=True)
 
         # ===============================================
         #   FILL BUFFER WITH (S, A, R, S') transitions
@@ -666,9 +645,5 @@ def learner_process_fn(
             # ===============================================
             #   SAVE
             # ===============================================
-
-            torch.save(online_network.state_dict(), save_dir / "weights1.torch")
-            torch.save(target_network.state_dict(), save_dir / "weights2.torch")
-            torch.save(optimizer1.state_dict(), save_dir / "optimizer1.torch")
-            torch.save(scaler.state_dict(), save_dir / "scaler.torch")
+            utilities.save_checkpoint(save_dir, online_network, target_network, optimizer1, scaler)
             joblib.dump(accumulated_stats, save_dir / "accumulated_stats.joblib")

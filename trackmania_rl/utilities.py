@@ -1,8 +1,13 @@
 import math
+import shutil
+from pathlib import Path
 
+import joblib
 import numpy as np
 import torch
 from prettytable import PrettyTable
+
+from . import run_to_video
 
 
 def init_kaiming(layer, neg_slope=0, nonlinearity="leaky_relu"):
@@ -102,3 +107,31 @@ def count_parameters(model):
     print(table)
     print(f"Total Trainable Params: {total_params}")
     return total_params
+
+
+def save_run(
+    base_dir: Path,
+    run_dir: Path,
+    rollout_results: dict,
+    inputs_filename: str,
+    inputs_only: bool,
+):
+    run_dir.mkdir(parents=True, exist_ok=True)
+    run_to_video.write_actions_in_tmi_format(rollout_results["actions"], run_dir / inputs_filename)
+    if not inputs_only:
+        shutil.copy(base_dir / "trackmania_rl" / "misc.py", run_dir / "misc.bak.py")
+        joblib.dump(rollout_results["q_values"], run_dir / f"q_values.joblib")
+
+
+def save_checkpoint(
+    checkpoint_dir: Path,
+    online_network: torch.nn.Module,
+    target_network: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scaler: torch.cuda.amp.GradScaler,
+):
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(online_network.state_dict(), checkpoint_dir / "weights1.torch")
+    torch.save(target_network.state_dict(), checkpoint_dir / "weights2.torch")
+    torch.save(optimizer.state_dict(), checkpoint_dir / "optimizer1.torch")
+    torch.save(scaler.state_dict(), checkpoint_dir / "scaler.torch")
