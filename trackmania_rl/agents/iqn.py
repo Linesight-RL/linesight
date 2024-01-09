@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torchrl.data import ReplayBuffer
 
-from .. import misc, utilities
+from .. import misc_copy, utilities
 
 
 class CReLU(torch.nn.Module):
@@ -89,7 +89,7 @@ class IQN_Network(torch.nn.Module):
     def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = img.shape[0]
         img_outputs = self.img_head(img)
-        # img_outputs = torch.zeros(batch_size, misc.conv_head_output_dim).to(device="cuda") # Uncomment to temporarily mask the img_head
+        # img_outputs = torch.zeros(batch_size, misc_copy.conv_head_output_dim).to(device="cuda") # Uncomment to temporarily mask the img_head
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
         # (batch_size, dense_input_dimension) OK
         concat = torch.cat((img_outputs, float_outputs), 1)
@@ -124,15 +124,15 @@ class IQN_Network(torch.nn.Module):
 # ==========================================================================================================================
 
 
-@torch.compile(disable=not misc.is_linux)
+@torch.compile(disable=not misc_copy.is_linux)
 def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
     TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
     # (batch_size, iqn_n, iqn_n, 1)
     # Huber loss, my alternative
     loss = torch.where(
-        torch.lt(torch.abs(TD_error), misc.iqn_kappa),
-        (0.5 / misc.iqn_kappa) * TD_error**2,
-        (torch.abs(TD_error) - 0.5 * misc.iqn_kappa),
+        torch.lt(torch.abs(TD_error), misc_copy.iqn_kappa),
+        (0.5 / misc_copy.iqn_kappa) * TD_error**2,
+        (torch.abs(TD_error) - 0.5 * misc_copy.iqn_kappa),
     )
     tau = tau_outputs.reshape([num_quantiles, batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
     tau = tau[:, None, :, :].expand([-1, num_quantiles, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
@@ -185,7 +185,7 @@ class Trainer:
                     next_state_float_tensor,
                     gammas_terminal,
                 ) = batch
-                if misc.prio_alpha > 0:
+                if misc_copy.prio_alpha > 0:
                     IS_weights = torch.from_numpy(batch_info["_weight"]).to("cuda", non_blocking=True)
 
                 rewards = rewards.unsqueeze(-1).repeat(
@@ -203,7 +203,7 @@ class Trainer:
                 #   Use online network to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
                 #
-                if misc.use_ddqn:
+                if misc_copy.use_ddqn:
                     a__tpo__online__reduced_repeated = (
                         self.online_network(
                             next_state_img_tensor,
@@ -241,29 +241,29 @@ class Trainer:
                 q__st__online__quantiles_tau3.gather(1, actions).reshape([self.iqn_n, self.batch_size, 1]).transpose(0, 1)
             )  # (batch_size, iqn_n, 1)
 
-            loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc.iqn_n, misc.batch_size)
+            loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc_copy.iqn_n, misc_copy.batch_size)
 
             target_self_loss = iqn_loss(
-                outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc.iqn_n, misc.batch_size
+                outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc_copy.iqn_n, misc_copy.batch_size
             )
 
             self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
 
-            correction_clamped = target_self_loss.clamp(min=self.typical_self_loss / misc.target_self_loss_clamp_ratio)
+            correction_clamped = target_self_loss.clamp(min=self.typical_self_loss / misc_copy.target_self_loss_clamp_ratio)
 
             self.typical_clamped_self_loss = 0.99 * self.typical_clamped_self_loss + 0.01 * correction_clamped.mean()
 
             loss *= self.typical_clamped_self_loss / correction_clamped
 
-            total_loss = torch.sum(IS_weights * loss if misc.prio_alpha > 0 else loss)
+            total_loss = torch.sum(IS_weights * loss if misc_copy.prio_alpha > 0 else loss)
 
             if do_learn:
                 self.scaler.scale(total_loss).backward()
 
                 # Gradient clipping : https://pytorch.org/docs/stable/notes/amp_examples.html#gradient-clipping
                 self.scaler.unscale_(self.optimizer)
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), misc.clip_grad_norm).detach().cpu().item()
-                torch.nn.utils.clip_grad_value_(self.online_network.parameters(), misc.clip_grad_value)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), misc_copy.clip_grad_norm).detach().cpu().item()
+                torch.nn.utils.clip_grad_value_(self.online_network.parameters(), misc_copy.clip_grad_value)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
@@ -271,8 +271,8 @@ class Trainer:
                 grad_norm = 0
 
             total_loss = total_loss.detach().cpu()
-            if misc.prio_alpha > 0:
-                mask_update_priority = torch.lt(state_float_tensor[:, 0], misc.min_horizon_to_update_priority_actions).detach().cpu()
+            if misc_copy.prio_alpha > 0:
+                mask_update_priority = torch.lt(state_float_tensor[:, 0], misc_copy.min_horizon_to_update_priority_actions).detach().cpu()
                 buffer.update_priority(
                     batch_info["index"][mask_update_priority],
                     (outputs_tau3.mean(axis=1) - outputs_target_tau2.mean(axis=1))
@@ -349,17 +349,17 @@ class Inferer:
 
 def make_untrained_iqn_network(jit: bool):
     uncompiled_model = IQN_Network(
-        float_inputs_dim=misc.float_input_dim,
-        float_hidden_dim=misc.float_hidden_dim,
-        conv_head_output_dim=misc.conv_head_output_dim,
-        dense_hidden_dimension=misc.dense_hidden_dimension,
-        iqn_embedding_dimension=misc.iqn_embedding_dimension,
-        n_actions=len(misc.inputs),
-        float_inputs_mean=misc.float_inputs_mean,
-        float_inputs_std=misc.float_inputs_std,
+        float_inputs_dim=misc_copy.float_input_dim,
+        float_hidden_dim=misc_copy.float_hidden_dim,
+        conv_head_output_dim=misc_copy.conv_head_output_dim,
+        dense_hidden_dimension=misc_copy.dense_hidden_dimension,
+        iqn_embedding_dimension=misc_copy.iqn_embedding_dimension,
+        n_actions=len(misc_copy.inputs),
+        float_inputs_mean=misc_copy.float_inputs_mean,
+        float_inputs_std=misc_copy.float_inputs_std,
     )
     if jit:
-        if misc.is_linux:
+        if misc_copy.is_linux:
             model = torch.compile(uncompiled_model, dynamic=False)
         else:
             model = torch.jit.script(uncompiled_model)

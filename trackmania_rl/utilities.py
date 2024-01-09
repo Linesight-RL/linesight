@@ -119,7 +119,7 @@ def save_run(
     run_dir.mkdir(parents=True, exist_ok=True)
     run_to_video.write_actions_in_tmi_format(rollout_results["actions"], run_dir / inputs_filename)
     if not inputs_only:
-        shutil.copy(base_dir / "trackmania_rl" / "misc.py", run_dir / "misc.bak.py")
+        shutil.copy(base_dir / "trackmania_rl" / "misc_copy.py", run_dir / "misc.bak.py")
         joblib.dump(rollout_results["q_values"], run_dir / f"q_values.joblib")
 
 

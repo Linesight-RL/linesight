@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import multiprocessing as mp
 
-from trackmania_rl import misc, utilities
+from trackmania_rl import misc_copy, utilities
 from trackmania_rl.agents import iqn as iqn
 
 
@@ -27,20 +27,20 @@ def collector_process_fn(
     tmi = tm_interface_manager.TMInterfaceManager(
         base_dir=base_dir,
         game_spawning_lock=game_spawning_lock,
-        running_speed=misc.running_speed,
-        run_steps_per_action=misc.tm_engine_step_per_action,
-        max_overall_duration_ms=misc.cutoff_rollout_if_race_not_finished_within_duration_ms,
-        max_minirace_duration_ms=misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
+        running_speed=misc_copy.running_speed,
+        run_steps_per_action=misc_copy.tm_engine_step_per_action,
+        max_overall_duration_ms=misc_copy.cutoff_rollout_if_race_not_finished_within_duration_ms,
+        max_minirace_duration_ms=misc_copy.cutoff_rollout_if_no_vcp_passed_within_duration_ms,
         tmi_port=tmi_port,
     )
 
-    inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(misc.use_jit)
+    inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(misc_copy.use_jit)
     try:
         inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
     except Exception as e:
         print("Worker could not load weights, exception:", e)
 
-    inferer = iqn.Inferer(inference_network, misc.iqn_k, misc.tau_epsilon_boltzmann)
+    inferer = iqn.Inferer(inference_network, misc_copy.iqn_k, misc_copy.tau_epsilon_boltzmann)
 
     def update_network():
         # Update weights of the inference network
@@ -52,9 +52,9 @@ def collector_process_fn(
     # ========================================================
     inference_network.train()
 
-    map_cycle_str = str(misc.map_cycle)
-    set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
-    map_cycle_iter = cycle(chain(*misc.map_cycle))
+    map_cycle_str = str(misc_copy.map_cycle)
+    set_maps_trained, set_maps_blind = analyze_map_cycle(misc_copy.map_cycle)
+    map_cycle_iter = cycle(chain(*misc_copy.map_cycle))
 
     zone_centers_filename = None
 
@@ -63,23 +63,23 @@ def collector_process_fn(
     # ========================================================
     for _ in range(5):
         inferer.infer_network(
-            np.random.randint(low=0, high=255, size=(1, misc.H_downsized, misc.W_downsized), dtype=np.uint8),
-            np.random.rand(misc.float_input_dim).astype(np.float32),
+            np.random.randint(low=0, high=255, size=(1, misc_copy.H_downsized, misc_copy.W_downsized), dtype=np.uint8),
+            np.random.rand(misc_copy.float_input_dim).astype(np.float32),
         )
     # tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
     for loop_number in count(1):
-        importlib.reload(misc)
+        importlib.reload(misc_copy)
 
-        tmi.max_minirace_duration_ms = misc.cutoff_rollout_if_no_vcp_passed_within_duration_ms
+        tmi.max_minirace_duration_ms = misc_copy.cutoff_rollout_if_no_vcp_passed_within_duration_ms
 
         # ===============================================
         #   DID THE CYCLE CHANGE ?
         # ===============================================
-        if str(misc.map_cycle) != map_cycle_str:
-            map_cycle_str = str(misc.map_cycle)
-            set_maps_trained, set_maps_blind = analyze_map_cycle(misc.map_cycle)
-            map_cycle_iter = cycle(chain(*misc.map_cycle))
+        if str(misc_copy.map_cycle) != map_cycle_str:
+            map_cycle_str = str(misc_copy.map_cycle)
+            set_maps_trained, set_maps_blind = analyze_map_cycle(misc_copy.map_cycle)
+            map_cycle_iter = cycle(chain(*misc_copy.map_cycle))
 
         # ===============================================
         #   GET NEXT MAP FROM CYCLE
@@ -90,9 +90,9 @@ def collector_process_fn(
         map_name, map_path, zone_centers_filename, is_explo, fill_buffer = next_map_tuple
         map_status = "trained" if map_name in set_maps_trained else "blind"
 
-        inferer.epsilon = utilities.from_exponential_schedule(misc.epsilon_schedule, shared_steps.value)
-        inferer.epsilon_boltzmann = utilities.from_exponential_schedule(misc.epsilon_boltzmann_schedule, shared_steps.value)
-        inferer.tau_epsilon_boltzmann = misc.tau_epsilon_boltzmann
+        inferer.epsilon = utilities.from_exponential_schedule(misc_copy.epsilon_schedule, shared_steps.value)
+        inferer.epsilon_boltzmann = utilities.from_exponential_schedule(misc_copy.epsilon_boltzmann_schedule, shared_steps.value)
+        inferer.tau_epsilon_boltzmann = misc_copy.tau_epsilon_boltzmann
         inferer.is_explo = is_explo
 
         # ===============================================

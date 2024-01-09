@@ -11,7 +11,7 @@ from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampl
 from torchrl.data.replay_buffers.storages import Storage
 from torchrl.data.replay_buffers.utils import INT_CLASSES, _to_numpy
 
-from . import misc
+from . import misc_copy
 
 to_torch_dtype = {
     "uint8": torch.uint8,
@@ -76,13 +76,13 @@ def buffer_collate_function(batch):
     temporal_mini_race_current_time_actions = (
         np.abs(
             np.random.randint(
-                low=-misc.oversample_long_term_steps + misc.oversample_maximum_term_steps,
-                high=misc.temporal_mini_race_duration_actions + misc.oversample_maximum_term_steps,
+                low=-misc_copy.oversample_long_term_steps + misc_copy.oversample_maximum_term_steps,
+                high=misc_copy.temporal_mini_race_duration_actions + misc_copy.oversample_maximum_term_steps,
                 size=(len(state_img),),
                 dtype=int,
             )
         )
-        - misc.oversample_maximum_term_steps
+        - misc_copy.oversample_maximum_term_steps
     ).clip(min=0)
 
     temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + n_steps
@@ -90,10 +90,10 @@ def buffer_collate_function(batch):
     state_float[:, 0] = temporal_mini_race_current_time_actions
     next_state_float[:, 0] = temporal_mini_race_next_time_actions
 
-    possibly_reduced_n_steps = n_steps - (temporal_mini_race_next_time_actions - misc.temporal_mini_race_duration_actions).clip(min=0)
+    possibly_reduced_n_steps = n_steps - (temporal_mini_race_next_time_actions - misc_copy.temporal_mini_race_duration_actions).clip(min=0)
 
     terminal = (possibly_reduced_n_steps >= terminal_actions) | (
-        temporal_mini_race_next_time_actions >= misc.temporal_mini_race_duration_actions
+        temporal_mini_race_next_time_actions >= misc_copy.temporal_mini_race_duration_actions
     )
 
     gammas = np.take_along_axis(gammas, possibly_reduced_n_steps[:, None] - 1, axis=1).squeeze(-1)
@@ -131,29 +131,29 @@ def buffer_collate_function(batch):
     state_img = (state_img.to(torch.float16) - 128) / 128
     next_state_img = (next_state_img.to(torch.float16) - 128) / 128
 
-    if misc.apply_randomcrop_augmentation:
+    if misc_copy.apply_randomcrop_augmentation:
         # Same transformation is applied for state and next_state.
         # Different transformation is applied to each element in a batch.
-        i = random.randint(0, 2 * misc.n_pixels_to_crop_on_each_side)
-        j = random.randint(0, 2 * misc.n_pixels_to_crop_on_each_side)
+        i = random.randint(0, 2 * misc_copy.n_pixels_to_crop_on_each_side)
+        j = random.randint(0, 2 * misc_copy.n_pixels_to_crop_on_each_side)
         state_img = transforms.functional.crop(
-            transforms.functional.pad(state_img, padding=misc.n_pixels_to_crop_on_each_side, padding_mode="edge"),
+            transforms.functional.pad(state_img, padding=misc_copy.n_pixels_to_crop_on_each_side, padding_mode="edge"),
             i,
             j,
-            misc.H_downsized,
-            misc.W_downsized,
+            misc_copy.H_downsized,
+            misc_copy.W_downsized,
         )
         next_state_img = transforms.functional.crop(
-            transforms.functional.pad(next_state_img, padding=misc.n_pixels_to_crop_on_each_side, padding_mode="edge"),
+            transforms.functional.pad(next_state_img, padding=misc_copy.n_pixels_to_crop_on_each_side, padding_mode="edge"),
             i,
             j,
-            misc.H_downsized,
-            misc.W_downsized,
+            misc_copy.H_downsized,
+            misc_copy.W_downsized,
         )
 
-    if misc.apply_horizontal_flip_augmentation:
+    if misc_copy.apply_horizontal_flip_augmentation:
         # Apply Horizontal Flipping
-        use_horizontal_flip = torch.rand(len(state_img), device="cuda") < misc.flip_augmentation_ratio
+        use_horizontal_flip = torch.rand(len(state_img), device="cuda") < misc_copy.flip_augmentation_ratio
         state_img = torch.where(use_horizontal_flip[:, None, None, None], torch.flip(state_img, dims=(-1,)), state_img)  # state_img
         next_state_img = torch.where(
             use_horizontal_flip[:, None, None, None], torch.flip(next_state_img, dims=(-1,)), next_state_img
@@ -168,10 +168,10 @@ def buffer_collate_function(batch):
 
         def float_inputs_horizontal_symmetry(floats):
             floats_flipped = floats.clone()
-            floats_flipped[:, misc.flip_indices_floats_before_swap] = floats_flipped[
-                :, misc.flip_indices_floats_after_swap
+            floats_flipped[:, misc_copy.flip_indices_floats_before_swap] = floats_flipped[
+                :, misc_copy.flip_indices_floats_after_swap
             ]  # Swap left right features
-            floats_flipped[:, misc.indices_floats_sign_inversion] *= -1  # Multiply by -1 relevant coordinates
+            floats_flipped[:, misc_copy.indices_floats_sign_inversion] *= -1  # Multiply by -1 relevant coordinates
             return floats_flipped
 
         state_float = torch.where(use_horizontal_flip[:, None], float_inputs_horizontal_symmetry(state_float), state_float)
@@ -302,19 +302,19 @@ def copy_buffer_content_to_other_buffer(source_buffer: ReplayBuffer, target_buff
 def make_buffers(buffer_size: int) -> tuple[ReplayBuffer, ReplayBuffer]:
     buffer = ReplayBuffer(
         storage=ListStorage(buffer_size),
-        batch_size=misc.batch_size,
+        batch_size=misc_copy.batch_size,
         collate_fn=buffer_collate_function,
         prefetch=1,
-        sampler=CustomPrioritizedSampler(buffer_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
-        if misc.prio_alpha > 0
+        sampler=CustomPrioritizedSampler(buffer_size, misc_copy.prio_alpha, misc_copy.prio_beta, misc_copy.prio_epsilon, torch.float64)
+        if misc_copy.prio_alpha > 0
         else RandomSampler(),
     )
     buffer_test = ReplayBuffer(
-        storage=ListStorage(int(buffer_size * misc.buffer_test_ratio)),
-        batch_size=misc.batch_size,
+        storage=ListStorage(int(buffer_size * misc_copy.buffer_test_ratio)),
+        batch_size=misc_copy.batch_size,
         collate_fn=buffer_collate_function,
-        sampler=CustomPrioritizedSampler(buffer_size, misc.prio_alpha, misc.prio_beta, misc.prio_epsilon, torch.float64)
-        if misc.prio_alpha > 0
+        sampler=CustomPrioritizedSampler(buffer_size, misc_copy.prio_alpha, misc_copy.prio_beta, misc_copy.prio_epsilon, torch.float64)
+        if misc_copy.prio_alpha > 0
         else RandomSampler(),
     )
     return buffer, buffer_test

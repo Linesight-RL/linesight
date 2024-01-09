@@ -3,7 +3,7 @@ import itertools
 
 import numpy as np
 
-from . import misc
+from . import misc_copy
 
 
 def load_next_map_zone_centers(zone_centers_filename, base_dir):
@@ -15,11 +15,11 @@ def load_next_map_zone_centers(zone_centers_filename, base_dir):
         (
             zone_centers[0]
             + np.expand_dims(zone_centers[0] - zone_centers[1], axis=0)
-            * np.expand_dims(np.arange(misc.n_zone_centers_extrapolate_before_start_of_map, 0, -1), axis=1),
+            * np.expand_dims(np.arange(misc_copy.n_zone_centers_extrapolate_before_start_of_map, 0, -1), axis=1),
             zone_centers,
             zone_centers[-1]
             + np.expand_dims(zone_centers[-1] - zone_centers[-2], axis=0)
-            * np.expand_dims(np.arange(1, 1 + misc.n_zone_centers_extrapolate_after_end_of_map, 1), axis=1),
+            * np.expand_dims(np.arange(1, 1 + misc_copy.n_zone_centers_extrapolate_after_end_of_map, 1), axis=1),
         )
     )
     return zone_centers
@@ -53,7 +53,7 @@ def precalculate_virtual_checkpoints_information(zone_centers):
 
 
 def analyze_map_cycle(map_cycle):
-    set_all_maps = set(map(lambda x: x[0], (a for a in itertools.chain(*copy.deepcopy(misc.map_cycle)))))
+    set_all_maps = set(map(lambda x: x[0], (a for a in itertools.chain(*copy.deepcopy(misc_copy.map_cycle)))))
     set_maps_trained = set(map(lambda x: x[0], filter(lambda x: x[4], (a for a in itertools.chain(*copy.deepcopy(map_cycle))))))
     set_maps_blind = set_all_maps - set_maps_trained
     return set_maps_trained, set_maps_blind

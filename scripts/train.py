@@ -52,6 +52,33 @@ if __name__ == "__main__":
 
     clear_tm_instances()
 
+    base_dir = Path(__file__).resolve().parents[1]
+    save_dir = base_dir / "save" / misc.run_name
+    save_dir.mkdir(parents=True, exist_ok=True)
+    tensorboard_base_dir = base_dir / "tensorboard"
+
+    # At the beginning of training, parameters are read from misc.py.
+    # They are then copied from misc.py to misc_reloaded_copy.py.
+    # During training, misc_reloaded_copy.py will be reloaded at regular time intervals.
+    #
+    # Training parameters modifications made during training in misc_reloaded_copy.py will be applied on the fly
+    # without losing the existing content of the replay buffer.
+    #
+    # The content of main.py may be modified after starting a run: it will have no effect on the ongoing run.
+    # This setup provides the possibility to:
+    #   1) Modify training parameters on the fly
+    #   2) Continue to code and modify misc.py without impacting an ongoing run.
+
+    shutil.copyfile(
+        base_dir / "trackmania_rl" / "misc.py",
+        base_dir / "trackmania_rl" / "misc_copy.py",
+    )
+    # Copy Angelscript plugin to TMInterface dir
+    shutil.copyfile(
+        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
+        misc.target_python_link_path,
+    )
+
     print("Run:")
     print("\n" * 2)
     tprint(misc.run_name, font="tarty4")
@@ -59,17 +86,6 @@ if __name__ == "__main__":
     tprint("Linesight", font="tarty1")
     print("\n" * 2)
     print("Training is starting!")
-
-    base_dir = Path(__file__).resolve().parents[1]
-    save_dir = base_dir / "save" / misc.run_name
-    save_dir.mkdir(parents=True, exist_ok=True)
-    tensorboard_base_dir = base_dir / "tensorboard"
-
-    # Copy Angelscript plugin to TMInterface dir
-    shutil.copyfile(
-        base_dir / "trackmania_rl" / "tmi_interaction" / "Python_Link.as",
-        misc.target_python_link_path,
-    )
 
     if misc.is_linux:
         os.system(f"chmod +x {misc.linux_launch_game_path}")
@@ -86,7 +102,15 @@ if __name__ == "__main__":
     # Start learner process
     learner_process = mp.Process(
         target=learner_process_fn,
-        args=(rollout_queues, uncompiled_shared_network, shared_network_lock, shared_steps, base_dir, save_dir, tensorboard_base_dir),
+        args=(
+            rollout_queues,
+            uncompiled_shared_network,
+            shared_network_lock,
+            shared_steps,
+            base_dir,
+            save_dir,
+            tensorboard_base_dir,
+        ),
     )
     learner_process.start()
 
