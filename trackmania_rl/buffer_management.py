@@ -4,9 +4,9 @@ import random
 import numpy as np
 from torchrl.data import ReplayBuffer
 
-from . import misc_copy
-from .experience_replay.experience_replay_interface import Experience
-from .reward_shaping import speedslide_quality_tarmac
+from trackmania_rl import misc_copy
+from trackmania_rl.experience_replay.experience_replay_interface import Experience
+from trackmania_rl.reward_shaping import speedslide_quality_tarmac
 
 
 def get_potential(state_float):

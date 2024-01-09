@@ -5,8 +5,8 @@ from sys import platform
 
 import psutil
 
-from .inputs_list import *
-from .state_normalization import *
+from trackmania_rl.inputs_list import *
+from trackmania_rl.state_normalization import *
 
 is_linux = platform in ["linux", "linux2"]
 is_pb_desktop = psutil.cpu_count() < 32

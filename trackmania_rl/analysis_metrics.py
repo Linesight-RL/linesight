@@ -9,8 +9,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from . import misc_copy
-from .agents.iqn import iqn_loss
+from trackmania_rl import misc_copy
+from trackmania_rl.agents.iqn import iqn_loss
 
 
 def batched(iterable, n):  # Can be included from itertools with python >=3.12

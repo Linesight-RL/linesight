@@ -3,7 +3,7 @@ import itertools
 
 import numpy as np
 
-from . import misc_copy
+from trackmania_rl import misc_copy
 
 
 def load_next_map_zone_centers(zone_centers_filename, base_dir):

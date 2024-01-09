@@ -598,7 +598,7 @@ def learner_process_fn(
 
             if online_network.training:
                 online_network.eval()
-            tau = torch.linspace(0.05, 0.95, misc.iqn_k)[:, None].to("cuda")
+            tau = torch.linspace(0.05, 0.95, misc_copy.iqn_k)[:, None].to("cuda")
             per_quantile_output = inferer.infer_network(rollout_results["frames"][0], rollout_results["state_float"][0], tau)
             for i, std in enumerate(list(per_quantile_output.std(axis=0))):
                 step_stats[f"std_within_iqn_quantiles_for_action{i}"] = std
