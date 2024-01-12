@@ -55,13 +55,13 @@ def ensure_not_minimized(trackmania_window):
 
 
 @numba.njit
-def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position):
+def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position, max_allowable_distance_to_checkpoint):
     d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
     d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
     d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
     while (
         d1 <= d2
-        and d1 <= misc_copy.max_allowable_distance_to_checkpoint
+        and d1 <= max_allowable_distance_to_checkpoint
         and current_zone_idx < len(zone_centers) - 1 - misc_copy.n_zone_centers_extrapolate_after_end_of_map
         # We can never enter the final virtual zone
     ):
@@ -69,7 +69,7 @@ def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position):
         current_zone_idx += 1
         d2, d3 = d1, d2
         d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-    while current_zone_idx >= 2 and d3 < d2 and d3 <= misc_copy.max_allowable_distance_to_checkpoint:
+    while current_zone_idx >= 2 and d3 < d2 and d3 <= max_allowable_distance_to_checkpoint:
         current_zone_idx -= 1
         d1, d2 = d2, d3
         d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
@@ -358,7 +358,9 @@ class TMInterfaceManager:
                         dtype=np.float32,
                     )
                     if sim_state_position[1] > misc_copy.deck_height:
-                        current_zone_idx = update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position)
+                        current_zone_idx = update_current_zone_idx(
+                            current_zone_idx, zone_centers, sim_state_position, misc_copy.max_allowable_distance_to_checkpoint
+                        )
 
                     if current_zone_idx > rollout_results["furthest_zone_idx"]:
                         last_progress_improvement_ms = sim_state_race_time
