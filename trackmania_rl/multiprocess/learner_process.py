@@ -377,12 +377,12 @@ def learner_process_fn(
             # This is a new alltime_minimum
             accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
             if accumulated_stats["cumul_number_frames_played"] > misc_copy.frames_before_save_best_runs:
-                name = f"{map_name}_{end_race_stats['race_time']}.inputs"
+                name = f"{map_name}_{end_race_stats['race_time']}"
                 utilities.save_run(
                     base_dir,
                     save_dir / "best_runs" / name,
                     rollout_results,
-                    name,
+                    f"{name}.inputs",
                     inputs_only=False,
                 )
                 utilities.save_checkpoint(
@@ -394,12 +394,12 @@ def learner_process_fn(
                 )
 
         if end_race_stats["race_time"] < misc_copy.threshold_to_save_all_runs_ms:
-            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}.inputs"
+            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}"
             utilities.save_run(
                 base_dir,
                 save_dir / "good_runs",
                 rollout_results,
-                name,
+                f"{name}.inputs",
                 inputs_only=True,
             )
 
