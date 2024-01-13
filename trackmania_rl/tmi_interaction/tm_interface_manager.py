@@ -464,6 +464,7 @@ class TMInterfaceManager:
                     if not self.timeout_has_been_set:
                         self.iface.set_timeout(misc_copy.timeout_during_run_ms)
                         self.iface.execute_command(f"cam 1")
+                        self.iface.execute_command(f"set disable_forced_camera true")
                         self.timeout_has_been_set = True
 
                     if not self.UI_disabled and _time < map_change_requested_time:
