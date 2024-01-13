@@ -5,8 +5,8 @@ from sys import platform
 
 import psutil
 
-from trackmania_rl.inputs_list import *
-from trackmania_rl.state_normalization import *
+from config_files.inputs_list import *
+from config_files.state_normalization import *
 
 is_linux = platform in ["linux", "linux2"]
 is_pb_desktop = psutil.cpu_count() < 32
@@ -130,11 +130,11 @@ flip_indices_floats_before_swap = list(chain(*flip_pair_indices_to_swap))
 flip_indices_floats_after_swap = list(chain(*map(reversed, flip_pair_indices_to_swap)))
 
 indices_floats_sign_inversion = [
-    54,  # state_car_angular_velocity_in_car_reference_system.y
-    55,  # state_car_angular_velocity_in_car_reference_system.z
-    56,  # state_car_velocity_in_car_reference_system.x
-    59,  # state_y_map_vector_in_car_reference_system.x
-] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
+                                    54,  # state_car_angular_velocity_in_car_reference_system.y
+                                    55,  # state_car_angular_velocity_in_car_reference_system.z
+                                    56,  # state_car_velocity_in_car_reference_system.x
+                                    59,  # state_y_map_vector_in_car_reference_system.x
+                                ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
 batch_size = 512
 weight_decay_lr_ratio = 1 / 50

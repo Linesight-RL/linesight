@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from trackmania_rl import misc_copy
+from config_files import misc_copy
 from trackmania_rl.agents.iqn import iqn_loss
 
 

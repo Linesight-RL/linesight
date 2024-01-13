@@ -6,7 +6,8 @@ import numpy as np
 import torch
 from torchrl.data import ReplayBuffer
 
-from trackmania_rl import misc_copy, utilities
+from config_files import misc_copy
+from trackmania_rl import utilities
 
 
 class CReLU(torch.nn.Module):

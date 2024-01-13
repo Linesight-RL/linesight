@@ -7,7 +7,8 @@ import numpy as np
 import torch
 from torch import multiprocessing as mp
 
-from trackmania_rl import misc_copy, utilities
+from config_files import misc_copy
+from trackmania_rl import utilities
 from trackmania_rl.agents import iqn as iqn
 
 

@@ -11,7 +11,7 @@ from torchrl.data.replay_buffers.samplers import PrioritizedSampler, RandomSampl
 from torchrl.data.replay_buffers.storages import Storage
 from torchrl.data.replay_buffers.utils import INT_CLASSES, _to_numpy
 
-from trackmania_rl import misc_copy
+from config_files import misc_copy
 
 to_torch_dtype = {
     "uint8": torch.uint8,

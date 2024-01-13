@@ -15,7 +15,8 @@ from torch import multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data.replay_buffers import PrioritizedSampler
 
-from trackmania_rl import buffer_management, misc_copy, utilities
+from config_files import misc_copy
+from trackmania_rl import buffer_management, utilities
 from trackmania_rl.agents import iqn as iqn
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.analysis_metrics import (

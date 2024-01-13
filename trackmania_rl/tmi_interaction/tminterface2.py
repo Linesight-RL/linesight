@@ -6,7 +6,7 @@ from enum import IntEnum, auto
 import numpy as np
 from tminterface.structs import CheckpointData, SimStateData
 
-from trackmania_rl import misc_copy
+from config_files import misc_copy
 
 HOST = "127.0.0.1"
 

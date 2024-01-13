@@ -4,7 +4,7 @@ import random
 import numpy as np
 from torchrl.data import ReplayBuffer
 
-from trackmania_rl import misc_copy
+from config_files import misc_copy
 from trackmania_rl.experience_replay.experience_replay_interface import Experience
 from trackmania_rl.reward_shaping import speedslide_quality_tarmac
 

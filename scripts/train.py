@@ -17,8 +17,8 @@ def copy_configuration_file():
 
     base_dir = Path(__file__).resolve().parents[1]
     shutil.copyfile(
-        base_dir / "trackmania_rl" / "misc.py",
-        base_dir / "trackmania_rl" / "misc_copy.py",
+        base_dir / "config_files" / "misc.py",
+        base_dir / "config_files" / "misc_copy.py",
     )
 
 
@@ -42,7 +42,7 @@ import torch.multiprocessing as mp
 from art import tprint
 from torch.multiprocessing import Lock
 
-from trackmania_rl import misc_copy
+from config_files import misc_copy
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn

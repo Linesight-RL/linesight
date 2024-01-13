@@ -7,7 +7,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from trackmania_rl import misc
+from config_files import misc
 
 
 # ===============================================================

@@ -26,7 +26,7 @@ base_dir = Path(__file__).resolve().parents[1]
 """
 EXTRACT VCP FROM A SINGLE GBX
 """
-gbx_to_vcp("Map5_pb4608(02'04''91).Replay.Gbx", base_dir)
+gbx_to_vcp("D15-Endurance True One Lap No Cut_ .Wirtual(00'44''16).Replay.Gbx", base_dir)
 
 
 """

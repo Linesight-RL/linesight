@@ -3,7 +3,7 @@ import os
 import socket
 import subprocess
 import time
-from typing import Callable, Optional
+from typing import Callable
 
 import cv2
 import numba
@@ -11,7 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 
-from trackmania_rl import contact_materials, map_loader, misc_copy
+from config_files import misc_copy
+from trackmania_rl import contact_materials, map_loader
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 if misc_copy.is_linux:
