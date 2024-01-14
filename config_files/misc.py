@@ -289,3 +289,4 @@ shaped_reward_point_to_vcp_ahead = 0
 threshold_to_save_all_runs_ms = 9999999999
 
 deck_height = -np.inf
+game_camera_number = 1

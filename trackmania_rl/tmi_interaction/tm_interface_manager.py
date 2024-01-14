@@ -185,6 +185,7 @@ class TMInterfaceManager:
         return (self.tm_process_id is not None) and (self.tm_process_id in (p.pid for p in psutil.process_iter()))
 
     def close_game(self):
+        self.timeout_has_been_set = False
         assert self.tm_process_id is not None
         if misc_copy.is_linux:
             os.system("kill -9 " + str(self.tm_process_id))
@@ -463,7 +464,7 @@ class TMInterfaceManager:
 
                     if not self.timeout_has_been_set:
                         self.iface.set_timeout(misc_copy.timeout_during_run_ms)
-                        self.iface.execute_command(f"cam 1")
+                        self.iface.execute_command(f"cam {misc_copy.game_camera_number}")
                         self.iface.execute_command(f"set disable_forced_camera true")
                         self.timeout_has_been_set = True
 
