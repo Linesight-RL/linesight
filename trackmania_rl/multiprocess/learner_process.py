@@ -260,6 +260,9 @@ def learner_process_fn(
             misc_copy.engineered_neoslide_reward_schedule,
             accumulated_stats["cumul_number_memories_generated"],
         )
+        engineered_kamikaze_reward = utilities.from_linear_schedule(
+            misc_copy.engineered_kamikaze_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+        )
         gamma = utilities.from_linear_schedule(misc_copy.gamma_schedule, accumulated_stats["cumul_number_memories_generated"])
 
         # ===============================================
@@ -422,6 +425,7 @@ def learner_process_fn(
                 misc_copy.discard_non_greedy_actions_in_nsteps,
                 engineered_speedslide_reward,
                 engineered_neoslide_reward,
+                engineered_kamikaze_reward,
             )
 
             accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test

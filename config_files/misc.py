@@ -60,6 +60,9 @@ engineered_speedslide_reward_schedule = [
 engineered_neoslide_reward_schedule = [
     (0, 0),
 ]
+engineered_kamikaze_reward_schedule = [
+    (0, 0),
+]
 
 n_steps = 3
 constant_reward_per_ms = -6 / 5000

@@ -29,6 +29,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     discard_non_greedy_actions_in_nsteps: bool,
     engineered_speedslide_reward: float,
     engineered_neoslide_reward: float,
+    engineered_kamikaze_reward: float,
 ):
     assert len(rollout_results["frames"]) == len(rollout_results["current_zone_idx"])
     n_frames = len(rollout_results["frames"])
@@ -67,7 +68,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             reward_into[i] += (
                 engineered_neoslide_reward if abs(rollout_results["state_float"][i][56]) >= 2.0 else 0
             )  # TODO : 56 is hardcoded, this is bad....
-
+            # kamikaze reward
+            if rollout_results["actions"][i] <= 2 or np.sum(rollout_results["state_float"][i][25:29]) <= 1:
+                reward_into[i] += engineered_kamikaze_reward
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
         if random.random() < 0.1:
