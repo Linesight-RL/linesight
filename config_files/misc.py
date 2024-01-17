@@ -273,7 +273,11 @@ target_python_link_path = (
 )
 
 linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"
-
+trackmania_maps_base_path = (
+    Path(os.path.expanduser("~")) / "windocs" / "TrackMania" / "Tracks" / "Challenges"
+    if is_pb_desktop and is_linux
+    else Path(os.path.expanduser("~")) / "Documents" / "TrackMania" / "Tracks" / "Challenges"
+)
 send_shared_network_every_n_batches = 10
 update_inference_network_every_n_actions = 20
 
