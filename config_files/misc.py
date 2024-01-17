@@ -43,12 +43,14 @@ margin_to_announce_finish_meters = 700
 global_schedule_speed = 1
 
 epsilon_schedule = [
-    (0, 0.1),
-    (1_000_000 * global_schedule_speed, 0.03),
+    (0, 1),
+    (50_000, 1),
+    (300_000, 0.1),
+    (3_000_000 * global_schedule_speed, 0.03),
 ]
 epsilon_boltzmann_schedule = [
     (0, 0.15),
-    (1_000_000 * global_schedule_speed, 0.03),
+    (3_000_000 * global_schedule_speed, 0.03),
 ]
 tau_epsilon_boltzmann = 0.01
 discard_non_greedy_actions_in_nsteps = True
