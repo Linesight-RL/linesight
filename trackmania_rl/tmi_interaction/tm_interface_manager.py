@@ -56,21 +56,31 @@ def ensure_not_minimized(trackmania_window):
 
 
 @numba.njit
-def update_current_zone_idx(current_zone_idx, zone_centers, sim_state_position, max_allowable_distance_to_checkpoint):
+def update_current_zone_idx(
+    current_zone_idx: int,
+    zone_centers: npt.NDArray,
+    sim_state_position: npt.NDArray,
+    max_allowable_distance_to_virtual_checkpoint: float,
+    next_real_checkpoint_positions: npt.NDArray,
+    max_allowable_distance_to_real_checkpoint: npt.NDArray,
+):
     d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
     d2 = np.linalg.norm(zone_centers[current_zone_idx] - sim_state_position)
     d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
+    d4 = np.linalg.norm(next_real_checkpoint_positions[current_zone_idx] - sim_state_position)
     while (
         d1 <= d2
-        and d1 <= max_allowable_distance_to_checkpoint
-        and current_zone_idx < len(zone_centers) - 1 - misc_copy.n_zone_centers_extrapolate_after_end_of_map
-        # We can never enter the final virtual zone
+        and d1 <= max_allowable_distance_to_virtual_checkpoint
+        and current_zone_idx
+        < len(zone_centers) - 1 - misc_copy.n_zone_centers_extrapolate_after_end_of_map  # We can never enter the final virtual zone
+        and d4 < max_allowable_distance_to_real_checkpoint[current_zone_idx]
     ):
         # Move from one virtual zone to another
         current_zone_idx += 1
         d2, d3 = d1, d2
         d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-    while current_zone_idx >= 2 and d3 < d2 and d3 <= max_allowable_distance_to_checkpoint:
+        d4 = np.linalg.norm(zone_centers[current_zone_idx] - next_real_checkpoint_positions[current_zone_idx])
+    while current_zone_idx >= 2 and d3 < d2 and d3 <= max_allowable_distance_to_virtual_checkpoint:
         current_zone_idx -= 1
         d1, d2 = d2, d3
         d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
@@ -222,11 +232,15 @@ class TMInterfaceManager:
         ):  # Small performance trick, don't update input_state if it doesn't need to be updated
             self.iface.set_input_state(**misc_copy.inputs[action_idx])
 
-    def request_map(self, map_path):
+    def request_map(self, map_path, zone_centers):
         self.iface.execute_command(f"map {map_path}")
         # self.iface.execute_command("press delete")
         self.latest_map_path_requested = map_path
         self.UI_disabled = False
+        (
+            self.next_real_checkpoint_positions,
+            self.max_allowable_distance_to_real_checkpoint,
+        ) = map_loader.sync_virtual_and_real_checkpoints(zone_centers, map_path)
 
     def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray, update_network: Callable):
         (
@@ -361,7 +375,12 @@ class TMInterfaceManager:
                     )
                     if sim_state_position[1] > misc_copy.deck_height:
                         current_zone_idx = update_current_zone_idx(
-                            current_zone_idx, zone_centers, sim_state_position, misc_copy.max_allowable_distance_to_checkpoint
+                            current_zone_idx,
+                            zone_centers,
+                            sim_state_position,
+                            misc_copy.max_allowable_distance_to_virtual_checkpoint,
+                            self.next_real_checkpoint_positions,
+                            self.max_allowable_distance_to_real_checkpoint,
                         )
 
                     if current_zone_idx > rollout_results["furthest_zone_idx"]:
@@ -476,68 +495,68 @@ class TMInterfaceManager:
                         self.start_states[map_path] = self.iface.get_simulation_state()
 
                     if (not give_up_signal_has_been_sent) and (map_path != self.latest_map_path_requested):
-                        self.request_map(map_path)
+                        self.request_map(map_path, zone_centers)
+
                         map_change_requested_time = _time
                         give_up_signal_has_been_sent = True
                     elif (not give_up_signal_has_been_sent) and (map_path not in self.start_states):
                         self.iface.give_up()
                         give_up_signal_has_been_sent = True
-                    else:
-                        if not give_up_signal_has_been_sent:
-                            self.iface.rewind_to_state(self.start_states[map_path])
-                            _time = 0
-                            give_up_signal_has_been_sent = True
-                            this_rollout_has_seen_t_negative = True
-                        if (
-                            (_time > self.max_overall_duration_ms or _time > last_progress_improvement_ms + self.max_minirace_duration_ms)
-                            and this_rollout_has_seen_t_negative
-                            and not this_rollout_is_finished
-                        ):
-                            # FAILED TO FINISH IN TIME
-                            simulation_state = self.iface.get_simulation_state()
-                            race_time = max([simulation_state.race_time, 1e-12])  # Epsilon trick to avoid division by zero
+                    elif not give_up_signal_has_been_sent:
+                        self.iface.rewind_to_state(self.start_states[map_path])
+                        _time = 0
+                        give_up_signal_has_been_sent = True
+                        this_rollout_has_seen_t_negative = True
+                    elif (
+                        (_time > self.max_overall_duration_ms or _time > last_progress_improvement_ms + self.max_minirace_duration_ms)
+                        and this_rollout_has_seen_t_negative
+                        and not this_rollout_is_finished
+                    ):
+                        # FAILED TO FINISH IN TIME
+                        simulation_state = self.iface.get_simulation_state()
+                        race_time = max([simulation_state.race_time, 1e-12])  # Epsilon trick to avoid division by zero
 
-                            end_race_stats["race_finished"] = False
-                            end_race_stats["race_time"] = misc_copy.cutoff_rollout_if_race_not_finished_within_duration_ms
-                            end_race_stats["race_time_for_ratio"] = race_time
-                            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
-                            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
-                            end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
-                            end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
-                            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
-                            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
-                            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
-                            end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
-                            end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
-                            end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
-                            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
-                            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
-                            end_race_stats["tmi_protection_cutoff"] = False
+                        end_race_stats["race_finished"] = False
+                        end_race_stats["race_time"] = misc_copy.cutoff_rollout_if_race_not_finished_within_duration_ms
+                        end_race_stats["race_time_for_ratio"] = race_time
+                        end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
+                        end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
+                        end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
+                        end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
+                        end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
+                        end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
+                        end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
+                        end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
+                        end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
+                        end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
+                        end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
+                        end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
+                        end_race_stats["tmi_protection_cutoff"] = False
 
+                        self.iface.rewind_to_current_state()
+
+                        self.msgtype_response_to_wakeup_TMI = msgtype
+                        self.iface.set_timeout(misc_copy.timeout_between_runs_ms)
+                        if frame_expected:
+                            self.iface.unrequest_frame()
+                            frame_expected = False
+                        this_rollout_is_finished = True
+
+                    if not this_rollout_is_finished:
+                        this_rollout_has_seen_t_negative |= _time < 0
+
+                        if _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
+                            last_known_simulation_state = self.iface.get_simulation_state()
                             self.iface.rewind_to_current_state()
+                            self.request_speed(0)
+                            compute_action_asap = True  # not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
+                            if compute_action_asap:
+                                compute_action_asap_floats = True
+                                frame_expected = True
+                                self.iface.request_frame(misc_copy.W_downsized, misc_copy.H_downsized)
 
-                            self.msgtype_response_to_wakeup_TMI = msgtype
-                            self.iface.set_timeout(misc_copy.timeout_between_runs_ms)
-                            if frame_expected:
-                                self.iface.unrequest_frame()
-                                frame_expected = False
-                            this_rollout_is_finished = True
-
-                        if not this_rollout_is_finished:
-                            this_rollout_has_seen_t_negative |= _time < 0
-
-                            if _time >= 0 and _time % (10 * self.run_steps_per_action) == 0 and this_rollout_has_seen_t_negative:
-                                last_known_simulation_state = self.iface.get_simulation_state()
-                                self.iface.rewind_to_current_state()
-                                self.request_speed(0)
-                                compute_action_asap = True  # not self.iface.race_finished() #Paranoid check that the race is not finished, which I think could happen because on_step comes before on_cp_count
-                                if compute_action_asap:
-                                    compute_action_asap_floats = True
-                                    frame_expected = True
-                                    self.iface.request_frame(misc_copy.W_downsized, misc_copy.H_downsized)
-
-                                if _time % (10 * self.run_steps_per_action * misc_copy.update_inference_network_every_n_actions) == 0:
-                                    update_network()
+                            if _time % (10 * self.run_steps_per_action * misc_copy.update_inference_network_every_n_actions) == 0:
+                                update_network()
 
                     # ============================
                     # END ON RUN STEP
@@ -698,7 +717,7 @@ class TMInterfaceManager:
                     self.iface.execute_command(f"set temp_save_states_collect false")
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
-                        self.request_map(map_path)
+                        self.request_map(map_path, zone_centers)
                     self.iface._respond_to_call(msgtype)
                 else:
                     pass

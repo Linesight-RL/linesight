@@ -2,6 +2,8 @@ import copy
 import itertools
 
 import numpy as np
+import numpy.typing as npt
+from pygbx import Gbx, GbxType
 
 from config_files import misc_copy
 
@@ -50,6 +52,35 @@ def precalculate_virtual_checkpoints_information(zone_centers):
         distance_from_start_track_to_prev_zone_transition,
         normalized_vector_along_track_axis,
     )
+
+
+def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
+    next_real_checkpoint_positions = np.zeros((len(zone_centers), 3))
+    max_allowable_distance_to_real_checkpoint = 9999999 * np.ones(len(zone_centers))
+    if misc_copy.sync_virtual_and_real_checkpoints:
+        g = Gbx(str(misc_copy.trackmania_maps_base_path / map_path.strip("'\"")))
+
+        challenges = g.get_classes_by_ids([GbxType.CHALLENGE, GbxType.CHALLENGE_OLD])
+        if not challenges:
+            quit()
+
+        cp = []
+        challenge = challenges[0]
+        for block in challenge.blocks:
+            if "Checkpoint" in block.name:
+                cp.append(np.array(block.position.as_array(), dtype="float"))
+        cp = np.array(cp) * 32 + np.array((16, -22, 16))
+
+        for i in range(len(cp)):
+            dist_vcp_cp = np.linalg.norm(zone_centers - cp[i], axis=1)
+            while np.min(dist_vcp_cp) < 26:
+                # This while is necessary for multi-lap maps, to identify the multiple VCP that are linked the the same CPF
+                idx = dist_vcp_cp.argmin()
+                next_real_checkpoint_positions[idx, :] = cp[i]
+                max_allowable_distance_to_real_checkpoint[idx] = 13
+                dist_vcp_cp[max(0, idx - 300) : idx + 300] = 99999
+
+    return next_real_checkpoint_positions, max_allowable_distance_to_real_checkpoint
 
 
 def analyze_map_cycle(map_cycle):
