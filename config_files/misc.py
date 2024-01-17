@@ -163,9 +163,9 @@ number_memories_trained_on_between_target_network_updates = 2048
 soft_update_tau = 0.02
 n_transitions_to_plot_in_distribution_curves = 0
 
-distance_between_checkpoints = 10
-road_width = 100  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
-max_allowable_distance_to_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
+distance_between_checkpoints = 0.5
+road_width = 90  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
+max_allowable_distance_to_virtual_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
 zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
 
