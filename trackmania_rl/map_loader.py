@@ -69,16 +69,18 @@ def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
         for block in challenge.blocks:
             if "Checkpoint" in block.name:
                 cp.append(np.array(block.position.as_array(), dtype="float"))
-        cp = np.array(cp) * 32 + np.array((16, -22, 16))
+                if "High" in block.name:
+                    cp[-1] += np.array([0, 7 / 8, 0])
+        cp = np.array(cp) * np.array([32, 8, 32]) + np.array((16, 0, 16))
 
         for i in range(len(cp)):
             dist_vcp_cp = np.linalg.norm(zone_centers - cp[i], axis=1)
-            while np.min(dist_vcp_cp) < 26:
+            while np.min(dist_vcp_cp) < 12:
                 # This while is necessary for multi-lap maps, to identify the multiple VCP that are linked the the same CPF
                 idx = dist_vcp_cp.argmin()
                 next_real_checkpoint_positions[idx, :] = cp[i]
-                max_allowable_distance_to_real_checkpoint[idx] = 13
-                dist_vcp_cp[max(0, idx - 300) : idx + 300] = 99999
+                max_allowable_distance_to_real_checkpoint[idx] = 12
+                dist_vcp_cp[max(0, idx - 200) : idx + 200] = 99999
 
     return next_real_checkpoint_positions, max_allowable_distance_to_real_checkpoint
 
