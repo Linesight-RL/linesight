@@ -16,7 +16,10 @@ def get_potential(state_float):
 
     return (
         misc_copy.shaped_reward_dist_to_cur_vcp
-        * max(1.5, min(misc_copy.shaped_reward_cap_dist_to_cur_vcp, np.linalg.norm(state_float[62:65])))
+        * max(
+            misc_copy.shaped_reward_min_dist_to_cur_vcp,
+            min(misc_copy.shaped_reward_max_dist_to_cur_vcp, np.linalg.norm(state_float[62:65])),
+        )
     ) + (misc_copy.shaped_reward_point_to_vcp_ahead * (vector_vcp_to_vcp_further_ahead_normalized[2] - 1))
 
 
@@ -74,7 +77,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 reward_into[i] += engineered_kamikaze_reward
 
             reward_into[i] += engineered_close_to_vcp_reward * max(
-                1.5, min(misc_copy.shaped_reward_cap_dist_to_cur_vcp, np.linalg.norm(rollout_results["state_float"][i][62:65]))
+                misc_copy.engineered_reward_min_dist_to_cur_vcp,
+                min(misc_copy.engineered_reward_max_dist_to_cur_vcp, np.linalg.norm(rollout_results["state_float"][i][62:65])),
             )
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
