@@ -126,14 +126,22 @@ class IQN_Network(torch.nn.Module):
 
 
 @torch.compile(disable=not misc_copy.is_linux, dynamic=False)
-def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
-    TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
-    # (batch_size, iqn_n, iqn_n, 1)
-    # Huber loss, my alternative
+def iqn_loss(targets: torch.Tensor, outputs: torch.Tensor, tau_outputs: torch.Tensor, num_quantiles: int, batch_size: int):
+    TD_error = targets[:, :, None, :] - outputs[:, None, :, :]  # (batch_size, iqn_n, iqn_n, 1)
+    # Definition of the piecewise loss:
+    # TD_error**2                   if TD_error < kappa1
+    # A * TD_error**alpha + B       if TD_error < kappa2
+    # C * TD_error**1 + D           else
+    # with A, B, C, D calculated such that the piecewise loss is continuous and has a continuous derivative.
+    abs_TD_error = torch.abs(TD_error)
     loss = torch.where(
-        torch.lt(torch.abs(TD_error), misc_copy.iqn_kappa),
-        (0.5 / misc_copy.iqn_kappa) * TD_error**2,
-        (torch.abs(TD_error) - 0.5 * misc_copy.iqn_kappa),
+        torch.lt(abs_TD_error, misc_copy.loss_kappa1),
+        abs_TD_error**2,
+        torch.where(
+            torch.lt(abs_TD_error, misc_copy.loss_kappa2),
+            misc_copy.loss_A * torch.pow(abs_TD_error, misc_copy.loss_alpha) + misc_copy.loss_B,
+            misc_copy.loss_C * abs_TD_error + misc_copy.loss_D,
+        ),
     )
     tau = tau_outputs.reshape([num_quantiles, batch_size, 1]).transpose(0, 1)  # (batch_size, iqn_n, 1)
     tau = tau[:, None, :, :].expand([-1, num_quantiles, -1, -1])  # (batch_size, iqn_n, iqn_n, 1)
@@ -254,7 +262,7 @@ class Trainer:
 
             self.typical_clamped_self_loss = 0.99 * self.typical_clamped_self_loss + 0.01 * correction_clamped.mean()
 
-            loss *= self.typical_clamped_self_loss / correction_clamped
+            # loss *= self.typical_clamped_self_loss / correction_clamped
 
             total_loss = torch.sum(IS_weights * loss if misc_copy.prio_alpha > 0 else loss)
 
