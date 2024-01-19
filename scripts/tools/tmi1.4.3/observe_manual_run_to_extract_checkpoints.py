@@ -1,3 +1,16 @@
+"""
+Legacy code, incompatible with TMI2. This script should be ported to TMI2 in the future.
+
+This script generates a map.npy file based on a run played while the script is running.
+
+Usage:
+    Launch a TMI1.4 instance.
+    Load a map.
+    Launch the script.
+    Restart the run (typically press <Enter> or <Backspace> in game)
+    Go through the map, the script will observe and log all positions through which the car passed as Virtual Checkpoints.
+    The VCP file is saved in base_dir/maps/map.npy. It should typically be renamed manually after running this script.
+"""
 import sys
 from pathlib import Path
 
