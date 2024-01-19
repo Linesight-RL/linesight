@@ -1,0 +1,4 @@
+[tool.ruff]
+include = ["pyproject.toml", "trackmania_rl/*.py", "scripts/*.py", "config_files/*.py"]
+line-length = 140
+

@@ -13,3 +13,4 @@ numba
 tensorboard
 scipy
 prettytable
+ruff
