@@ -73,7 +73,7 @@ def clear_tm_instances():
     if misc_copy.is_linux:
         os.system("pkill -9 TmForever.exe")
     else:
-        os.system("taskkill TmForever.exe /F")
+        os.system("taskkill TmForever.exe /F /IM")
 
 
 if __name__ == "__main__":
