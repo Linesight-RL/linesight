@@ -23,3 +23,9 @@
 /scripts/TMInterface.lnk
 tminterface.cpython-311-x86_64-linux-gnu.so
 Nadeo.ini
+*.Gbx
+*.gbx
+/imagenet_sample_160p
+*.lnk
+.stignore*
+config_files/misc_copy.py
