@@ -9,10 +9,10 @@ from config_files import misc_copy
 
 
 def load_next_map_zone_centers(zone_centers_filename, base_dir):
+    """
+    Load a map.npy file, and artificially add more zone centers before the start line and after the finish line
+    """
     zone_centers = np.load(str(base_dir / "maps" / zone_centers_filename))
-    # ==================================================================================
-    # ARTIFICIALLY ADD MORE ZONE CENTERS AFTER THE FINISH LINE AND BEFORE THE START LINE
-    # ==================================================================================
     zone_centers = np.vstack(
         (
             zone_centers[0]
@@ -54,31 +54,47 @@ def precalculate_virtual_checkpoints_information(zone_centers):
     )
 
 
+def get_checkpoint_positions_from_gbx(map_path: str):
+    """
+    Given a challenge.gbx file, return an unordered list of the checkpoint positions on that track.
+    /!\ Warning: this function assumes that the block size for that map is 32x8x32. This is true for campaign maps, but not for all custom maps.
+    """
+    g = Gbx(str(misc_copy.trackmania_maps_base_path / map_path.strip("'\"")))
+
+    challenges = g.get_classes_by_ids([GbxType.CHALLENGE, GbxType.CHALLENGE_OLD])
+    if not challenges:
+        quit()
+
+    checkpoint_positions = []
+    challenge = challenges[0]
+    for block in challenge.blocks:
+        if "Checkpoint" in block.name:
+            checkpoint_positions.append(np.array(block.position.as_array(), dtype="float"))
+            if "High" in block.name:
+                checkpoint_positions[-1] += np.array([0, 7 / 8, 0])
+    checkpoint_positions = np.array(checkpoint_positions) * np.array([32, 8, 32]) + np.array((16, 0, 16))
+    return checkpoint_positions
+
+
 def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
+    """
+    Given a challenge.gbx file and a list of VCP, return:
+        - next_real_checkpoint_positions: a list of points with the same length as the list of VCP
+        - max_allowable_distance_to_real_checkpoint: a list of distances with the same length as the list of VCP
+
+    In this function we match each checkpoint with its corresponding closest VCP.
+    In tm_interface_manager.py, we will enforce that the car can only advance towards the next VCP if it was within 12 meters of the center of the real checkpoint.
+    """
     next_real_checkpoint_positions = np.zeros((len(zone_centers), 3))
     max_allowable_distance_to_real_checkpoint = 9999999 * np.ones(len(zone_centers))
     if misc_copy.sync_virtual_and_real_checkpoints:
-        g = Gbx(str(misc_copy.trackmania_maps_base_path / map_path.strip("'\"")))
-
-        challenges = g.get_classes_by_ids([GbxType.CHALLENGE, GbxType.CHALLENGE_OLD])
-        if not challenges:
-            quit()
-
-        cp = []
-        challenge = challenges[0]
-        for block in challenge.blocks:
-            if "Checkpoint" in block.name:
-                cp.append(np.array(block.position.as_array(), dtype="float"))
-                if "High" in block.name:
-                    cp[-1] += np.array([0, 7 / 8, 0])
-        cp = np.array(cp) * np.array([32, 8, 32]) + np.array((16, 0, 16))
-
-        for i in range(len(cp)):
-            dist_vcp_cp = np.linalg.norm(zone_centers - cp[i], axis=1)
+        checkpoint_positions = get_checkpoint_positions_from_gbx(map_path)
+        for checkpoint_position in checkpoint_positions:
+            dist_vcp_cp = np.linalg.norm(zone_centers - checkpoint_position, axis=1)
             while np.min(dist_vcp_cp) < 12:
                 # This while is necessary for multi-lap maps, to identify the multiple VCP that are linked to the same CP
                 idx = dist_vcp_cp.argmin()
-                next_real_checkpoint_positions[idx, :] = cp[i]
+                next_real_checkpoint_positions[idx, :] = checkpoint_position
                 max_allowable_distance_to_real_checkpoint[idx] = 12
                 dist_vcp_cp[max(0, idx - 200) : idx + 200] = 99999
 
@@ -86,6 +102,9 @@ def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
 
 
 def analyze_map_cycle(map_cycle):
+    """
+    Given a map cycle, identify which maps are used for training and testing, and which maps are only used for testing.
+    """
     set_all_maps = set(map(lambda x: x[0], (a for a in itertools.chain(*copy.deepcopy(misc_copy.map_cycle)))))
     set_maps_trained = set(map(lambda x: x[0], filter(lambda x: x[4], (a for a in itertools.chain(*copy.deepcopy(map_cycle))))))
     set_maps_blind = set_all_maps - set_maps_trained
