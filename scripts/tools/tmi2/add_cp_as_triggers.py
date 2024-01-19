@@ -1,24 +1,24 @@
 """
-This script reads a .npy file containing a list of VCP, and connects to a TMInterface instance to add the VCP as triggers.
+This script reads a .challenge.gbx file, extracts the checkpoints, and connects to a TMInterface instance to add the checkpoints as triggers.
 
-This script would typically be used to check that the .npy file contains Virtual CheckPoints (VCP) that are properly placed.
+This script would typically be used to check that the checkpoints are properly read from the .challenge.gbx file.
 """
 import argparse
 from pathlib import Path
 
-import numpy as np
-
+from trackmania_rl.map_loader import get_checkpoint_positions_from_gbx
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("npy_path", type=Path)
+    parser.add_argument("gbx_path", type=Path)
     parser.add_argument("--tmi_port", "-p", type=int, default=8477)
     args = parser.parse_args()
 
+    checkpoint_positions = get_checkpoint_positions_from_gbx(str(args.gbx_path))
+
     iface = TMInterface(args.tmi_port)
-    vcp = np.load(args.npy_path)
 
     if not iface.registered:
         while True:
@@ -60,9 +60,9 @@ def main():
         elif msgtype == int(MessageType.C_SHUTDOWN):
             iface.close()
         elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
-            for i in range(0, len(vcp), 5):
+            for i in range(0, len(checkpoint_positions), 1):
                 iface.execute_command(
-                    f"add_trigger {vcp[i][0]-0.2} {vcp[i][1]-0.2} {vcp[i][2]-0.2} {vcp[i][0]+0.2} {vcp[i][1]+0.2} {vcp[i][2]+0.2}"
+                    f"add_trigger {checkpoint_positions[i][0] - 2} {checkpoint_positions[i][1] - 2} {checkpoint_positions[i][2] - 2} {checkpoint_positions[i][0] + 2} {checkpoint_positions[i][1] + 2} {checkpoint_positions[i][2] + 2}"
                 )
             iface._respond_to_call(msgtype)
         else:
