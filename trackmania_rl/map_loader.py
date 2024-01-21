@@ -70,7 +70,7 @@ def get_checkpoint_positions_from_gbx(map_path: str):
     checkpoint_positions = []
     challenge = challenges[0]
     for block in challenge.blocks:
-        if "Checkpoint" in block.name:
+        if "Checkpoint" in block.name or "Line" in block.name:
             checkpoint_positions.append(np.array(block.position.as_array(), dtype="float"))
             if "High" in block.name:
                 checkpoint_positions[-1] += np.array([0, 7 / 8, 0])
