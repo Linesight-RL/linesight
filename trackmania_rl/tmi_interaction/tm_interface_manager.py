@@ -79,7 +79,7 @@ def update_current_zone_idx(
         current_zone_idx += 1
         d2, d3 = d1, d2
         d1 = np.linalg.norm(zone_centers[current_zone_idx + 1] - sim_state_position)
-        d4 = np.linalg.norm(zone_centers[current_zone_idx] - next_real_checkpoint_positions[current_zone_idx])
+        d4 = np.linalg.norm(next_real_checkpoint_positions[current_zone_idx] - sim_state_position)
     while current_zone_idx >= 2 and d3 < d2 and d3 <= max_allowable_distance_to_virtual_checkpoint:
         current_zone_idx -= 1
         d1, d2 = d2, d3
