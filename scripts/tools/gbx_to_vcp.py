@@ -24,7 +24,10 @@ def gbx_to_raw_pos_list(gbx_path: Path):
     ghosts = gbx.get_classes_by_ids([GbxType.CTN_GHOST])
     assert len(ghosts) > 0, "The file does not contain any ghost."
     ghost = min(ghosts, key=lambda g: g.cp_times[-1])
-    assert ghost.num_respawns == 0, "The ghost contains respawns"
+    if ghost.num_respawns != 0:
+        print("")
+        print("------------    Warning: The ghost contains respawns  ---------------")
+        print("")
     records_to_keep = round(ghost.race_time / 100)
 
     print(ghost.race_time, f"ghost has {len(ghost.records)} records and {len(ghost.control_entries)} control entries")
