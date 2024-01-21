@@ -10,34 +10,8 @@ The distance between virtual checkpoints is currently 50cm (hardcoded).
 import argparse
 from pathlib import Path
 
-import numpy as np
-from pygbx import Gbx, GbxType
-
 from trackmania_rl.geometry import extract_cp_distance_interval
-
-
-def gbx_to_raw_pos_list(gbx_path: Path):
-    """
-    Read a .gbx file, extract the raw positions of the best ghost included in that file.
-    """
-    gbx = Gbx(str(gbx_path))
-    ghosts = gbx.get_classes_by_ids([GbxType.CTN_GHOST])
-    assert len(ghosts) > 0, "The file does not contain any ghost."
-    ghost = min(ghosts, key=lambda g: g.cp_times[-1])
-    if ghost.num_respawns != 0:
-        print("")
-        print("------------    Warning: The ghost contains respawns  ---------------")
-        print("")
-    records_to_keep = round(ghost.race_time / 100)
-
-    print(ghost.race_time, f"ghost has {len(ghost.records)} records and {len(ghost.control_entries)} control entries")
-    print("Keeping", records_to_keep, "out of", len(ghost.records), "records for a race time of", ghost.race_time / 1000)
-
-    raw_positions_list = []
-    for r in ghost.records[:records_to_keep]:
-        raw_positions_list.append(np.array([r.position.x, r.position.y, r.position.z]))
-
-    return raw_positions_list
+from trackmania_rl.map_loader import gbx_to_raw_pos_list
 
 
 def main():
