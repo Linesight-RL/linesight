@@ -24,6 +24,8 @@ def load_next_map_zone_centers(zone_centers_filename, base_dir):
             * np.expand_dims(np.arange(1, 1 + misc_copy.n_zone_centers_extrapolate_after_end_of_map, 1), axis=1),
         )
     )
+    # Smoothen the trajectory defined by virtual checkpoints
+    zone_centers[5:-5] = 0.5 * (zone_centers[:-10] + zone_centers[10:])
     return zone_centers
 
 
