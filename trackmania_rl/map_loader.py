@@ -1,10 +1,12 @@
 import copy
 import itertools
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import numpy.typing as npt
 from pygbx import Gbx, GbxType
+from scipy.interpolate import make_interp_spline
 
 from config_files import misc_copy
 
@@ -81,6 +83,11 @@ def gbx_to_raw_pos_list(gbx_path: Path):
     return raw_positions_list
 
 
+def densify_raw_pos_list_n_times(raw_pos_list: List[npt.NDArray], n: int):
+    interpolation_function = make_interp_spline(x=range(0, n * len(raw_pos_list), n), y=raw_pos_list, k=1)
+    return list(interpolation_function(range(0, n * len(raw_pos_list))))
+
+
 def get_checkpoint_positions_from_gbx(map_path: str):
     """
     Given a challenge.gbx file, return an unordered list of the checkpoint positions on that track.
@@ -126,6 +133,21 @@ def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
                 dist_vcp_cp[max(0, idx - 200) : idx + 200] = 99999
 
     return next_real_checkpoint_positions, max_allowable_distance_to_real_checkpoint
+
+
+def find_indices_of_positions_near_cut_position(pos_list: List[npt.NDArray], cut_position: npt.NDArray, margin: float):
+    """
+    Given a list of positions, find the index of the position closest to cut_position.
+    Once an index has been chosen, no other index within +- 200 may be found.
+    Repeat until there are no points close enough (typically in a multiple lap race, we would repeat n_lap times)
+    """
+    indices = []
+    dist_pos_cut_pos = np.linalg.norm(np.array(pos_list) - cut_position, axis=1)
+    while np.min(dist_pos_cut_pos) < margin:
+        index = dist_pos_cut_pos.argmin()
+        dist_pos_cut_pos[max(0, index - 200) : index + 200] = 9999999
+        indices.append(index)
+    return sorted(indices)
 
 
 def analyze_map_cycle(map_cycle):
