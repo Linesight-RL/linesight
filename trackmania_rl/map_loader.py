@@ -93,7 +93,7 @@ def get_checkpoint_positions_from_gbx(map_path: str):
     Given a challenge.gbx file, return an unordered list of the checkpoint positions on that track.
     /!\ Warning: this function assumes that the block size for that map is 32x8x32. This is true for campaign maps, but not for all custom maps.
     """
-    g = Gbx(str(misc_copy.trackmania_maps_base_path / map_path.strip("'\"")))
+    g = Gbx(str(misc_copy.trackmania_maps_base_path / map_path.strip("'\"").replace("\\", "/")))
 
     challenges = g.get_classes_by_ids([GbxType.CHALLENGE, GbxType.CHALLENGE_OLD])
     if not challenges:
