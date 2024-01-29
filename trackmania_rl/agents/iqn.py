@@ -252,8 +252,8 @@ class Trainer:
 
             loss = iqn_loss(outputs_target_tau2, outputs_tau3, tau3, misc_copy.iqn_n, misc_copy.batch_size)
 
-            target_self_loss = iqn_loss(
-                outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc_copy.iqn_n, misc_copy.batch_size
+            target_self_loss = torch.sqrt(
+                iqn_loss(outputs_target_tau2.detach(), outputs_target_tau2.detach(), tau2.detach(), misc_copy.iqn_n, misc_copy.batch_size)
             )
 
             self.typical_self_loss = 0.99 * self.typical_self_loss + 0.01 * target_self_loss.mean()
@@ -262,7 +262,7 @@ class Trainer:
 
             self.typical_clamped_self_loss = 0.99 * self.typical_clamped_self_loss + 0.01 * correction_clamped.mean()
 
-            # loss *= self.typical_clamped_self_loss / correction_clamped
+            loss *= self.typical_clamped_self_loss / correction_clamped
 
             total_loss = torch.sum(IS_weights * loss if misc_copy.prio_alpha > 0 else loss)
 
