@@ -10,6 +10,7 @@ from config_files.state_normalization import *
 
 is_linux = platform in ["linux", "linux2"]
 is_pb_desktop = psutil.cpu_count() < 32
+username = 'pb4608' if is_pb_desktop else 'agade09'
 
 W_screen = 640
 H_screen = 480
@@ -101,10 +102,10 @@ lr_schedule = [
 ]
 tensorboard_suffix_schedule = [
     (0, ""),
-    (6_000_000 * global_schedule_speed, "_2"),
-    (15_000_000 * global_schedule_speed, "_3"),
-    (30_000_000 * global_schedule_speed, "_4"),
-    (45_000_000 * global_schedule_speed, "_5"),
+    #(6_000_000 * global_schedule_speed, "_2"),
+    #(15_000_000 * global_schedule_speed, "_3"),
+    #(30_000_000 * global_schedule_speed, "_4"),
+    #(45_000_000 * global_schedule_speed, "_5"),
 ]
 gamma_schedule = [
     (0, 1),
@@ -257,7 +258,7 @@ map_cycle += [
     # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo.npy", False, True), 1),
 ]
 
-plot_race_time_left_curves = True if is_pb_desktop else True
+plot_race_time_left_curves = True if is_pb_desktop else False
 make_highest_prio_figures = True
 apply_randomcrop_augmentation = True if is_pb_desktop else False
 n_pixels_to_crop_on_each_side = 2
@@ -266,7 +267,7 @@ max_rollout_queue_size = 1
 
 use_jit = True
 base_tmi_port = 8478
-gpu_collectors_count = 1
+gpu_collectors_count = 2
 
 target_python_link_path = (
     Path(os.path.expanduser("~")) / "windocs" / "TMInterface" / "Plugins" / "Python_Link.as"
@@ -275,11 +276,12 @@ target_python_link_path = (
 )
 
 linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"
-trackmania_maps_base_path = (
-    Path(os.path.expanduser("~")) / "windocs" / "TrackMania" / "Tracks" / "Challenges"
+trackmania_base_path = (
+    Path(os.path.expanduser("~")) / "windocs" / "TrackMania"
     if is_pb_desktop and is_linux
-    else Path(os.path.expanduser("~")) / "Documents" / "TrackMania" / "Tracks" / "Challenges"
+    else Path(os.path.expanduser("~")) / "Documents" / "TrackMania" 
 )
+trackmania_maps_base_path = trackmania_base_path / "Tracks" / "Challenges"
 send_shared_network_every_n_batches = 10
 update_inference_network_every_n_actions = 20
 

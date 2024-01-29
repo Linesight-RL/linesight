@@ -86,7 +86,6 @@ def update_current_zone_idx(
         d3 = np.linalg.norm(zone_centers[current_zone_idx - 1] - sim_state_position)
     return current_zone_idx
 
-
 class TMInterfaceManager:
     def __init__(
         self,
@@ -233,6 +232,7 @@ class TMInterfaceManager:
             self.iface.set_input_state(**misc_copy.inputs[action_idx])
 
     def request_map(self, map_path, zone_centers):
+        map_loader.hide_PR_replay(map_path,True)
         self.iface.execute_command(f"map {map_path}")
         # self.iface.execute_command("press delete")
         self.latest_map_path_requested = map_path
@@ -711,7 +711,7 @@ class TMInterfaceManager:
                     self.request_speed(1)
                     self.iface.set_on_step_period(self.run_steps_per_action * 10)
                     self.iface.execute_command(f"set countdown_speed {self.running_speed}")
-                    self.iface.execute_command(f"set autologin {'pb4608' if misc_copy.is_pb_desktop else 'agade09'}")
+                    self.iface.execute_command(f"set autologin {misc_copy.username}")
                     self.iface.execute_command(f"set auto_reload_plugins false")
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"set temp_save_states_collect false")

@@ -1,5 +1,6 @@
 import copy
 import itertools
+import os
 from pathlib import Path
 from typing import List
 
@@ -87,6 +88,20 @@ def densify_raw_pos_list_n_times(raw_pos_list: List[npt.NDArray], n: int):
     interpolation_function = make_interp_spline(x=range(0, n * len(raw_pos_list), n), y=raw_pos_list, k=1)
     return list(interpolation_function(range(0, n * len(raw_pos_list))))
 
+def map_name_from_map_path(map_path):
+    gbx = Gbx(str(misc_copy.trackmania_maps_base_path / map_path))
+    gbx_challenge = gbx.get_class_by_id(GbxType.CHALLENGE)
+    return gbx_challenge.map_name
+
+def hide_PR_replay(map_path,is_hide):
+    PR_Replay_Filename = ( misc_copy.username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx")
+    PR_Replay_Path = misc_copy.trackmania_base_path / "Tracks" / "Replays" / "Autosaves"
+    if is_hide:
+        if os.path.isfile(PR_Replay_Path / PR_Replay_Filename):
+            os.rename(PR_Replay_Path / PR_Replay_Filename, PR_Replay_Path / (PR_Replay_Filename + ".bak" ))
+    else:
+        if os.path.isfile(PR_Replay_Path / PR_Replay_Filename + ".bak" ):
+            os.rename(PR_Replay_Path / (PR_Replay_Filename + ".bak" ), PR_Replay_Path / PR_Replay_Filename)
 
 def get_checkpoint_positions_from_gbx(map_path: str):
     """
