@@ -89,7 +89,7 @@ def densify_raw_pos_list_n_times(raw_pos_list: List[npt.NDArray], n: int):
     return list(interpolation_function(range(0, n * len(raw_pos_list))))
 
 def map_name_from_map_path(map_path):
-    gbx = Gbx(str(misc_copy.trackmania_maps_base_path / map_path))
+    gbx = Gbx(str(misc_copy.trackmania_maps_base_path / Path(map_path.strip('\'"'))))
     gbx_challenge = gbx.get_class_by_id(GbxType.CHALLENGE)
     return gbx_challenge.map_name
 
