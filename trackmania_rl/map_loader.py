@@ -93,9 +93,13 @@ def map_name_from_map_path(map_path):
     gbx_challenge = gbx.get_class_by_id(GbxType.CHALLENGE)
     return gbx_challenge.map_name
 
-def hide_PR_replay(map_path,is_hide):
+def PR_replay_from_map_path(map_path):
     PR_Replay_Filename = ( misc_copy.username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx")
     PR_Replay_Path = misc_copy.trackmania_base_path / "Tracks" / "Replays" / "Autosaves"
+    return PR_Replay_Filename, PR_Replay_Path
+
+def hide_PR_replay(map_path,is_hide):
+    PR_Replay_Filename, PR_Replay_Path = PR_replay_from_map_path(map_path)
     if is_hide:
         if os.path.isfile(PR_Replay_Path / PR_Replay_Filename):
             os.rename(PR_Replay_Path / PR_Replay_Filename, PR_Replay_Path / (PR_Replay_Filename + ".bak" ))
