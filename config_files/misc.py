@@ -275,7 +275,7 @@ target_python_link_path = (
     else Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as"
 )
 
-linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "./launch_game_agade.sh"
+linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "/home/agade/Documents/Programming/trackmania_rl/scripts/launch_game_agade.sh"
 trackmania_base_path = (
     Path(os.path.expanduser("~")) / "windocs" / "TrackMania"
     if is_pb_desktop and is_linux
