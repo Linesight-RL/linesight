@@ -21,6 +21,7 @@ else:
     import win32.lib.win32con as win32con
     import win32com.client
     import win32gui
+    import win32process
     from ReadWriteMemory import ReadWriteMemory
 
 
