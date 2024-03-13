@@ -237,7 +237,7 @@ def main():
                 iface._respond_to_call(msgtype)
             else:
                 pass
-
+    close_game(tm_process_id)
 
 if __name__ == "__main__":
     main()
