@@ -401,7 +401,7 @@ def learner_process_fn(
                 )
 
         if end_race_stats["race_time"] < misc_copy.threshold_to_save_all_runs_ms:
-            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}"
+            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}_{accumulated_stats['cumul_number_frames_played']}_{'explo' if is_explo else 'eval'}"
             utilities.save_run(
                 base_dir,
                 save_dir / "good_runs",
