@@ -10,7 +10,7 @@ from config_files.state_normalization import *
 
 is_linux = platform in ["linux", "linux2"]
 is_pb_desktop = psutil.cpu_count() < 32
-username = 'pb4608' if is_pb_desktop else 'agade09'
+username = "pb4608" if is_pb_desktop else "agade09"
 
 W_screen = 640
 H_screen = 480
@@ -102,10 +102,10 @@ lr_schedule = [
 ]
 tensorboard_suffix_schedule = [
     (0, ""),
-    #(6_000_000 * global_schedule_speed, "_2"),
-    #(15_000_000 * global_schedule_speed, "_3"),
-    #(30_000_000 * global_schedule_speed, "_4"),
-    #(45_000_000 * global_schedule_speed, "_5"),
+    # (6_000_000 * global_schedule_speed, "_2"),
+    # (15_000_000 * global_schedule_speed, "_3"),
+    # (30_000_000 * global_schedule_speed, "_4"),
+    # (45_000_000 * global_schedule_speed, "_5"),
 ]
 gamma_schedule = [
     (0, 1),
@@ -139,11 +139,11 @@ flip_indices_floats_before_swap = list(chain(*flip_pair_indices_to_swap))
 flip_indices_floats_after_swap = list(chain(*map(reversed, flip_pair_indices_to_swap)))
 
 indices_floats_sign_inversion = [
-                                    54,  # state_car_angular_velocity_in_car_reference_system.y
-                                    55,  # state_car_angular_velocity_in_car_reference_system.z
-                                    56,  # state_car_velocity_in_car_reference_system.x
-                                    59,  # state_y_map_vector_in_car_reference_system.x
-                                ] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
+    54,  # state_car_angular_velocity_in_car_reference_system.y
+    55,  # state_car_angular_velocity_in_car_reference_system.z
+    56,  # state_car_velocity_in_car_reference_system.x
+    59,  # state_y_map_vector_in_car_reference_system.x
+] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
 
 batch_size = 512
 weight_decay_lr_ratio = 1 / 50
@@ -258,10 +258,10 @@ map_cycle += [
     # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo.npy", False, True), 1),
 ]
 
-plot_race_time_left_curves = True if is_pb_desktop else False
+plot_race_time_left_curves = False if is_pb_desktop else False
 make_highest_prio_figures = True
 apply_randomcrop_augmentation = True if is_pb_desktop else False
-n_pixels_to_crop_on_each_side = 2
+n_pixels_to_crop_on_each_side = 1
 
 max_rollout_queue_size = 1
 
@@ -275,11 +275,15 @@ target_python_link_path = (
     else Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as"
 )
 
-linux_launch_game_path = ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh") if is_pb_desktop else "/home/agade/Documents/Programming/trackmania_rl/scripts/launch_game_agade.sh"
+linux_launch_game_path = (
+    ("/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh")
+    if is_pb_desktop
+    else "/home/agade/Documents/Programming/trackmania_rl/scripts/launch_game_agade.sh"
+)
 trackmania_base_path = (
     Path(os.path.expanduser("~")) / "windocs" / "TrackMania"
     if is_pb_desktop and is_linux
-    else Path(os.path.expanduser("~")) / "Documents" / "TrackMania" 
+    else Path(os.path.expanduser("~")) / "Documents" / "TrackMania"
 )
 trackmania_maps_base_path = trackmania_base_path / "Tracks" / "Challenges"
 send_shared_network_every_n_batches = 10
