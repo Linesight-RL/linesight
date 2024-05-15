@@ -88,7 +88,7 @@ prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER pa
 prio_epsilon = np.float32(2e-3)  # Defaults to 10^-6 in stable-baselines
 prio_beta = np.float32(1)
 
-number_times_single_memory_is_used_before_discard = 60  # 32 // 4
+number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 
 memory_size_schedule = [
     (0, (50_000, 20_000)),
@@ -267,7 +267,7 @@ max_rollout_queue_size = 1
 
 use_jit = True
 base_tmi_port = 8478
-gpu_collectors_count = 2
+gpu_collectors_count = 4
 
 target_python_link_path = (
     Path(os.path.expanduser("~")) / "windocs" / "TMInterface" / "Plugins" / "Python_Link.as"
