@@ -81,7 +81,7 @@ dense_hidden_dimension = 1024
 iqn_embedding_dimension = 64
 iqn_n = 8  # must be an even number because we sample tau symmetrically around 0.5
 iqn_k = 32  # must be an even number because we sample tau symmetrically around 0.5
-iqn_kappa = 1
+iqn_kappa = 5e-3
 use_ddqn = False
 
 prio_alpha = np.float32(0)  # Rainbow-IQN paper: 0.2, Rainbow paper: 0.5, PER paper 0.6
@@ -305,29 +305,5 @@ threshold_to_save_all_runs_ms = 9999999999
 
 deck_height = -np.inf
 game_camera_number = 1
-
-# Piecewise loss with various exponents
-loss_alpha = 1.1
-loss_kappa1 = 5e-3
-loss_kappa2 = 0.5
-
-
-def get_piecewise_loss_coefficients(alpha, kappa1, kappa2):
-    # Definition of the piecewise loss:
-    # TD_error**2                   if TD_error < kappa1
-    # A * TD_error**alpha + B       if TD_error < kappa2
-    # C * TD_error**1 + D           else
-    # with A, B, C, D calculated such that the piecewise loss is continuous and has a continuous derivative.
-    #
-    # In this function, we calculate the values of A, B, C and D
-    A = (2 / alpha) * (kappa1 ** (2 - alpha))
-    B = ((alpha - 2) / alpha) * (kappa1**2)
-
-    C = A * alpha * kappa2 ** (alpha - 1)
-    D = A * kappa2**alpha + B - C * kappa2
-    return A, B, C, D
-
-
-loss_A, loss_B, loss_C, loss_D = get_piecewise_loss_coefficients(loss_alpha, loss_kappa1, loss_kappa2)
 
 sync_virtual_and_real_checkpoints = False
