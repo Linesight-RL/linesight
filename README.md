@@ -1,4 +1,4 @@
-# Trackmania AI with Reinforcement Learning
+# Linesight AI: Playing Trackmania with Reinforcement Learning
 
 ## Disclaimer
 
