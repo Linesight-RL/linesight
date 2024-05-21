@@ -523,7 +523,7 @@ class TMInterfaceManager:
                     (
                         _time > self.max_overall_duration_ms
                         or _time
-                        > rollout_results["zone_entrance_time_ms"][max(0, current_zone_idx + 2 - misc.n_zone_centers_in_inputs)]
+                        > rollout_results["zone_entrance_time_ms"][-1]
                         + self.max_minirace_duration_ms
                     )
                     and this_rollout_has_seen_t_negative
