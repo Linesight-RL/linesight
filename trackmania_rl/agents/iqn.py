@@ -140,6 +140,7 @@ def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
     loss = (torch.where(torch.lt(TD_error, 0), 1 - tau, tau) * loss).sum(dim=2).mean(dim=1)[:, 0]  # pinball loss # (batch_size, )
     return loss
 
+
 class Trainer:
     __slots__ = (
         "online_network",
