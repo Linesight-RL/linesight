@@ -68,7 +68,7 @@ class MainClient(Client):
             self.zone_centers = extract_cp_distance_interval(self.raw_position_list, self.target_distance_between_cp_m, base_dir)
 
 
-base_dir = Path(__file__).resolve().parents[2]
+base_dir = Path(__file__).resolve().parents[3]
 server_name = f"TMInterface{sys.argv[1]}" if len(sys.argv) > 1 else "TMInterface0"
 print(f"Connecting to {server_name}...")
 client = MainClient()
