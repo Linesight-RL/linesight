@@ -60,10 +60,13 @@ def main():
         elif msgtype == int(MessageType.C_SHUTDOWN):
             iface.close()
         elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
-            for i in range(0, len(vcp), 5):
+            for i in range(0, len(vcp), 10):
                 iface.execute_command(
-                    f"add_trigger {vcp[i][0]-0.2} {vcp[i][1]-0.2} {vcp[i][2]-0.2} {vcp[i][0]+0.2} {vcp[i][1]+0.2} {vcp[i][2]+0.2}"
+                    f"add_trigger {vcp[i][0] - 0.4:.2f} {vcp[i][1] - 0.4:.2f} {vcp[i][2] - 0.4:.2f} {vcp[i][0] + 0.4:.2f} {vcp[i][1] + 0.4:.2f} {vcp[i][2] + 0.4:.2f}"
                 )
+                # print(
+                #     f"add_trigger {vcp[i][0] - 0.4:.2f} {vcp[i][1] - 0.4:.2f} {vcp[i][2] - 0.4:.2f} {vcp[i][0] + 0.4:.2f} {vcp[i][1] + 0.4:.2f} {vcp[i][2] + 0.4:.2f}"
+                # )
             iface._respond_to_call(msgtype)
         else:
             pass
