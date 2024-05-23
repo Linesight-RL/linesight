@@ -170,7 +170,7 @@ def find_indices_of_positions_near_cut_position(pos_list: List[npt.NDArray], cut
     dist_pos_cut_pos = np.linalg.norm(np.array(pos_list) - cut_position, axis=1)
     while np.min(dist_pos_cut_pos) < margin:
         index = dist_pos_cut_pos.argmin()
-        dist_pos_cut_pos[max(0, index - 200) : index + 200] = 9999999
+        dist_pos_cut_pos[max(0, index - 50) : index + 50] = 9999999
         indices.append(index)
     return sorted(indices)
 
