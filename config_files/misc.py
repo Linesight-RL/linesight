@@ -134,8 +134,6 @@ distance_between_checkpoints = 0.5
 road_width = 90  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
 max_allowable_distance_to_virtual_checkpoint = np.sqrt((distance_between_checkpoints / 2) ** 2 + (road_width / 2) ** 2)
 
-zone_centers_jitter = 0.0  # TODO : eval with zero jitter on zone centers !!
-
 timeout_during_run_ms = 10_100
 timeout_between_runs_ms = 600_000_000
 tmi_protection_timeout_s = 500 if is_pb_desktop else 60
