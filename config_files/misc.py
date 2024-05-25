@@ -111,40 +111,6 @@ gamma_schedule = [
     (0, 1),
 ]
 
-apply_horizontal_flip_augmentation = False
-flip_augmentation_ratio = 0.5
-flip_pair_indices_to_swap = [
-    (3, 4),  # previous action left/right
-    (7, 8),  # previous**2 action left/right
-    (11, 12),  # previous**3 action left/right
-    (15, 16),  # previous**4 action left/right
-    (19, 20),  # previous**5 action left/right
-    (21, 22),  # front wheels sliding
-    (23, 24),  # back wheels sliding
-    (25, 26),  # front wheels has_ground_contact
-    (27, 28),  # back wheels has_ground_contact
-    (29, 30),  # front wheels damper_absorb
-    (31, 32),  # back wheels damper_absorb
-    (37, 41),  # front wheels physics behavior 0
-    (38, 42),  # front wheels physics behavior 1
-    (39, 43),  # front wheels physics behavior 2
-    (40, 44),  # front wheels physics behavior 3
-    (45, 49),  # back wheels physics behavior 0
-    (46, 50),  # back wheels physics behavior 1
-    (47, 51),  # back wheels physics behavior 2
-    (48, 52),  # back wheels physics behavior 3
-]
-
-flip_indices_floats_before_swap = list(chain(*flip_pair_indices_to_swap))
-flip_indices_floats_after_swap = list(chain(*map(reversed, flip_pair_indices_to_swap)))
-
-indices_floats_sign_inversion = [
-    54,  # state_car_angular_velocity_in_car_reference_system.y
-    55,  # state_car_angular_velocity_in_car_reference_system.z
-    56,  # state_car_velocity_in_car_reference_system.x
-    59,  # state_y_map_vector_in_car_reference_system.x
-] + [62 + i * 3 for i in range(n_zone_centers_in_inputs)]
-
 batch_size = 512
 weight_decay_lr_ratio = 1 / 50
 adam_epsilon = 1e-4
