@@ -456,6 +456,7 @@ class TMInterfaceManager:
                                 ]
                                 - distance_since_track_begin,
                             ),
+                            sim_state_mobil.is_freewheeling,
                         )
                     ).astype(np.float32)
 
