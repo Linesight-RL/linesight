@@ -190,7 +190,7 @@ float_inputs_mean = np.array(
         1.97e02,
         # ==================== END   40 CP =====================
         700,  # margin_to_announce_finish_meters
-        0, # is_freewheeling
+        0,  # is_freewheeling
     ]
 )
 
@@ -383,6 +383,6 @@ float_inputs_std = np.array(
         1.51e02,
         # ==================== END   40 CP =====================
         350,  # margin_to_announce_finish_meters / 2
-        1, # is_freewheeling
+        1,  # is_freewheeling
     ]
 )
