@@ -1,3 +1,4 @@
+import copy
 import math
 import random
 from typing import Optional, Tuple
@@ -370,6 +371,8 @@ def make_untrained_iqn_network(jit: bool):
             model = torch.compile(uncompiled_model, dynamic=False)
         else:
             model = torch.jit.script(uncompiled_model)
+    else:
+        model = copy.deepcopy(uncompiled_model)
     return (
         model.to("cuda", memory_format=torch.channels_last).train(),
         uncompiled_model.to("cuda", memory_format=torch.channels_last).train(),
