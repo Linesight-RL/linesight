@@ -11,11 +11,11 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 
-from config_files import misc_copy
+from config_files import config_copy
 from trackmania_rl import contact_materials, map_loader
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
-if misc_copy.is_linux:
+if config_copy.is_linux:
     from xdo import Xdo
 else:
     import win32.lib.win32con as win32con
@@ -28,7 +28,7 @@ else:
 def _set_window_focus(
     trackmania_window,
 ):  # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
-    if misc_copy.is_linux:
+    if config_copy.is_linux:
         Xdo.focus_window(trackmania_window)
     else:
         shell = win32com.client.Dispatch("WScript.Shell")
@@ -37,15 +37,15 @@ def _set_window_focus(
 
 
 def is_fullscreen(trackmania_window):
-    if misc_copy.is_linux:
+    if config_copy.is_linux:
         return False  # shape = Xdo().get_window_size()
     else:
         rect = win32gui.GetWindowPlacement(trackmania_window)[4]
-        return rect[0] == 0 and rect[1] == 0 and rect[2] == misc_copy.W_screen and rect[3] == misc_copy.H_screen
+        return rect[0] == 0 and rect[1] == 0 and rect[2] == config_copy.W_screen and rect[3] == config_copy.H_screen
 
 
 def ensure_not_minimized(trackmania_window):
-    if misc_copy.is_linux:
+    if config_copy.is_linux:
         Xdo().map_window(trackmania_window)
     else:
         if win32gui.IsIconic(
@@ -73,7 +73,7 @@ def update_current_zone_idx(
         d1 <= d2
         and d1 <= max_allowable_distance_to_virtual_checkpoint
         and current_zone_idx
-        < len(zone_centers) - 1 - misc_copy.n_zone_centers_extrapolate_after_end_of_map  # We can never enter the final virtual zone
+        < len(zone_centers) - 1 - config_copy.n_zone_centers_extrapolate_after_end_of_map  # We can never enter the final virtual zone
         and d4 < max_allowable_distance_to_real_checkpoint[current_zone_idx]
     ):
         # Move from one virtual zone to another
@@ -121,7 +121,7 @@ class TMInterfaceManager:
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
 
-        if misc_copy.is_linux:
+        if config_copy.is_linux:
             self.tm_window_id = Xdo().search_windows(winname=b"Track", pid=self.tm_process_id)
         else:
 
@@ -148,10 +148,10 @@ class TMInterfaceManager:
     def launch_game(self):
         self.tm_process_id = None
 
-        if misc_copy.is_linux:
+        if config_copy.is_linux:
             with self.game_spawning_lock:
                 pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-                os.system(misc_copy.linux_launch_game_path + " " + str(self.tmi_port))
+                os.system(config_copy.linux_launch_game_path + " " + str(self.tmi_port))
                 pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
                 tmi_pid_candidates = set(pid_after) - set(pid_before)
                 assert len(tmi_pid_candidates) == 1
@@ -198,7 +198,7 @@ class TMInterfaceManager:
     def close_game(self):
         self.timeout_has_been_set = False
         assert self.tm_process_id is not None
-        if misc_copy.is_linux:
+        if config_copy.is_linux:
             os.system("kill -9 " + str(self.tm_process_id))
         else:
             os.system(f"taskkill /PID {self.tm_process_id} /f")
@@ -206,7 +206,7 @@ class TMInterfaceManager:
             time.sleep(0)
 
     def game_shortcut_exists(self):
-        return os.path.exists(misc_copy.linux_launch_game_path) if misc_copy.is_linux else os.path.exists(".\\TMInterface.lnk")
+        return os.path.exists(config_copy.linux_launch_game_path) if config_copy.is_linux else os.path.exists(".\\TMInterface.lnk")
 
     def ensure_game_launched(self):
         if not self.is_game_running():
@@ -221,7 +221,7 @@ class TMInterfaceManager:
                 )
 
     def grab_screen(self):
-        return self.iface.get_frame(misc_copy.W_downsized, misc_copy.H_downsized)
+        return self.iface.get_frame(config_copy.W_downsized, config_copy.H_downsized)
 
     def request_speed(self, requested_speed):
         self.iface.set_speed(requested_speed)
@@ -231,7 +231,7 @@ class TMInterfaceManager:
         if (
             len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
         ):  # Small performance trick, don't update input_state if it doesn't need to be updated
-            self.iface.set_input_state(**misc_copy.inputs[action_idx])
+            self.iface.set_input_state(**config_copy.inputs[action_idx])
 
     def request_map(self, map_path, zone_centers):
         map_loader.hide_PR_replay(map_path, True)
@@ -253,7 +253,7 @@ class TMInterfaceManager:
         ) = map_loader.precalculate_virtual_checkpoints_information(zone_centers)
 
         self.ensure_game_launched()
-        if time.perf_counter() - self.last_game_reboot > misc_copy.game_reboot_interval:
+        if time.perf_counter() - self.last_game_reboot > config_copy.game_reboot_interval:
             self.close_game()
             self.iface = None
             self.launch_game()
@@ -298,7 +298,7 @@ class TMInterfaceManager:
             if not self.iface.registered:
                 while True:
                     try:
-                        self.iface.register(misc_copy.tmi_protection_timeout_s)
+                        self.iface.register(config_copy.tmi_protection_timeout_s)
                         break
                     except ConnectionRefusedError as e:
                         print(e)
@@ -313,7 +313,7 @@ class TMInterfaceManager:
         self.last_rollout_crashed = False
 
         _time = -3000
-        current_zone_idx = misc_copy.n_zone_centers_extrapolate_before_start_of_map
+        current_zone_idx = config_copy.n_zone_centers_extrapolate_before_start_of_map
 
         give_up_signal_has_been_sent = False
         this_rollout_has_seen_t_negative = False
@@ -370,17 +370,17 @@ class TMInterfaceManager:
                             *(
                                 i == contact_materials.physics_behavior_fromint[ws.contact_material_id & 0xFFFF]
                                 for ws in wheel_state
-                                for i in range(misc_copy.n_contact_material_physics_behavior_types)
+                                for i in range(config_copy.n_contact_material_physics_behavior_types)
                             ),
                         ],
                         dtype=np.float32,
                     )
-                    if sim_state_position[1] > misc_copy.deck_height:
+                    if sim_state_position[1] > config_copy.deck_height:
                         current_zone_idx = update_current_zone_idx(
                             current_zone_idx,
                             zone_centers,
                             sim_state_position,
-                            misc_copy.max_allowable_distance_to_virtual_checkpoint,
+                            config_copy.max_allowable_distance_to_virtual_checkpoint,
                             self.next_real_checkpoint_positions,
                             self.max_allowable_distance_to_real_checkpoint,
                         )
@@ -413,8 +413,8 @@ class TMInterfaceManager:
                         (
                             zone_centers[
                                 current_zone_idx : current_zone_idx
-                                + misc_copy.one_every_n_zone_centers_in_inputs
-                                * misc_copy.n_zone_centers_in_inputs : misc_copy.one_every_n_zone_centers_in_inputs,
+                                + config_copy.one_every_n_zone_centers_in_inputs
+                                * config_copy.n_zone_centers_in_inputs : config_copy.one_every_n_zone_centers_in_inputs,
                                 :,
                             ]
                             - sim_state_position
@@ -425,9 +425,9 @@ class TMInterfaceManager:
                     state_car_angular_velocity_in_car_reference_system = sim_state_orientation.dot(sim_state_angular_speed)
 
                     previous_actions = [
-                        misc_copy.inputs[rollout_results["actions"][k] if k >= 0 else misc_copy.action_forward_idx]
+                        config_copy.inputs[rollout_results["actions"][k] if k >= 0 else config_copy.action_forward_idx]
                         for k in range(
-                            len(rollout_results["actions"]) - misc_copy.n_prev_actions_in_inputs, len(rollout_results["actions"])
+                            len(rollout_results["actions"]) - config_copy.n_prev_actions_in_inputs, len(rollout_results["actions"])
                         )
                     ]
 
@@ -450,9 +450,9 @@ class TMInterfaceManager:
                             state_y_map_vector_in_car_reference_system.ravel(),
                             state_zone_center_coordinates_in_car_reference_system.ravel(),
                             min(
-                                misc_copy.margin_to_announce_finish_meters,
+                                config_copy.margin_to_announce_finish_meters,
                                 distance_from_start_track_to_prev_zone_transition[
-                                    len(zone_centers) - misc_copy.n_zone_centers_extrapolate_after_end_of_map
+                                    len(zone_centers) - config_copy.n_zone_centers_extrapolate_after_end_of_map
                                 ]
                                 - distance_since_track_begin,
                             ),
@@ -485,8 +485,8 @@ class TMInterfaceManager:
                     # ============================
 
                     if not self.timeout_has_been_set:
-                        self.iface.set_timeout(misc_copy.timeout_during_run_ms)
-                        self.iface.execute_command(f"cam {misc_copy.game_camera_number}")
+                        self.iface.set_timeout(config_copy.timeout_during_run_ms)
+                        self.iface.execute_command(f"cam {config_copy.game_camera_number}")
                         self.iface.execute_command(f"set disable_forced_camera true")
                         self.timeout_has_been_set = True
 
@@ -520,7 +520,7 @@ class TMInterfaceManager:
                         race_time = max([simulation_state.race_time, 1e-12])  # Epsilon trick to avoid division by zero
 
                         end_race_stats["race_finished"] = False
-                        end_race_stats["race_time"] = misc_copy.cutoff_rollout_if_race_not_finished_within_duration_ms
+                        end_race_stats["race_time"] = config_copy.cutoff_rollout_if_race_not_finished_within_duration_ms
                         end_race_stats["race_time_for_ratio"] = race_time
                         end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
                         end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
@@ -539,7 +539,7 @@ class TMInterfaceManager:
                         self.iface.rewind_to_current_state()
 
                         self.msgtype_response_to_wakeup_TMI = msgtype
-                        self.iface.set_timeout(misc_copy.timeout_between_runs_ms)
+                        self.iface.set_timeout(config_copy.timeout_between_runs_ms)
                         if frame_expected:
                             self.iface.unrequest_frame()
                             frame_expected = False
@@ -556,9 +556,9 @@ class TMInterfaceManager:
                             if compute_action_asap:
                                 compute_action_asap_floats = True
                                 frame_expected = True
-                                self.iface.request_frame(misc_copy.W_downsized, misc_copy.H_downsized)
+                                self.iface.request_frame(config_copy.W_downsized, config_copy.H_downsized)
 
-                            if _time % (10 * self.run_steps_per_action * misc_copy.update_inference_network_every_n_actions) == 0:
+                            if _time % (10 * self.run_steps_per_action * config_copy.update_inference_network_every_n_actions) == 0:
                                 update_network()
 
                     # ============================
@@ -626,13 +626,13 @@ class TMInterfaceManager:
 
                             this_rollout_is_finished = True  # SUCCESSFULLY FINISHED THE RACE
                             self.msgtype_response_to_wakeup_TMI = msgtype
-                            self.iface.set_timeout(misc_copy.timeout_between_runs_ms)
+                            self.iface.set_timeout(config_copy.timeout_between_runs_ms)
                             if frame_expected:
                                 self.iface.unrequest_frame()
                                 frame_expected = False
 
                             rollout_results["current_zone_idx"].append(
-                                len(zone_centers) - misc_copy.n_zone_centers_extrapolate_after_end_of_map
+                                len(zone_centers) - config_copy.n_zone_centers_extrapolate_after_end_of_map
                             )
                             rollout_results["frames"].append(np.nan)
                             rollout_results["input_w"].append(np.nan)
@@ -641,7 +641,7 @@ class TMInterfaceManager:
                             rollout_results["car_gear_and_wheels"].append(np.nan)
                             rollout_results["meters_advanced_along_centerline"].append(
                                 distance_from_start_track_to_prev_zone_transition[
-                                    len(zone_centers) - misc_copy.n_zone_centers_extrapolate_after_end_of_map
+                                    len(zone_centers) - config_copy.n_zone_centers_extrapolate_after_end_of_map
                                 ]
                             )
 
@@ -693,7 +693,7 @@ class TMInterfaceManager:
                             for i, val in enumerate(np.nditer(q_values)):
                                 end_race_stats[f"q_value_{i}_starting_frame"] = val
                         rollout_results["meters_advanced_along_centerline"].append(distance_since_track_begin)
-                        rollout_results["input_w"].append(misc_copy.inputs[action_idx]["accelerate"])
+                        rollout_results["input_w"].append(config_copy.inputs[action_idx]["accelerate"])
                         rollout_results["actions"].append(action_idx)
                         rollout_results["action_was_greedy"].append(action_was_greedy)
                         rollout_results["car_gear_and_wheels"].append(sim_state_car_gear_and_wheels)
@@ -714,7 +714,7 @@ class TMInterfaceManager:
                     self.request_speed(1)
                     self.iface.set_on_step_period(self.run_steps_per_action * 10)
                     self.iface.execute_command(f"set countdown_speed {self.running_speed}")
-                    self.iface.execute_command(f"set autologin {misc_copy.username}")
+                    self.iface.execute_command(f"set autologin {config_copy.username}")
                     self.iface.execute_command(f"set auto_reload_plugins false")
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"set temp_save_states_collect false")
@@ -734,14 +734,14 @@ class TMInterfaceManager:
         return rollout_results, end_race_stats
 
     def process_prepare(self):
-        if not misc_copy.is_linux:
+        if not config_copy.is_linux:
             remove_fps_cap()
             remove_map_begin_camera_zoom_in()
-            # custom_resolution(misc_copy.W_screen, misc_copy.H_screen)
+            # custom_resolution(config_copy.W_screen, config_copy.H_screen)
             _set_window_focus(self.tm_window_id)
 
 
-if not misc_copy.is_linux:
+if not config_copy.is_linux:
 
     def remove_fps_cap():
         # from @Kim on TrackMania Tool Assisted Discord server

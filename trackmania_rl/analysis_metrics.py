@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from config_files import misc_copy
+from config_files import config_copy
 from trackmania_rl.agents.iqn import iqn_loss
 
 
@@ -48,8 +48,8 @@ def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
             return
 
         for x_axis in [
-            range(0, misc_copy.temporal_mini_race_duration_actions),
-            range(int(0.7 * misc_copy.temporal_mini_race_duration_actions), misc_copy.temporal_mini_race_duration_actions),
+            range(0, config_copy.temporal_mini_race_duration_actions),
+            range(int(0.7 * config_copy.temporal_mini_race_duration_actions), config_copy.temporal_mini_race_duration_actions),
         ]:
             q = defaultdict(list)
             a = defaultdict(list)
@@ -58,7 +58,7 @@ def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
             q_h = defaultdict(list)
             a_h = defaultdict(list)
 
-            tau = torch.linspace(0.05, 0.95, misc_copy.iqn_k)[:, None].to("cuda")
+            tau = torch.linspace(0.05, 0.95, config_copy.iqn_k)[:, None].to("cuda")
             for j in x_axis:
                 # print(j)
                 rollout_results_copy["state_float"][frame_number][0] = j
@@ -70,15 +70,15 @@ def race_time_left_curves(rollout_results, inferer, save_dir, map_name):
                     q[i].append(q_val)
                     a[i].append(q_val - per_quantile_output.mean(axis=0).max())
 
-                for i, q_val in enumerate(list(per_quantile_output[: misc_copy.iqn_k // 2, :].mean(axis=0))):
+                for i, q_val in enumerate(list(per_quantile_output[: config_copy.iqn_k // 2, :].mean(axis=0))):
                     # print(i, q_val)
                     q_l[i].append(q_val)
-                    a_l[i].append(q_val - per_quantile_output[: misc_copy.iqn_k // 2, :].mean(axis=0).max())
+                    a_l[i].append(q_val - per_quantile_output[: config_copy.iqn_k // 2, :].mean(axis=0).max())
 
-                for i, q_val in enumerate(list(per_quantile_output[misc_copy.iqn_k // 2 :, :].mean(axis=0))):
+                for i, q_val in enumerate(list(per_quantile_output[config_copy.iqn_k // 2 :, :].mean(axis=0))):
                     # print(i, q_val)
                     q_h[i].append(q_val)
-                    a_h[i].append(q_val - per_quantile_output[misc_copy.iqn_k // 2 :, :].mean(axis=0).max())
+                    a_h[i].append(q_val - per_quantile_output[config_copy.iqn_k // 2 :, :].mean(axis=0).max())
 
             for i in reversed(range(12)):
                 plt.plot(x_axis, a_l[i], label=str(i) + "_l", c=color_cycle[i], linestyle="dotted")
@@ -104,7 +104,7 @@ def tau_curves(rollout_results, inferer, save_dir, map_name):
 
     rollout_results_copy = rollout_results.copy()
 
-    tau = torch.linspace(0.05, 0.95, misc_copy.iqn_k)[:, None].to("cuda")
+    tau = torch.linspace(0.05, 0.95, config_copy.iqn_k)[:, None].to("cuda")
 
     n_best_actions_to_plot = 12
 
@@ -140,7 +140,7 @@ def patrick_curves(rollout_results, inferer, save_dir, map_name):
 
     rollout_results_copy = rollout_results.copy()
 
-    tau = torch.linspace(0.05, 0.95, misc_copy.iqn_k)[:, None].to("cuda")
+    tau = torch.linspace(0.05, 0.95, config_copy.iqn_k)[:, None].to("cuda")
 
     horizons_to_plot = [140, 120, 100, 80, 60, 40, 20, 10]
 
@@ -161,8 +161,8 @@ def patrick_curves(rollout_results, inferer, save_dir, map_name):
             values_predicted[ihorz].append(per_quantile_output[:, action_idx].mean())
 
             values_observed[ihorz].append(
-                horizon * misc_copy.ms_per_action * misc_copy.constant_reward_per_ms
-                + misc_copy.reward_per_m_advanced_along_centerline
+                horizon * config_copy.ms_per_action * config_copy.constant_reward_per_ms
+                + config_copy.reward_per_m_advanced_along_centerline
                 * (
                     rollout_results_copy["meters_advanced_along_centerline"][frame_number + horizon]
                     - rollout_results_copy["meters_advanced_along_centerline"][frame_number]
@@ -211,7 +211,7 @@ def get_output_and_target_for_batch(batch, online_network, target_network, num_q
     is_terminal = gammas_terminal > 0
 
     delta = next_state_float_tensor[:, 0] - state_float_tensor[:, 0]
-    state_float_tensor[:, 0] = (0 - misc_copy.float_inputs_mean[0]) / misc_copy.float_inputs_std[0]
+    state_float_tensor[:, 0] = (0 - config_copy.float_inputs_mean[0]) / config_copy.float_inputs_std[0]
     next_state_float_tensor[:, 0] = state_float_tensor[:, 0] + delta
 
     tau = torch.linspace(0, 1, num_quantiles, device="cuda").repeat_interleave(batch_size).unsqueeze(1)
@@ -263,9 +263,9 @@ def loss_distribution(buffer, save_dir, online_network, target_network):
     shutil.rmtree(save_dir / "loss_distribution", ignore_errors=True)
     (save_dir / "loss_distribution").mkdir(parents=True, exist_ok=True)
     buffer_loss = []
-    for batch in batched(range(len(buffer)), misc_copy.batch_size):
+    for batch in batched(range(len(buffer)), config_copy.batch_size):
         quantiles_output, quantiles_target, losses = get_output_and_target_for_batch(
-            buffer[batch], online_network, target_network, misc_copy.iqn_n
+            buffer[batch], online_network, target_network, config_copy.iqn_n
         )
         buffer_loss.extend(losses["real_loss"])
     buffer_loss = np.array(buffer_loss)
@@ -291,19 +291,19 @@ def loss_distribution(buffer, save_dir, online_network, target_network):
 
 
 def distribution_curves(buffer, save_dir, online_network, target_network):
-    if misc_copy.n_transitions_to_plot_in_distribution_curves <= 0:
+    if config_copy.n_transitions_to_plot_in_distribution_curves <= 0:
         return
 
     shutil.rmtree(save_dir / "distribution_curves", ignore_errors=True)
     (save_dir / "distribution_curves").mkdir(parents=True, exist_ok=True)
 
-    first_transition_to_plot = random.randrange(4000, len(buffer) - misc_copy.n_transitions_to_plot_in_distribution_curves)
+    first_transition_to_plot = random.randrange(4000, len(buffer) - config_copy.n_transitions_to_plot_in_distribution_curves)
 
     num_quantiles = 16
     my_dpi = 100
     max_height = 60
 
-    for i in range(first_transition_to_plot, first_transition_to_plot + misc_copy.n_transitions_to_plot_in_distribution_curves):
+    for i in range(first_transition_to_plot, first_transition_to_plot + config_copy.n_transitions_to_plot_in_distribution_curves):
         fig, ax = plt.subplots(figsize=(640 / my_dpi, 480 / my_dpi), dpi=my_dpi)
 
         quantiles_output, quantiles_target, losses = get_output_and_target_for_batch(

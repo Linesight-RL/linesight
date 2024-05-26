@@ -9,11 +9,11 @@ import numpy as np
 import psutil
 import pyautogui
 
-from config_files import misc
+from config_files import config
 from trackmania_rl import map_loader
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
-if misc.is_linux:
+if config.is_linux:
     from xdo import Xdo
 else:
     import win32.lib.win32con as win32con
@@ -25,7 +25,7 @@ timeout = 10
 
 
 def _set_window_focus(tm_window_id):
-    if misc.is_linux:
+    if config.is_linux:
         Xdo().focus_window(tm_window_id)
     else:
         shell = win32com.client.Dispatch("WScript.Shell")
@@ -107,7 +107,7 @@ def launch_game(tmi_port):
 
 
 def close_game(tm_process_id):
-    if misc.is_linux:
+    if config.is_linux:
         os.system("kill -9 " + str(tm_process_id))
     else:
         os.system(f"taskkill /PID {tm_process_id} /f")
@@ -135,8 +135,8 @@ def main():
     args = parser.parse_args()
     iface = TMInterface(args.tmi_port)
     inputs_folder = args.inputs_dir if args.inputs_dir[0] in ["/", "\\"] else os.path.join(os.getcwd(), args.inputs_dir)
-    inputs_foldername = inputs_folder[inputs_folder.rfind("/" if misc.is_linux else "\\") + 1 :]
-    outputs_folder = os.path.join(inputs_folder[: inputs_folder.rfind("/" if misc.is_linux else "\\")], inputs_foldername + "_out")
+    inputs_foldername = inputs_folder[inputs_folder.rfind("/" if config.is_linux else "\\") + 1 :]
+    outputs_folder = os.path.join(inputs_folder[: inputs_folder.rfind("/" if config.is_linux else "\\")], inputs_foldername + "_out")
     print("Inputs folder", inputs_folder)
     print("Outputs folder", outputs_folder)
     if not os.path.isdir(outputs_folder):
@@ -241,7 +241,7 @@ def main():
             elif msgtype == int(MessageType.C_SHUTDOWN):
                 iface.close()
             elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
-                iface.execute_command(f"set autologin {misc.username}")
+                iface.execute_command(f"set autologin {config.username}")
                 iface.execute_command(f"set auto_reload_plugins false")
                 if console_open:
                     iface.execute_command("toggle_console")

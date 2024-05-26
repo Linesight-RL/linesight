@@ -28,4 +28,4 @@ Nadeo.ini
 /imagenet_sample_160p
 *.lnk
 .stignore*
-config_files/misc_copy.py
+config_files/config_copy.py
