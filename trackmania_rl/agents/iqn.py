@@ -12,18 +12,6 @@ from config_files import config_copy
 from trackmania_rl import utilities
 
 
-class CReLU(torch.nn.Module):
-    # Concatenated ReLU are proposed as a solution to plasticity loss
-    # See "Loss of Plasticity in Continual Deep Reinforcement Learning", https://arxiv.org/abs/2303.07507
-    def __init__(self, inplace: bool = False):
-        super(CReLU, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        x = torch.cat((x, -x), 1)
-        return torch.nn.functional.relu(x, inplace=self.inplace)
-
-
 class IQN_Network(torch.nn.Module):
     def __init__(
         self,
