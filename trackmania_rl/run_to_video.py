@@ -31,7 +31,7 @@ def write_actions_in_tmi_format(action_idxs: List[int], outfile_path: Path):
     time_delta_s = config.tm_engine_step_per_action * 0.01
     last_press = {"accelerate": -1, "brake": -1, "left": -1, "right": -1}
     for action_idx in action_idxs[:-1]:
-        action = misc.inputs[action_idx]
+        action = config.inputs[action_idx]
         for key, val in action.items():
             if val:
                 if last_press[key] == -1:
@@ -92,7 +92,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Brake
                 ax.bar(
                     x=1,
-                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
+                    height=alpha * ((key_number_one_frame == 3) | config.inputs[key_number_one_frame]["brake"]),
                     width=1.9,
                     bottom=0,
                     align="center",
@@ -100,7 +100,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                         1 * (alpha < 1.0),
                         1 * (alpha >= 1.0),
                         0,
-                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
+                        alpha * ((key_number_one_frame == 3) | config.inputs[key_number_one_frame]["brake"]),
                     ),
                     linewidth=0.5,
                     edgecolor="black",
@@ -124,7 +124,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=0,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number_one_frame]["left"] else "",
+                    hatch="////" if not config.inputs[key_number_one_frame]["left"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -150,7 +150,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=0,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number_one_frame]["right"] else "",
+                    hatch="////" if not config.inputs[key_number_one_frame]["right"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -163,7 +163,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                     width=0.9,
                     bottom=1.1,
                     align="center",
-                    hatch="////" if not misc.inputs[key_number_one_frame]["accelerate"] else "",
+                    hatch="////" if not config.inputs[key_number_one_frame]["accelerate"] else "",
                     color=(1, 1, 1, 0.5),
                     linewidth=0.5,
                     edgecolor="black",
@@ -197,7 +197,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                         1 * (alpha < 1.0),
                         1 * (alpha >= 1.0),
                         0,
-                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["brake"]),
+                        alpha * ((key_number_one_frame == 3) | config.inputs[key_number_one_frame]["brake"]),
                     ),
                     linewidth=0.5,
                     edgecolor="black",
@@ -206,7 +206,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                 # Right
                 ax.bar(
                     x=2,
-                    height=alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["right"]),
+                    height=alpha * ((key_number_one_frame == 3) | config.inputs[key_number_one_frame]["right"]),
                     width=0.9,
                     bottom=0,
                     align="center",
@@ -214,7 +214,7 @@ def make_widget_video_from_q_values(q_values: List, video_path: Path, q_value_ga
                         1 * (alpha < 1.0),
                         1 * (alpha >= 1.0),
                         0,
-                        alpha * ((key_number_one_frame == 3) | misc.inputs[key_number_one_frame]["right"]),
+                        alpha * ((key_number_one_frame == 3) | config.inputs[key_number_one_frame]["right"]),
                     ),
                     linewidth=0.5,
                     edgecolor="black",

@@ -34,7 +34,7 @@ def _set_window_focus(tm_window_id):
 
 
 def get_tm_window_id(tm_process_id):
-    if misc.is_linux:
+    if config.is_linux:
         tm_window_id = Xdo().search_windows(winname=b"Track", pid=tm_process_id)
     else:
 
@@ -64,10 +64,10 @@ def is_game_running(tm_process_id):
 def launch_game(tmi_port):
     tm_process_id = None
 
-    if misc.is_linux:
+    if config.is_linux:
         pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-        print(misc.linux_launch_game_path)
-        os.system(misc.linux_launch_game_path + " " + str(tmi_port))
+        print(config.linux_launch_game_path)
+        os.system(config.linux_launch_game_path + " " + str(tmi_port))
         pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
         tmi_pid_candidates = set(pid_after) - set(pid_before)
         assert len(tmi_pid_candidates) == 1
