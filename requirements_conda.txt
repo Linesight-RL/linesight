@@ -1,3 +1,4 @@
+# These packages are available on conda-forge servers
 spyder
 spyder-kernels
 isort
