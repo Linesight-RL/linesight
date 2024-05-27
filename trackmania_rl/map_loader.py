@@ -142,7 +142,7 @@ def sync_virtual_and_real_checkpoints(zone_centers: npt.NDArray, map_path: str):
         - max_allowable_distance_to_real_checkpoint: a list of distances with the same length as the list of VCP
 
     In this function we match each checkpoint with its corresponding closest VCP.
-    In tm_interface_manager.py, we will enforce that the car can only advance towards the next VCP if it was within 12 meters of the center of the real checkpoint.
+    In game_instance_manager.py, we will enforce that the car can only advance towards the next VCP if it was within 12 meters of the center of the real checkpoint.
     """
     next_real_checkpoint_positions = np.zeros((len(zone_centers), 3))
     max_allowable_distance_to_real_checkpoint = 9999999 * np.ones(len(zone_centers))

@@ -1,3 +1,26 @@
+"""
+This file implements the main logic to interact with the game, via the GameInstanceManager class.
+
+The entry point is the rollout() function.
+
+Given a map and a policy, this function will:
+    - if necessary, start of restart the game
+    - if necessary, load the map
+    - start a Trackmania run
+    - apply the policy at every step
+    - collect various statistics
+    - stop the run if the race is finished or the agent is not making progress anymore
+    - return the results of the full run which can be used to train the agent elsewhere
+
+/!\
+This file has first been implemented for TMI 1.4.3 which was neither suited for regular interruptions forced by the
+exploration policy nor to synchronize visual frames and game engine steps. Through small incremental modifications, the
+file has become complex.
+It is possible that some parts of the file are not necessary since the transition to TMI 2.1.4. We have chosen to focus
+our attention elsewhere, because "If it works don't touch it.".
+Contributions are welcome to simplify this part of the code.
+"""
+
 import math
 import os
 import socket
@@ -88,7 +111,7 @@ def update_current_zone_idx(
     return current_zone_idx
 
 
-class TMInterfaceManager:
+class GameInstanceManager:
     def __init__(
         self,
         base_dir,

@@ -1,3 +1,11 @@
+"""
+This file implements the class TMInterface to communicate with TMInterface 2.1.4 via sockets.
+
+The class is designed to (mostly) reproduce the original Python client provided by Donadigo to communicate with TMInterface 1.4.3 via memory-mapping.
+(https://github.com/donadigo/TMInterfaceClientPython/blob/ce73dd80c33a9e7b48e9601256e94d8a6bf15a92/tminterface/interface.py)
+"""
+
+
 import signal
 import socket
 import struct

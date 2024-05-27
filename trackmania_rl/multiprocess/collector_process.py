@@ -23,9 +23,9 @@ def collector_process_fn(
     tmi_port: int,
 ):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
-    from trackmania_rl.tmi_interaction import tm_interface_manager
+    from trackmania_rl.tmi_interaction import game_instance_manager
 
-    tmi = tm_interface_manager.TMInterfaceManager(
+    tmi = game_instance_manager.GameInstanceManager(
         base_dir=base_dir,
         game_spawning_lock=game_spawning_lock,
         running_speed=config_copy.running_speed,
@@ -67,7 +67,7 @@ def collector_process_fn(
             np.random.randint(low=0, high=255, size=(1, config_copy.H_downsized, config_copy.W_downsized), dtype=np.uint8),
             np.random.rand(config_copy.float_input_dim).astype(np.float32),
         )
-    # tm_interface_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
+    # game_instance_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
     for loop_number in count(1):
         importlib.reload(config_copy)
