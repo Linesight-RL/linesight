@@ -1,3 +1,7 @@
+"""
+Animated lineplot.
+Not cleaned up, but still interesting to keep.
+"""
 import argparse
 import math
 import os

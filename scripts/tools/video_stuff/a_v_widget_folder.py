@@ -1,3 +1,6 @@
+"""
+Make the input widget overlaid on the map5 and Hockolicious videos.
+"""
 import subprocess
 import time
 from pathlib import Path
@@ -9,7 +12,7 @@ import numpy as np
 from trackmania_rl import run_to_video
 
 tmi_dir = Path("C:\\Users\\chopi\\Documents\\TMInterface\\Scripts")
-base_dir = Path(__file__).resolve().parents[2]
+base_dir = Path(__file__).resolve().parents[3]
 temp_path_str = str(base_dir / "temp")
 
 inputs = [

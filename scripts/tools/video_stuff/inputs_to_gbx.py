@@ -1,3 +1,7 @@
+"""
+Convert a batch of "xxxxxxxx.inputs" to the corresponding "xxxxxx.Replay.Gbx" files.
+Works on Agade's computer, not on pb4's.
+"""
 import argparse
 import os
 import shutil
