@@ -10,7 +10,8 @@
 /old_runs
 /tensorboard
 /misc_crap
-/maps
+/maps/*
+!/maps/map5_0.5m_cl.npy
 /trackmania_rl/dxcam
 *.txt
 !requirements_conda.txt
