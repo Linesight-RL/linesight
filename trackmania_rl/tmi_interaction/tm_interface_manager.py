@@ -262,18 +262,14 @@ class TMInterfaceManager:
             "cp_time_ms": [0],
         }
 
-        time_to_answer_normal_step = 0
-        time_to_answer_action_step = 0
-        time_between_normal_on_run_steps = 0
-        time_between_action_on_run_steps = 0
-        time_to_grab_frame = 0
-        time_between_grab_frame = 0
-        time_to_iface_set_set = 0
-        time_after_iface_set_set = 0
-        time_exploration_policy = 0
-        time_A_rgb2gray = 0
-        time_A_geometry = 0
-        time_A_stack = 0
+        instrumentation__answer_normal_step = 0
+        instrumentation__answer_action_step = 0
+        instrumentation__between_run_steps = 0
+        instrumentation__grab_frame = 0
+        instrumentation__request_inputs_and_speed = 0
+        instrumentation__exploration_policy = 0
+        instrumentation__convert_frame = 0
+        instrumentation__grab_floats = 0
 
         rollout_results = {
             "current_zone_idx": [],
@@ -325,8 +321,6 @@ class TMInterfaceManager:
         map_change_requested_time = math.inf
 
         last_known_simulation_state = None
-
-        time_last_on_run_step = time.perf_counter()
 
         try:
             while not this_rollout_is_finished:
@@ -403,11 +397,6 @@ class TMInterfaceManager:
                         distance_from_start_track_to_prev_zone_transition[current_zone_idx - 1] + meters_in_current_zone
                     )
 
-                    # ===================================================================================================
-
-                    pc3 = time.perf_counter_ns()
-                    time_between_grab_frame += pc3 - pc2
-
                     # ==== Construct features
                     state_zone_center_coordinates_in_car_reference_system = sim_state_orientation.dot(
                         (
@@ -430,9 +419,6 @@ class TMInterfaceManager:
                             len(rollout_results["actions"]) - config_copy.n_prev_actions_in_inputs, len(rollout_results["actions"])
                         )
                     ]
-
-                    pc4 = time.perf_counter_ns()
-                    time_A_geometry += pc4 - pc3
 
                     floats = np.hstack(
                         (
@@ -461,7 +447,7 @@ class TMInterfaceManager:
                     ).astype(np.float32)
 
                     pc5 = time.perf_counter_ns()
-                    time_A_stack += pc5 - pc4
+                    instrumentation__grab_floats += pc5 - pc2
 
                     compute_action_asap_floats = False
 
@@ -475,9 +461,7 @@ class TMInterfaceManager:
 
                     if _time > 0 and this_rollout_has_seen_t_negative:
                         if _time % 50 == 0:
-                            time_between_normal_on_run_steps += time.perf_counter_ns() - pc
-                        elif _time % 60 == 0:
-                            time_between_action_on_run_steps += time.perf_counter_ns() - pc
+                            instrumentation__between_run_steps += time.perf_counter_ns() - pc
                     pc = time.perf_counter_ns()
 
                     # ============================
@@ -522,18 +506,16 @@ class TMInterfaceManager:
                         end_race_stats["race_finished"] = False
                         end_race_stats["race_time"] = config_copy.cutoff_rollout_if_race_not_finished_within_duration_ms
                         end_race_stats["race_time_for_ratio"] = race_time
-                        end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / race_time * 50
-                        end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / race_time * 50
-                        end_race_stats["time_between_normal_on_run_steps"] = time_between_normal_on_run_steps / race_time * 50
-                        end_race_stats["time_between_action_on_run_steps"] = time_between_action_on_run_steps / race_time * 50
-                        end_race_stats["time_to_grab_frame"] = time_to_grab_frame / race_time * 50
-                        end_race_stats["time_between_grab_frame"] = time_between_grab_frame / race_time * 50
-                        end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / race_time * 50
-                        end_race_stats["time_A_geometry"] = time_A_geometry / race_time * 50
-                        end_race_stats["time_A_stack"] = time_A_stack / race_time * 50
-                        end_race_stats["time_exploration_policy"] = time_exploration_policy / race_time * 50
-                        end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / race_time * 50
-                        end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / race_time * 50
+                        end_race_stats["instrumentation__answer_normal_step"] = instrumentation__answer_normal_step / race_time * 50
+                        end_race_stats["instrumentation__answer_action_step"] = instrumentation__answer_action_step / race_time * 50
+                        end_race_stats["instrumentation__between_run_steps"] = instrumentation__between_run_steps / race_time * 50
+                        end_race_stats["instrumentation__grab_frame"] = instrumentation__grab_frame / race_time * 50
+                        end_race_stats["instrumentation__convert_frame"] = instrumentation__convert_frame / race_time * 50
+                        end_race_stats["instrumentation__grab_floats"] = instrumentation__grab_floats / race_time * 50
+                        end_race_stats["instrumentation__exploration_policy"] = instrumentation__exploration_policy / race_time * 50
+                        end_race_stats["instrumentation__request_inputs_and_speed"] = (
+                            instrumentation__request_inputs_and_speed / race_time * 50
+                        )
                         end_race_stats["tmi_protection_cutoff"] = False
 
                         self.iface.rewind_to_current_state()
@@ -569,10 +551,10 @@ class TMInterfaceManager:
 
                     if _time > 0 and this_rollout_has_seen_t_negative:
                         if _time % 40 == 0:
-                            time_to_answer_normal_step += time.perf_counter_ns() - pc
+                            instrumentation__answer_normal_step += time.perf_counter_ns() - pc
                             pc = time.perf_counter_ns()
                         elif _time % 50 == 0:
-                            time_to_answer_action_step += time.perf_counter_ns() - pc
+                            instrumentation__answer_action_step += time.perf_counter_ns() - pc
                             pc = time.perf_counter_ns()
                 elif msgtype == int(MessageType.SC_CHECKPOINT_COUNT_CHANGED_SYNC):
                     current = self.iface._read_int32()
@@ -606,22 +588,26 @@ class TMInterfaceManager:
                             end_race_stats["race_time"] = simulation_state.race_time
                             rollout_results["race_time"] = simulation_state.race_time
                             end_race_stats["race_time_for_ratio"] = simulation_state.race_time
-                            end_race_stats["time_to_answer_normal_step"] = time_to_answer_normal_step / simulation_state.race_time * 50
-                            end_race_stats["time_to_answer_action_step"] = time_to_answer_action_step / simulation_state.race_time * 50
-                            end_race_stats["time_between_normal_on_run_steps"] = (
-                                time_between_normal_on_run_steps / simulation_state.race_time * 50
+                            end_race_stats["instrumentation__answer_normal_step"] = (
+                                instrumentation__answer_normal_step / simulation_state.race_time * 50
                             )
-                            end_race_stats["time_between_action_on_run_steps"] = (
-                                time_between_action_on_run_steps / simulation_state.race_time * 50
+                            end_race_stats["instrumentation__answer_action_step"] = (
+                                instrumentation__answer_action_step / simulation_state.race_time * 50
                             )
-                            end_race_stats["time_to_grab_frame"] = time_to_grab_frame / simulation_state.race_time * 50
-                            end_race_stats["time_between_grab_frame"] = time_between_grab_frame / simulation_state.race_time * 50
-                            end_race_stats["time_A_rgb2gray"] = time_A_rgb2gray / simulation_state.race_time * 50
-                            end_race_stats["time_A_geometry"] = time_A_geometry / simulation_state.race_time * 50
-                            end_race_stats["time_A_stack"] = time_A_stack / simulation_state.race_time * 50
-                            end_race_stats["time_exploration_policy"] = time_exploration_policy / simulation_state.race_time * 50
-                            end_race_stats["time_to_iface_set_set"] = time_to_iface_set_set / simulation_state.race_time * 50
-                            end_race_stats["time_after_iface_set_set"] = time_after_iface_set_set / simulation_state.race_time * 50
+                            end_race_stats["instrumentation__between_run_steps"] = (
+                                instrumentation__between_run_steps / simulation_state.race_time * 50
+                            )
+                            end_race_stats["instrumentation__grab_frame"] = instrumentation__grab_frame / simulation_state.race_time * 50
+                            end_race_stats["instrumentation__convert_frame"] = (
+                                instrumentation__convert_frame / simulation_state.race_time * 50
+                            )
+                            end_race_stats["instrumentation__grab_floats"] = instrumentation__grab_floats / simulation_state.race_time * 50
+                            end_race_stats["instrumentation__exploration_policy"] = (
+                                instrumentation__exploration_policy / simulation_state.race_time * 50
+                            )
+                            end_race_stats["instrumentation__request_inputs_and_speed"] = (
+                                instrumentation__request_inputs_and_speed / simulation_state.race_time * 50
+                            )
                             end_race_stats["tmi_protection_cutoff"] = False
 
                             this_rollout_is_finished = True  # SUCCESSFULLY FINISHED THE RACE
@@ -664,13 +650,13 @@ class TMInterfaceManager:
                         and compute_action_asap
                     ):
                         pc6 = time.perf_counter_ns()
-                        time_to_grab_frame += pc6 - pc5
+                        instrumentation__grab_frame += pc6 - pc5
                         assert self.latest_tm_engine_speed_requested == 0
                         assert not compute_action_asap_floats
                         frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)
                         rollout_results["frames"].append(frame)
                         pc7 = time.perf_counter_ns()
-                        time_A_rgb2gray += pc7 - pc6
+                        instrumentation__convert_frame += pc7 - pc6
 
                         (
                             action_idx,
@@ -680,13 +666,10 @@ class TMInterfaceManager:
                         ) = exploration_policy(rollout_results["frames"][-1], floats)
 
                         pc8 = time.perf_counter_ns()
-                        time_exploration_policy += pc8 - pc7
+                        instrumentation__exploration_policy += pc8 - pc7
 
                         self.request_inputs(action_idx, rollout_results)
                         self.request_speed(self.running_speed)
-
-                        pc9 = time.perf_counter_ns()
-                        time_to_iface_set_set += pc9 - pc8
 
                         if n_th_action_we_compute == 0:
                             end_race_stats["value_starting_frame"] = q_value
@@ -703,7 +686,7 @@ class TMInterfaceManager:
                         compute_action_asap = False
                         n_th_action_we_compute += 1
 
-                        time_after_iface_set_set += time.perf_counter_ns() - pc9
+                        instrumentation__request_inputs_and_speed += time.perf_counter_ns() - pc8
                     self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.C_SHUTDOWN):
                     self.iface.close()
