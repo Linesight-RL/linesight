@@ -1,3 +1,7 @@
+"""
+This file contains functions to plot figures to help diagnostic the agent's learning process.
+Plotting can be enabled/disabled within config.py
+"""
 import random
 import shutil
 from collections import defaultdict

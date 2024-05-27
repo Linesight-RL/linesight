@@ -1,3 +1,8 @@
+"""
+This file's main entry point is the function fill_buffer_from_rollout_with_n_steps_rule().
+Its main inputs are a rollout_results object (obtained from a GameInstanceManager object), and a buffer to be filled.
+It reassembles the rollout_results object into transitions, as defined in /trackmania_rl/experience_replay/experience_replay_interface.py
+"""
 import math
 import random
 

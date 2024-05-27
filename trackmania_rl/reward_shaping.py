@@ -1,5 +1,7 @@
+"""
+Utility functions for reward shaping.
+"""
 import numpy as np
-
 
 # largely inspired from https://github.com/TomashuTTTT7/TM-AlgoCrack/blob/main/cracks/speedslide_quality.py, yet also largely simplified
 def speedslide_quality_tarmac(speed_x: float, speed_z: float):
