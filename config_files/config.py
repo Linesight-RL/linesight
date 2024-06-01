@@ -15,6 +15,9 @@ The content of config.py may be modified after starting a run: it will have no e
 This setup provides the possibility to:
   1) Modify training parameters on the fly
   2) Continue to code, use git, and modify config.py without impacting an ongoing run.
+
+This file is preconfigured with sensible hyperparameters for the map ESL-Hockolicious, assuming the user
+has a computer with 16GB RAM.
 """
 from itertools import repeat
 
@@ -38,7 +41,7 @@ n_zone_centers_extrapolate_before_start_of_map = 20
 n_prev_actions_in_inputs = 5
 n_contact_material_physics_behavior_types = 4  # See contact_materials.py
 cutoff_rollout_if_race_not_finished_within_duration_ms = 300_000
-cutoff_rollout_if_no_vcp_passed_within_duration_ms = 2_500
+cutoff_rollout_if_no_vcp_passed_within_duration_ms = 2_000
 
 temporal_mini_race_duration_ms = 7000
 temporal_mini_race_duration_actions = temporal_mini_race_duration_ms // ms_per_action
@@ -99,23 +102,28 @@ number_times_single_memory_is_used_before_discard = 32  # 32 // 4
 
 memory_size_schedule = [
     (0, (50_000, 20_000)),
-    (6_000_000 * global_schedule_speed, (800_000, 200_000)),
+    (5_000_000 * global_schedule_speed, (100_000, 75_000)),
+    (7_000_000 * global_schedule_speed, (200_000, 150_000)),
 ]
 lr_schedule = [
     (0, 1e-3),
-    (2_000_000 * global_schedule_speed, 5e-5),
-    (10_000_000 * global_schedule_speed, 5e-5),
-    (14_000_000 * global_schedule_speed, 1e-5),
+    (3_000_000 * global_schedule_speed, 5e-5),
+    (12_000_000 * global_schedule_speed, 5e-5),
+    (15_000_000 * global_schedule_speed, 1e-5),
 ]
 tensorboard_suffix_schedule = [
     (0, ""),
-    # (6_000_000 * global_schedule_speed, "_2"),
-    # (15_000_000 * global_schedule_speed, "_3"),
-    # (30_000_000 * global_schedule_speed, "_4"),
-    # (45_000_000 * global_schedule_speed, "_5"),
+    (6_000_000 * global_schedule_speed, "_2"),
+    (15_000_000 * global_schedule_speed, "_3"),
+    (30_000_000 * global_schedule_speed, "_4"),
+    (45_000_000 * global_schedule_speed, "_5"),
+    (80_000_000 * global_schedule_speed, "_6"),
+    (150_000_000 * global_schedule_speed, "_7"),
 ]
 gamma_schedule = [
-    (0, 1),
+    (0, 0.999),
+    (1_500_000, 0.999),
+    (2_500_000, 1),
 ]
 
 batch_size = 512
@@ -166,19 +174,19 @@ target_self_loss_clamp_ratio = 4
 final_speed_reward_as_if_duration_s = 0
 final_speed_reward_per_m_per_s = reward_per_m_advanced_along_centerline * final_speed_reward_as_if_duration_s
 
-shaped_reward_dist_to_cur_vcp = 0
-shaped_reward_min_dist_to_cur_vcp = 5
+shaped_reward_dist_to_cur_vcp = -0.1
+shaped_reward_min_dist_to_cur_vcp = 2
 shaped_reward_max_dist_to_cur_vcp = 25
 engineered_reward_min_dist_to_cur_vcp = 5
 engineered_reward_max_dist_to_cur_vcp = 25
 shaped_reward_point_to_vcp_ahead = 0
 
-threshold_to_save_all_runs_ms = -1
+threshold_to_save_all_runs_ms = 53700
 
 deck_height = -np.inf
 game_camera_number = 1
 
-sync_virtual_and_real_checkpoints = False
+sync_virtual_and_real_checkpoints = True
 
 """ 
 ============================================      MAP CYCLE     =======================================================
@@ -242,58 +250,68 @@ nadeo_maps_to_train_and_test = [
 ]
 
 map_cycle = []
-for map_name in nadeo_maps_to_train_and_test:
-    short_map_name = map_name[0:3]
-    map_cycle.append(repeat((short_map_name, f'"Official Maps/{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", True, True), 4))
-    map_cycle.append(repeat((short_map_name, f'"Official Maps/{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", False, True), 1))
+# for map_name in nadeo_maps_to_train_and_test:
+# short_map_name = map_name[0:3]
+# map_cycle.append(repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", True, True), 4))
+# map_cycle.append(repeat((short_map_name, f'"Official Maps\{map_name}.Challenge.Gbx"', f"{map_name}_0.5m_cl2.npy", False, True), 1))
 
 
 map_cycle += [
-    repeat(("map5", '"My Challenges/Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True), 4),
-    repeat(("map5", '"My Challenges/Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True), 1),
-    # repeat(("yosh1", '"My Challenges/Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", True, True), 4),
-    # repeat(("yosh1", '"My Challenges/Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", False, True), 1),
+    # repeat(("map5", '"My Challenges/Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", True, True), 4),
+    # repeat(("map5", '"My Challenges/Map5.Challenge.Gbx"', "map5_0.5m_cl.npy", False, True), 1),
+    # repeat(("map8", '"My Challenges/Map8.Challenge.Gbx"', "map8_0.5m_cl.npy", True, True), 4),
+    # repeat(("map8", '"My Challenges/Map8.Challenge.Gbx"', "map8_0.5m_cl.npy", False, True), 1),
+    # repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", True, True), 4),
+    # repeat(("yosh1", '"My Challenges\Yosh1.Challenge.Gbx"', "yosh1_0.5m_clprog.npy", False, True), 1),
     # repeat(("wallb1", "Wallbang_full.Challenge.Gbx", "Wallbang_full_0.5m_cl.npy", True, True), 4),
     # repeat(("wallb1", "Wallbang_full.Challenge.Gbx", "Wallbang_full_0.5m_cl.npy", False, True), 1),
-    # repeat(("yosh3", '"My Challenges/Yosh3.Challenge.Gbx"', "yosh3_0.5m_clprog_cut1.npy", True, True), 4),
-    # repeat(("yosh3", '"My Challenges/Yosh3.Challenge.Gbx"', "yosh3_0.5m_clprog_cut1.npy", False, True), 1),
-    # repeat(("A06", '"Official Maps/White/A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", True, True), 4),
-    # repeat(("A06", '"Official Maps/White/A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", False, True), 1),
-    # repeat(("A07", '"Official Maps/White/A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", True, True), 4),
-    # repeat(("A07", '"Official Maps/White/A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", False, True), 1),
-    # repeat(("B01", '"Official Maps/Green/B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", True, True), 4),
-    # repeat(("B01", '"Official Maps/Green/B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", False, True), 1),
-    # repeat(("B02", '"Official Maps/Green/B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", True, True), 4),
-    # repeat(("B02", '"Official Maps/Green/B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", False, True), 1),
-    # repeat(("B03", '"Official Maps/Green/B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", True, True), 4),
-    # repeat(("B03", '"Official Maps/Green/B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True), 1),
-    # repeat(("B05", '"Official Maps/Green/B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True), 4),
-    # repeat(("B05", '"Official Maps/Green/B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True), 1),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", True, True), 4),
-    # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", False, True), 1),
-    repeat(("A02", f'"Official Maps/A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl2.npy", False, False), 1),
-    repeat(("yellowmile", f'"The Yellow Mile_.Challenge.Gbx"', "YellowMile_0.5m_cl.npy", False, False), 1),
-    repeat(("te86", f'"te 86.Challenge.Gbx"', "te86_0.5m_cl.npy", False, False), 1),
-    repeat(("minishort037", f'"Mini-Short.037.Challenge.Gbx"', "minishort037_0.5m_cl.npy", False, False), 1),
-    repeat(("map3", '"My Challenges/Map3_nowalls.Challenge.Gbx"', "map3_0.5m_cl.npy", False, False), 1),
+    # repeat(("yosh3", '"My Challenges\Yosh3.Challenge.Gbx"', "yosh3_0.5m_clprog_cut1.npy", True, True), 4),
+    # repeat(("yosh3", '"My Challenges\Yosh3.Challenge.Gbx"', "yosh3_0.5m_clprog_cut1.npy", False, True), 1),
+    # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", True, True), 4),
+    # repeat(("A06", '"Official Maps\White\A06-Obstacle.Challenge.Gbx"', "A06-Obstacle_10m_cl.npy", False, True), 1),
+    # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", True, True), 4),
+    # repeat(("A07", '"Official Maps\White\A07-Race.Challenge.Gbx"', "A07-Race_10m_cl.npy", False, True), 1),
+    # repeat(("B01", '"Official Maps\Green\B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", True, True), 4),
+    # repeat(("B01", '"Official Maps\Green\B01-Race.Challenge.Gbx"', "B01-Race_10m_cl.npy", False, True), 1),
+    # repeat(("B02", '"Official Maps\Green\B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", True, True), 4),
+    # repeat(("B02", '"Official Maps\Green\B02-Race.Challenge.Gbx"', "B02-Race_10m_cl.npy", False, True), 1),
+    # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", True, True), 4),
+    # repeat(("B03", '"Official Maps\Green\B03-Race.Challenge.Gbx"', "B03-Race_10m_cl.npy", False, True), 1),
+    # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", True, True), 4),
+    # repeat(("B05", '"Official Maps\Green\B05-Race.Challenge.Gbx"', "B05-Race_10m_cl.npy", False, True), 1),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", True, True), 4),
+    repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", False, True), 1),
+    # repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', "A02-Race_0.5m_cl2.npy", False, False), 1),
+    # repeat(("yellowmile", f'"The Yellow Mile_.Challenge.Gbx"', "YellowMile_0.5m_cl.npy", False, False), 1),
+    # repeat(("te86", f'"te 86.Challenge.Gbx"', "te86_0.5m_cl.npy", False, False), 1),
+    # repeat(("minishort037", f'"Mini-Short.037.Challenge.Gbx"', "minishort037_0.5m_cl.npy", False, False), 1),
+    # repeat(("map3", '"My Challenges\Map3_nowalls.Challenge.Gbx"', "map3_0.5m_cl.npy", False, False), 1),
     # repeat(("wallb1", "Wallbang_full.Challenge.Gbx", "Wallbang_full_0.5m_cl.npy", False, False), 1),
     # repeat(("hock", "ESL-Hockolicious.Challenge.Gbx", "ESL-Hockolicious_0.5m_cl2.npy", False, False), 1),
-    # repeat(("A01", f'"Official Maps/A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_cl2.npy", True, True), 4),
-    # repeat(("A01", f'"Official Maps/A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_cl2.npy", False, True), 1),
-    # repeat(("A11", f'"Official Maps/A11-Race.Challenge.Gbx"', f"A11-Race_0.5m_cl2.npy", True, True), 4),
-    # repeat(("A11", f'"Official Maps/A11-Race.Challenge.Gbx"', f"A11-Race_0.5m_cl2.npy", False, True), 1),
-    # repeat(("E02", f'"Official Maps/E02-Endurance.Challenge.Gbx"', f"E02-Endurance_0.5m_karjen.npy", True, True), 4),
-    # repeat(("E02", f'"Official Maps/E02-Endurance.Challenge.Gbx"', f"E02-Endurance_0.5m_karjen.npy", False, True), 1),
+    # repeat(("A01", f'"Official Maps\A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_cl2.npy", True, True), 4),
+    # repeat(("A01", f'"Official Maps\A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_cl2.npy", False, True), 1),
+    # repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', f"A02-Race_0.5m_alyen.npy", True, True), 4),
+    # repeat(("A02", f'"Official Maps\A02-Race.Challenge.Gbx"', f"A02-Race_0.5m_alyen.npy", False, True), 1),
+    # repeat(("A01", f'"Official Maps\A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_rollin.npy", True, True), 4),
+    # repeat(("A01", f'"Official Maps\A01-Race.Challenge.Gbx"', f"A01-Race_0.5m_rollin.npy", False, True), 1),
+    # repeat(("A11", f'"Official Maps\A11-Race.Challenge.Gbx"', f"A11-Race_0.5m_cl2.npy", True, True), 4),
+    # repeat(("A11", f'"Official Maps\A11-Race.Challenge.Gbx"', f"A11-Race_0.5m_cl2.npy", False, True), 1),
+    # repeat(("A15", f'"Official Maps\A15-Speed.Challenge.Gbx"', f"A15-Speed_0.5m_hefest.npy", True, True), 4),
+    # repeat(("A15", f'"Official Maps\A15-Speed.Challenge.Gbx"', f"A15-Speed_0.5m_hefest.npy", False, True), 1),
+    # repeat(("E02", f'"Official Maps\E02-Endurance.Challenge.Gbx"', f"E02-Endurance_0.5m_karjen.npy", True, True), 4),
+    # repeat(("E02", f'"Official Maps\E02-Endurance.Challenge.Gbx"', f"E02-Endurance_0.5m_karjen.npy", False, True), 1),
+    # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo-levon.npy", True, True), 4),
+    # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo-levon.npy", False, True), 1),
     # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo.npy", True, True), 4),
     # repeat(("minitrial1", f'"Minitrial 1.Challenge.Gbx"', f"minitrial1_0.5m_gizmo.npy", False, True), 1),
     # repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_darkbringer.npy", True, True), 4),
     # repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_darkbringer.npy", False, True), 1),
-    repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_linesight2rollin3.npy", True, True), 4),
-    repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_linesight2rollin3.npy", False, True), 1),
-    # repeat(("D15", '"Official Maps/D15-Endurance.Challenge.Gbx"', f"D15-Endurance_0.5m_gwenlap3.npy", True, True), 4),
-    # repeat(("D15", '"Official Maps/D15-Endurance.Challenge.Gbx"', f"D15-Endurance_0.5m_gwenlap3.npy", False, True), 1),
-    # repeat(("C12", '"Official Maps/C12-Obstacle.Challenge.Gbx"', f"C12-Obstacle_0.5m_weapon.npy", True, True), 4),
-    # repeat(("C12", '"Official Maps/C12-Obstacle.Challenge.Gbx"', f"C12-Obstacle_0.5m_weapon.npy", False, True), 1),
+    # repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_linesight2rollin3.npy", True, True), 4),
+    # repeat(("D06", '"Official Maps/D06-Obstacle.Challenge.Gbx"', f"D06-Obstacle_0.5m_linesight2rollin3.npy", False, True), 1),
+    # repeat(("D15", '"Official Maps\D15-Endurance.Challenge.Gbx"', f"D15-Endurance_0.5m_gwenlap3.npy", True, True), 4),
+    # repeat(("D15", '"Official Maps\D15-Endurance.Challenge.Gbx"', f"D15-Endurance_0.5m_gwenlap3.npy", False, True), 1),
+    # repeat(("C12", '"Official Maps\C12-Obstacle.Challenge.Gbx"', f"C12-Obstacle_0.5m_weapon.npy", True, True), 4),
+    # repeat(("C12", '"Official Maps\C12-Obstacle.Challenge.Gbx"', f"C12-Obstacle_0.5m_weapon.npy", False, True), 1),
     # repeat(("D15olnc", '"D15-Endurance True One Lap No Cut.Challenge.Gbx"', f"D15-OnelapNocut_0.5m_wirtual.npy", True, True), 4),
     # repeat(("D15olnc", '"D15-Endurance True One Lap No Cut.Challenge.Gbx"', f"D15-OnelapNocut_0.5m_wirtual.npy", False, True), 1),
     # repeat(("E03", '"E03-Endurance No Cut.Challenge.Gbx"', f"E03-Endurance_0.5m_racehansnocutlap3.npy", True, True), 4),
