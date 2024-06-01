@@ -22,9 +22,6 @@ from config_files.inputs_list import *
 from config_files.state_normalization import *
 from config_files.user_config import *
 
-W_screen = 640
-H_screen = 480
-
 W_downsized = 160
 H_downsized = 120
 
