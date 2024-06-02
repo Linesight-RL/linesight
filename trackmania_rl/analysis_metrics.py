@@ -314,8 +314,8 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
             buffer[[i]], online_network, target_network, num_quantiles
         )
 
-        quantiles_output = np.sort(quantiles_output)
-        quantiles_target = np.sort(quantiles_target)
+        quantiles_output = np.sort(quantiles_output.ravel())
+        quantiles_target = np.sort(quantiles_target.ravel())
 
         if (np.min(quantiles_output) == np.max(quantiles_output)) and (np.min(quantiles_output) == 0.0):
             # terminal transition, can't be interpreted as long term
@@ -364,7 +364,7 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
         loc = plticker.MultipleLocator(base=0.025)  # this locator puts ticks at regular intervals
         ax.xaxis.set_major_locator(loc)
 
-        ax.set_title("    ".join([f"{1000*v:.2f}" for k, v[0] in losses.items()]))
+        ax.set_title("    ".join([f"{1000*v[0]:.2f}" for k, v in losses.items()]))
         for k, v in losses.items():
             print(k)
 
