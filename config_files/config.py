@@ -143,7 +143,6 @@ clip_grad_norm = 30
 
 number_memories_trained_on_between_target_network_updates = 2048
 soft_update_tau = 0.02
-n_transitions_to_plot_in_distribution_curves = 0
 
 distance_between_checkpoints = 0.5
 road_width = 90  ## a little bit of margin, could be closer to 24 probably ? Don't take risks there are curvy roads
@@ -157,6 +156,7 @@ game_reboot_interval = 3600 * 12  # In seconds
 frames_before_save_best_runs = 1_500_000
 
 plot_race_time_left_curves = False
+n_transitions_to_plot_in_distribution_curves = 1000
 make_highest_prio_figures = False
 apply_randomcrop_augmentation = False
 n_pixels_to_crop_on_each_side = 2
