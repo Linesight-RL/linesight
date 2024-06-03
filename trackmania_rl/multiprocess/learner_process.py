@@ -1,3 +1,6 @@
+"""
+This file implements the main training loop, tensorboard statistics tracking, etc...
+"""
 import copy
 import importlib
 import math

@@ -1,5 +1,5 @@
 """
-This file contains functions to plot figures to help diagnostic the agent's learning process.
+This file contains functions to plot figures to help diagnose the agent's learning progress.
 Plotting can be enabled/disabled within config.py
 """
 import random

@@ -1,5 +1,6 @@
 """
 This file contains various utility functions used to manage replay buffers.
+This is where the magic of "mini-races" or "clipped horizon average reward" is handled.
 """
 import random
 from copy import deepcopy

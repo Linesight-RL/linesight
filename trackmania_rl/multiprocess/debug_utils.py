@@ -5,6 +5,13 @@ import sys
 
 # from https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess/23654936#23654936
 class ForkablePdb(pdb.Pdb):
+    """
+    A multiprocessing-compatible debugger.
+
+    usage:
+    from debug_utils import ForkablePdb; ForkablePdb().set_trace()
+    """
+
     _original_stdin_fd = sys.stdin.fileno()
     _original_stdin = None
 

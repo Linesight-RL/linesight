@@ -4,6 +4,7 @@ Various neural network & scheduling utilities.
 import math
 import shutil
 from pathlib import Path
+from typing import List, Tuple
 
 import joblib
 import numpy as np
@@ -67,7 +68,18 @@ def custom_weight_decay(target_link, decay_factor):
         target_value.mul_(decay_factor)
 
 
-def from_exponential_schedule(schedule, current_step):
+def from_exponential_schedule(schedule: List[Tuple[int, float]], current_step: int):
+    """
+    Calculate the current scheduled value, with exponential interpolation between fixed setpoints at given steps.
+    If current step is larger than the largest scheduled step, return the value prescribed by the largest scheduled step.
+
+    Args:
+        - schedule:         a list of (step, value) tuples. Must contain a value for step 0.
+        - current_step:     an int representing... the current step
+
+    Returns:
+        value: the value defined by the schedule and current_step
+    """
     schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
     assert schedule[0][0] == 0
     schedule_end_index = next((idx for idx, p in enumerate(schedule) if p[0] > current_step), -1)  # Returns -1 if none is found
@@ -86,12 +98,33 @@ def from_exponential_schedule(schedule, current_step):
 
 
 def from_linear_schedule(schedule, current_step):
+    """
+    Calculate the current scheduled value, with linear interpolation between fixed setpoints at given steps.
+    If current step is larger than the largest scheduled step, return the value prescribed by the largest scheduled step.
+
+    Args:
+        - schedule:         a list of (step, value) tuples. Must contain a value for step 0.
+        - current_step:     an int representing... the current step
+
+    Returns:
+        value: the value defined by the schedule and current_step
+    """
     schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
     assert schedule[0][0] == 0
     return np.interp([current_step], [p[0] for p in schedule], [p[1] for p in schedule])[0]
 
 
 def from_staircase_schedule(schedule, current_step):
+    """
+    Calculate the current scheduled value, with no interpolation between steps.
+
+    Args:
+        - schedule:         a list of (step, value) tuples. Must contain a value for step 0.
+        - current_step:     an int representing... the current step
+
+    Returns:
+        value: the value defined by the schedule and current_step
+    """
     schedule = sorted(schedule, key=lambda p: p[0])  # Sort by step in case it was not defined in sorted order
     assert schedule[0][0] == 0
     return next((p for p in reversed(schedule) if p[0] <= current_step))[1]

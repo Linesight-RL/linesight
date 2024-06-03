@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import List
 
 import numpy as np
+import numpy.typing as npt
 from scipy.interpolate import make_interp_spline
 
 
@@ -19,7 +21,9 @@ def line_plane_collision_point(planeNormal, planePoint, rayDirection, rayPoint, 
     return intersection_point
 
 
-def fraction_time_spent_in_current_zone(current_zone_center, next_zone_center, current_pos, next_pos):
+def fraction_time_spent_in_current_zone(
+    current_zone_center: npt.NDArray, next_zone_center: npt.NDArray, current_pos: npt.NDArray, next_pos: npt.NDArray
+) -> float:
     # All inputs: 3D numpy arrays. No need for them to be normalized.
     # Output : the intersection point between the line and the plane
     planeNormal = next_zone_center - current_zone_center
@@ -29,7 +33,7 @@ def fraction_time_spent_in_current_zone(current_zone_center, next_zone_center, c
     # return si
 
 
-def extract_cp_distance_interval(raw_position_list: List, target_distance_between_cp_m: float, base_dir):
+def extract_cp_distance_interval(raw_position_list: List, target_distance_between_cp_m: float, base_dir: Path):
     """
     :param raw_position_list:               a list of 3D coordinates.
 
@@ -40,6 +44,8 @@ def extract_cp_distance_interval(raw_position_list: List, target_distance_betwee
     - All points of the array lie on the path defined by raw_position_list
 
     In short, this function resamples a path given in input to return regularly spaced checkpoints.
+
+    It is highly likely that there exists a one-liner in numpy to do all this, but I have yet to find it...
     """
     interpolation_function = make_interp_spline(x=range(len(raw_position_list)), y=raw_position_list, k=1)
     raw_position_list = interpolation_function(np.arange(0, len(raw_position_list) - 1 + 1e-6, 0.01))
