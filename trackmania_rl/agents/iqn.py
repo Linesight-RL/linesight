@@ -1,3 +1,9 @@
+"""
+In this file, we define:
+    - The IQN_Network class, which defines the neural network's structure.
+    - The Trainer class, which implements the IQN training logic in method train_on_batch.
+    - The Inferer class, which implements utilities for forward propagation with and without exploration.
+"""
 import copy
 import math
 import random
@@ -63,6 +69,7 @@ class IQN_Network(torch.nn.Module):
 
         self.n_actions = n_actions
 
+        # States are not normalized when the method forward() is called. Normalization is done as the first step of the forward() method.
         self.float_inputs_mean = torch.tensor(float_inputs_mean, dtype=torch.float32).to("cuda")
         self.float_inputs_std = torch.tensor(float_inputs_std, dtype=torch.float32).to("cuda")
 
@@ -79,18 +86,45 @@ class IQN_Network(torch.nn.Module):
         for module in [self.A_head[-1], self.V_head[-1]]:
             utilities.init_orthogonal(module)
 
-    def forward(self, img, float_inputs, num_quantiles: int, tau: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, img: torch.Tensor, float_inputs: torch.Tensor, num_quantiles: int, tau: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        This method implements the forward pass through the IQN neural network.
+
+        The neural network is structured with two input heads:
+            - one for images, with Conv2D layers
+            - one for float features with Dense layers
+
+        The embedding extracted by these two input heads are concatenated, mixed (Hadamard product) with an embedding for IQN quantiles.
+
+        A dueling network architecture (https://arxiv.org/abs/1511.06581) is implemented, two output heads predict:
+            - the value of a (state, quantile) pair
+            - the advantage of a (state, action, quantile) triplet
+
+        The Value and Advantage heads are combined to return the Q values directly.
+
+        Args:
+            img: a torch.Tensor of shape (batch_size, 1, H, W) and type float16 or float32, depending on context.
+            float_inputs: a torch.Tensor of shape (batch_size, float_input_dim) and type float16 or float32, depending on context.
+            num_quantiles: the number of quantiles, defined as N or N' in the IQN paper (https://arxiv.org/pdf/1806.06923).
+            tau: if not None, a torch.Tensor of shape (batch_size * num_quantiles) the specifies the exact quantiles for which the neural network should return Q values
+                 if None, the method will sample tau randomly in num_quantiles regularly spaced segments, and symmetrically around 0.5.
+
+        Returns:
+            Q: a torch.Tensor of shape (batch_size * num_quantiles, 1) representing the Q values for a given (state, quantile) combination
+            tau: a torch.Tensor of shape (batch_size * num_quantiles, 1) representing the quantiles used to make each prediction
+        """
         batch_size = img.shape[0]
         img_outputs = self.img_head(img)
         float_outputs = self.float_feature_extractor((float_inputs - self.float_inputs_mean) / self.float_inputs_std)
-        # (batch_size, dense_input_dimension)
-        concat = torch.cat((img_outputs, float_outputs), 1)
+        concat = torch.cat((img_outputs, float_outputs), 1)  # (batch_size, dense_input_dimension)
         if tau is None:
             tau = (
                 torch.arange(num_quantiles // 2, device="cuda", dtype=torch.float32).repeat_interleave(batch_size).unsqueeze(1)
                 + torch.rand(size=(batch_size * num_quantiles // 2, 1), device="cuda", dtype=torch.float32)
-            ) / num_quantiles  # (batch_size * num_quantiles, 1) (random numbers)
-            tau = torch.cat((tau, 1 - tau), dim=0)
+            ) / num_quantiles  # (batch_size * num_quantiles // 2, 1) (random numbers)
+            tau = torch.cat((tau, 1 - tau), dim=0)  # ensure that tau are sampled symmetrically
         quantile_net = torch.cos(
             torch.arange(1, self.iqn_embedding_dimension + 1, 1, device="cuda") * math.pi * tau
         )  # (batch_size*num_quantiles, 1)
@@ -106,21 +140,30 @@ class IQN_Network(torch.nn.Module):
         concat = concat * quantile_net
 
         A = self.A_head(concat)  # (batch_size*num_quantiles, n_actions)
-        V = self.V_head(concat)  # (batch_size*num_quantiles, 1) #need to check this
+        V = self.V_head(concat)  # (batch_size*num_quantiles, 1)
 
         Q = V + A - A.mean(dim=-1).unsqueeze(-1)
 
         return Q, tau
 
 
-# ==========================================================================================================================
-
-
 @torch.compile(disable=not config_copy.is_linux, dynamic=False)
-def iqn_loss(targets, outputs, tau_outputs, num_quantiles, batch_size):
+def iqn_loss(targets: torch.Tensor, outputs: torch.Tensor, tau_outputs: torch.Tensor, num_quantiles: int, batch_size: int):
+    """
+    Implements the IQN loss as defined in the IQN paper (https://arxiv.org/pdf/1806.06923)
+
+    Args:
+        targets: a torch.Tensor of shape (batch_size, num_quantiles, 1)
+        outputs: a torch.Tensor of shape (batch_size, num_quantiles, 1)
+        tau_outputs: a torch.Tensor of shape (batch_size * num_quantiles, 1)
+        num_quantiles: (int)
+        batch_size: (int)
+
+    Returns:
+        loss: a torch.Tensor of shape (batch_size, )
+    """
     TD_error = targets[:, :, None, :] - outputs[:, None, :, :]
     # (batch_size, iqn_n, iqn_n, 1)
-    # Huber loss, my alternative
     loss = torch.where(
         torch.lt(torch.abs(TD_error), config_copy.iqn_kappa),
         (0.5 / config_copy.iqn_kappa) * TD_error**2,
@@ -163,6 +206,24 @@ class Trainer:
         self.typical_clamped_self_loss = 0.01
 
     def train_on_batch(self, buffer: ReplayBuffer, do_learn: bool):
+        """
+        Implements one iteration of the training loop:
+            1) Sample a batch of transitions from the replay buffer
+            2) Calculate the IQN loss
+            3) Obtain gradients through backpropagation
+            4) Update the neural network weights using the optimizer
+
+        The training loop may be configured to use DDQN-style updates with config.use_ddqn.
+
+        Args:
+            buffer: a ReplayBuffer object from which transitions are sampled. Currently, handles a basic buffer or a prioritized replay buffer.
+            do_learn: a boolean indicating whether steps 3 and 4 should be applied. If these are not applied, the method only returns total_loss and grad_norm for logging purposes.
+
+        Returns:
+            total_loss: a float
+            grad_norm: a float
+
+        """
         self.optimizer.zero_grad(set_to_none=True)
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
@@ -182,7 +243,7 @@ class Trainer:
 
                 rewards = rewards.unsqueeze(-1).repeat(
                     [self.iqn_n, 1]
-                )  # (batch_size*iqn_n, 1)     a,b,c,d devient a,b,c,d,a,b,c,d,a,b,c,d,...
+                )  # (batch_size*iqn_n, 1)     a,b,c,d becomes a,b,c,d,a,b,c,d,a,b,c,d,... (iqn_n times)
                 gammas_terminal = gammas_terminal.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 actions = actions.unsqueeze(-1).repeat([self.iqn_n, 1])  # (batch_size*iqn_n, 1)
                 #
@@ -190,7 +251,7 @@ class Trainer:
                 #
                 q__stpo__target__quantiles_tau2, tau2 = self.target_network(
                     next_state_img_tensor, next_state_float_tensor, self.iqn_n, tau=None
-                )  # (batch_size*iqn_n,n_actions)
+                )  # (batch_size*iqn_n, n_actions)
                 #
                 #   Use online network to choose an action for next state.
                 #   This action is chosen AFTER reduction to the mean, and repeated to all quantiles
@@ -269,6 +330,7 @@ class Trainer:
             total_loss = total_loss.detach().cpu()
             if config_copy.prio_alpha > 0:
                 mask_update_priority = torch.lt(state_float_tensor[:, 0], config_copy.min_horizon_to_update_priority_actions).detach().cpu()
+                # Only update the transition priority if the transition was sampled with a sufficiently long-term horizon.
                 buffer.update_priority(
                     batch_info["index"][mask_update_priority],
                     (outputs_tau3.mean(axis=1) - outputs_target_tau2.mean(axis=1))
@@ -298,7 +360,18 @@ class Inferer:
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.is_explo = None
 
-    def infer_network(self, img_inputs_uint8, float_inputs, tau=None):
+    def infer_network(self, img_inputs_uint8: npt.NDArray, float_inputs: npt.NDArray, tau=None) -> npt.NDArray:
+        """
+        Perform inference of a single state through self.inference_network.
+
+        Args:
+            img_inputs_uint8:   a numpy array of shape (1, H, W) and dtype np.uint8
+            float_inputs:       a numpy array of shape (float_input_dim, ) and dtype np.float32
+            tau:                a torch.Tensor of shape (iqn_k,  1)
+
+        Returns:
+            q_values:           a numpy array of shape (iqn_k, 1)
+        """
         with torch.no_grad():
             state_img_tensor = (
                 torch.from_numpy(img_inputs_uint8)
@@ -320,7 +393,23 @@ class Inferer:
             )
             return q_values
 
-    def get_exploration_action(self, img_inputs_uint8, float_inputs):
+    def get_exploration_action(self, img_inputs_uint8: npt.NDArray, float_inputs: npt.NDArray) -> Tuple[int, bool, float, npt.NDArray]:
+        """
+        Selects an action according to the exploration strategy.
+        Implements epsilon-greedy exploration, as well as Boltzmann exploration, quantiles values are averaged.
+        Configuration is done with self.epsilon (float), self.epsilon_boltzmann (float), self.tau_epsilon_boltzmann (float), and self.is_explo (bool).
+
+        Args:
+            img_inputs_uint8:   a numpy array of shape (1, H, W) and dtype np.uint8
+            float_inputs:       a numpy array of shape (float_input_dim, ) and dtype np.float32
+
+        Returns:
+            action_chosen_idx:  an int indicating which exploration action is sampled
+            is_greedy:          a bool indicating whether this action would have been chosen under a greedy policy
+            V(state):           a float giving the value of the greedy action
+            q_values:           a numpy array giving the q_values for all actions
+        """
+
         q_values = self.infer_network(img_inputs_uint8, float_inputs).mean(axis=0)
         r = random.random()
 
@@ -343,7 +432,17 @@ class Inferer:
         )
 
 
-def make_untrained_iqn_network(jit: bool):
+def make_untrained_iqn_network(jit: bool) -> Tuple[torch.nn.Module, torch.nn.Module]:
+    """
+    Constructs two identical copies of the IQN network.
+
+    The first copy is compiled (if jit == True) and is used for inference, for rollouts, for training, etc...
+    The second copy is never compiled and **only** used to efficiently share a neural network's weights between processes.
+
+    Args:
+        jit: a boolean indicating whether compilation should be used
+    """
+
     uncompiled_model = IQN_Network(
         float_inputs_dim=config_copy.float_input_dim,
         float_hidden_dim=config_copy.float_hidden_dim,
