@@ -4,7 +4,7 @@ This file implements the main logic to interact with the game, via the GameInsta
 The entry point is the rollout() function.
 
 Given a map and a policy, this function will:
-    - if necessary, start of restart the game
+    - if necessary, start or restart the game
     - if necessary, load the map
     - start a Trackmania run
     - apply the policy at every step

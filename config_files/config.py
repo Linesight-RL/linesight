@@ -13,8 +13,8 @@ without losing the existing content of the replay buffer.
 
 The content of config.py may be modified after starting a run: it will have no effect on the ongoing run.
 This setup provides the possibility to:
-  1) Modify training parameters on the fly
-  2) Continue to code, use git, and modify config.py without impacting an ongoing run.
+1) Modify training parameters on the fly
+2) Continue to code, use git, and modify config.py without impacting an ongoing run.
 
 This file is preconfigured with sensible hyperparameters for the map ESL-Hockolicious, assuming the user
 has a computer with 16GB RAM.
@@ -164,6 +164,10 @@ n_pixels_to_crop_on_each_side = 2
 max_rollout_queue_size = 1
 
 use_jit = True
+
+# gpu_collectors_count is the number of Trackmania instances that will be launched in parallel.
+# It is recommended that users adjust this number depending on the performance of their machine.
+# We recommend trying different values and finding the one that maximises the number of batches done per unit of time.
 gpu_collectors_count = 4
 
 send_shared_network_every_n_batches = 10

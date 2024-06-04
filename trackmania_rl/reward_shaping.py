@@ -8,9 +8,9 @@ import numpy as np
 def speedslide_quality_tarmac(speed_x: float, speed_z: float) -> float:
     """
     Extract from Tomashu's documentation:
-    - `speedslide_quality < 1`: you don 't utilize entire speedslide potential, **steer more**.
-    - `speedslide_quality == 1`: you utilize entire speedslide potential.perfect speedslide.
-    - `speedslide_quality > 1`: you utilize entire speedslide potential, but you start losing some speed from drifting, ** steer less **.
+    - speedslide_quality < 1: you don't utilize entire speedslide potential, steer more.
+    - speedslide_quality == 1: you utilize entire speedslide potential.perfect speedslide.
+    - speedslide_quality > 1: you utilize entire speedslide potential, but you start losing some speed from drifting, steer less.
     """
     material_max_side_friction_multiplier = 1.0  # will need to be changed in the future for dirt & grass
     max_side_friction = (
