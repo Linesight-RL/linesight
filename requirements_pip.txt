@@ -2,7 +2,6 @@ opencv-python
 readwritememory
 tminterface
 torchrl
-pprofile
 pygbx
 art
 python-libxdo

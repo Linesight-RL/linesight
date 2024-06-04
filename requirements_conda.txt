@@ -1,12 +1,7 @@
 # These packages are available on conda-forge servers
-spyder
-spyder-kernels
-isort
-black
 numpy
 matplotlib
 joblib
-mypy
 psutil
 setuptools
 typing
