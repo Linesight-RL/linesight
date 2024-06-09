@@ -1,5 +1,6 @@
 /figures
-/save
+/save/*
+!/save/.gitkeep
 /.idea
 *__pycache__*
 *egg-info*
@@ -8,7 +9,8 @@
 /.vscode
 *.pyd
 /old_runs
-/tensorboard
+/tensorboard/*
+!/tensorboard/.gitkeep
 /misc_crap
 /maps/*
 !/maps/map5_0.5m_cl.npy
@@ -30,3 +32,4 @@ Nadeo.ini
 *.lnk
 .stignore*
 config_files/config_copy.py
+/docs/build/
