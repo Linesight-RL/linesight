@@ -48,7 +48,7 @@ Run the following command:
     python scripts/tools/tmi2/add_vcp_as_triggers.py maps/A02-Race_0.5m_cl.npy -p 8477
 
 .. note::
-    The ``-p`` argument allows you to choose the port used to connect to the game instance. You can freely change the ``8477`` to any other available port.
+    The ``-p`` argument allows you to choose the port used to connect to the game instance. You can freely change ``8477`` to any other available port.
 
 
 Edit the configuration file

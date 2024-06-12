@@ -18,6 +18,6 @@ setup(
     install_requires=read_requirements('requirements_pip.txt') + read_requirements('requirements_conda.txt'),
     packages=find_packages(include=["trackmania_rl", "config_files"]),
     extras_require={
-        "doc": ["sphinx", "sphinx_rtd_theme"],
+        "doc": ["sphinx", "sphinx_rtd_theme", "sphinxcontrib.youtube"],
     },
 )

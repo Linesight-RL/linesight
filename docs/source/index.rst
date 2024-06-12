@@ -8,9 +8,7 @@ Our goal is to create an AI that can learn to play *Trackmania Nations Forever* 
 
 We're excited to open-source our code. Whether you are a Trackmania enthusiast or a seasoned AI researcher, you may use the project to train your own AI. We welcome contributions to help push the boundaries of what AI can achieve in Trackmania.
 
-.. image:: https://img.youtube.com/vi/cUojVsCJ51I/maxresdefault.jpg
-    :alt: IMAGE ALT TEXT HERE
-    :target: https://www.youtube.com/watch?v=YcUojVsCJ51I
+.. youtube:: cUojVsCJ51I
 
 **All runs produced by this project are Tool Assisted. They must not be submitted to the Official Leaderboards.**
 
@@ -28,6 +26,13 @@ We're excited to open-source our code. Whether you are a Trackmania enthusiast o
    :caption: Dev Documentation:
 
    project_structure
-   dev_faq
+   main_objects
    contributions
+   dev_faq
+   reading_list
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Community tips & tricks
+
+   empty_page

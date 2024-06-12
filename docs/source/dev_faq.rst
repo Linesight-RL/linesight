@@ -1,13 +1,5 @@
 ============
-devdoc
+Dev FAQ
 ============
 
-At the command line::
-
-    easy_install crawler
-
-Or, if you have pip installed:
-
-.. code-block:: bash
-
-    pip install crawler
+This section is empty, the authors would warmly welcome contributions to help clarify the existing documentation.

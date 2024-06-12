@@ -675,6 +675,7 @@ class GameInstanceManager:
                         assert self.latest_tm_engine_speed_requested == 0
                         assert not compute_action_asap_floats
                         frame = np.expand_dims(cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY), 0)
+                        # frame is a numpy array of shape (1, H, W) and dtype np.uint8
                         rollout_results["frames"].append(frame)
                         pc7 = time.perf_counter_ns()
                         instrumentation__convert_frame += pc7 - pc6
