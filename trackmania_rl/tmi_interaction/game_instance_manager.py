@@ -26,7 +26,7 @@ import os
 import socket
 import subprocess
 import time
-from typing import Callable
+from typing import Callable, Dict
 
 import cv2
 import numba
@@ -34,7 +34,7 @@ import numpy as np
 import numpy.typing as npt
 import psutil
 
-from config_files import config_copy
+from config_files import config_copy, user_config
 from trackmania_rl import contact_materials, map_loader
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
@@ -48,23 +48,14 @@ else:
     from ReadWriteMemory import ReadWriteMemory
 
 
-def _set_window_focus(
-    trackmania_window,
-):  # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+def _set_window_focus(trackmania_window):
+    # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
     if config_copy.is_linux:
         Xdo.focus_window(trackmania_window)
     else:
         shell = win32com.client.Dispatch("WScript.Shell")
         shell.SendKeys("%")
         win32gui.SetForegroundWindow(trackmania_window)
-
-
-def is_fullscreen(trackmania_window):
-    if config_copy.is_linux:
-        return False  # shape = Xdo().get_window_size()
-    else:
-        rect = win32gui.GetWindowPlacement(trackmania_window)[4]
-        return rect[0] == 0 and rect[1] == 0 and rect[2] == config_copy.W_screen and rect[3] == config_copy.H_screen
 
 
 def ensure_not_minimized(trackmania_window):
@@ -244,17 +235,21 @@ class GameInstanceManager:
     def grab_screen(self):
         return self.iface.get_frame(config_copy.W_downsized, config_copy.H_downsized)
 
-    def request_speed(self, requested_speed):
+    def request_speed(self, requested_speed: float):
         self.iface.set_speed(requested_speed)
         self.latest_tm_engine_speed_requested = requested_speed
 
-    def request_inputs(self, action_idx, rollout_results):
+    def request_inputs(self, action_idx: int, rollout_results: Dict):
         if (
             len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
         ):  # Small performance trick, don't update input_state if it doesn't need to be updated
             self.iface.set_input_state(**config_copy.inputs[action_idx])
 
-    def request_map(self, map_path, zone_centers):
+    def request_map(self, map_path: str, zone_centers: npt.NDArray):
+        if user_config.is_linux:
+            map_path = map_path.replace("\\", "/")
+        else:
+            map_path = map_path.replace("/", "\\")
         map_loader.hide_PR_replay(map_path, True)
         self.iface.execute_command(f"map {map_path}")
         # self.iface.execute_command("press delete")
@@ -265,7 +260,7 @@ class GameInstanceManager:
             self.max_allowable_distance_to_real_checkpoint,
         ) = map_loader.sync_virtual_and_real_checkpoints(zone_centers, map_path)
 
-    def rollout(self, exploration_policy, map_path: str, zone_centers: npt.NDArray, update_network: Callable):
+    def rollout(self, exploration_policy: Callable, map_path: str, zone_centers: npt.NDArray, update_network: Callable):
         (
             zone_transitions,
             distance_between_zone_transitions,
