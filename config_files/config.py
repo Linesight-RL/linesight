@@ -168,7 +168,7 @@ use_jit = True
 # gpu_collectors_count is the number of Trackmania instances that will be launched in parallel.
 # It is recommended that users adjust this number depending on the performance of their machine.
 # We recommend trying different values and finding the one that maximises the number of batches done per unit of time.
-gpu_collectors_count = 4
+gpu_collectors_count = 2
 
 send_shared_network_every_n_batches = 10
 update_inference_network_every_n_actions = 20
