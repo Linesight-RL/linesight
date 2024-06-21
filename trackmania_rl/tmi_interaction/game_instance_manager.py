@@ -727,48 +727,4 @@ class GameInstanceManager:
 
     def process_prepare(self):
         if not config_copy.is_linux:
-            remove_fps_cap()
-            remove_map_begin_camera_zoom_in()
-            # custom_resolution(config_copy.W_screen, config_copy.H_screen)
             _set_window_focus(self.tm_window_id)
-
-
-if not config_copy.is_linux:
-
-    def remove_fps_cap():
-        # from @Kim on TrackMania Tool Assisted Discord server
-        process = filter(lambda pr: pr.name() == "TmForever.exe", psutil.process_iter())
-        rwm = ReadWriteMemory()
-        for p in process:
-            pid = int(p.pid)
-            process = rwm.get_process_by_id(pid)
-            process.open()
-            process.write(0x005292F1, 4294919657)
-            process.write(0x005292F1 + 4, 2425393407)
-            process.write(0x005292F1 + 8, 2425393296)
-            process.close()
-            print(f"Disabled FPS cap of process {pid}")
-
-    def remove_map_begin_camera_zoom_in():
-        # from @Kim on TrackMania Tool Assisted Discord server
-        process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
-        rwm = ReadWriteMemory()
-        for p in process:
-            pid = int(p.pid)
-            process = rwm.get_process_by_id(pid)
-            process.open()
-            process.write(0x00CE8E9C, 0)
-            process.close()
-
-    def custom_resolution(width, height):  # @aijundi TMI-discord
-        process = filter(lambda p: p.name() == "TmForever.exe", psutil.process_iter())
-        rwm = ReadWriteMemory()
-        for p in process:
-            pid = int(p.pid)
-            process = rwm.get_process_by_id(pid)
-            process.open()
-            address = process.read(0xD66FF8) + 0x60
-            address = process.read(address) + 0x9C0
-            process.write(address, width)
-            process.write(address + 4, height)
-            process.close()
