@@ -45,13 +45,12 @@ else:
     import win32com.client
     import win32gui
     import win32process
-    from ReadWriteMemory import ReadWriteMemory
 
 
 def _set_window_focus(trackmania_window):
     # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
     if config_copy.is_linux:
-        Xdo.focus_window(trackmania_window)
+        Xdo().activate_window(trackmania_window)
     else:
         shell = win32com.client.Dispatch("WScript.Shell")
         shell.SendKeys("%")
@@ -129,12 +128,20 @@ class GameInstanceManager:
         self.tm_window_id = None
         self.start_states = {}
         self.game_spawning_lock = game_spawning_lock
+        self.game_activated = False
 
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
 
         if config_copy.is_linux:
-            self.tm_window_id = Xdo().search_windows(winname=b"Track", pid=self.tm_process_id)
+            self.tm_window_id = None
+            for window_id in set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=2)).difference(
+                set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=1))
+            ):
+                if Xdo().get_pid_window(window_id) == self.tm_process_id:
+                    self.tm_window_id = window_id
+                    break
+            assert self.tm_window_id is not None
         else:
 
             def get_hwnds_for_pid(pid):
@@ -161,13 +168,16 @@ class GameInstanceManager:
         self.tm_process_id = None
 
         if config_copy.is_linux:
-            with self.game_spawning_lock:
-                pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-                os.system(config_copy.linux_launch_game_path + " " + str(self.tmi_port))
+            self.game_spawning_lock.acquire()
+            pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+            os.system(config_copy.linux_launch_game_path + " " + str(self.tmi_port))
+            while True:
                 pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
                 tmi_pid_candidates = set(pid_after) - set(pid_before)
-                assert len(tmi_pid_candidates) == 1
-                self.tm_process_id = list(tmi_pid_candidates)[0]
+                if len(tmi_pid_candidates) > 0:
+                    assert len(tmi_pid_candidates) == 1
+                    break
+            self.tm_process_id = list(tmi_pid_candidates)[0]
         else:
             launch_string = (
                 'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
@@ -209,6 +219,7 @@ class GameInstanceManager:
 
     def close_game(self):
         self.timeout_has_been_set = False
+        self.game_activated = False
         assert self.tm_process_id is not None
         if config_copy.is_linux:
             os.system("kill -9 " + str(self.tm_process_id))
@@ -692,12 +703,19 @@ class GameInstanceManager:
                         compute_action_asap = False
                         n_th_action_we_compute += 1
 
+                        if not self.game_activated:
+                            _set_window_focus(self.tm_window_id)
+                            self.game_activated = True
+                            if config_copy.is_linux:
+                                # With the switch to ModLoader, we observed that the game instance needs to be focused once to work properly,
+                                # but this needs to be done late enough AND not when another game instance is starting.
+                                self.game_spawning_lock.release()
+
                         instrumentation__request_inputs_and_speed += time.perf_counter_ns() - pc8
                     self.iface._respond_to_call(msgtype)
                 elif msgtype == int(MessageType.C_SHUTDOWN):
                     self.iface.close()
                 elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
-                    self.process_prepare()
                     if self.latest_map_path_requested == -1:  # Game was relaunched and must have console open
                         self.iface.execute_command("toggle_console")
                     self.request_speed(1)
@@ -724,7 +742,3 @@ class GameInstanceManager:
             ensure_not_minimized(self.tm_window_id)
 
         return rollout_results, end_race_stats
-
-    def process_prepare(self):
-        if not config_copy.is_linux:
-            _set_window_focus(self.tm_window_id)
