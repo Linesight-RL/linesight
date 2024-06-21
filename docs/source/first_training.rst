@@ -7,16 +7,16 @@ In this page, we run the code with default training hyperparameters. At the end 
 Setup
 -----
 
-The code is setup to train on the map `ESL-Hockolicious <https://tmnf.exchange/trackshow/414041>`_. Download the map and place it at the location: ``%%documents%%/TrackMania/Tracks/Challenges/ESL-Hockolicious.Challenge.Gbx``
+The code is set up to train on `ESL-Hockolicious <https://tmnf.exchange/trackshow/414041>`_. Download the map and place it at the location: ``%%documents%%/TrackMania/Tracks/Challenges/ESL-Hockolicious.Challenge.Gbx``
 
-These instructions assume that no modifications were made to the files since cloning the Linesight repository, except for ``config_files/user_config.py``. If needed, you can restore the repository to its original unconfigured condition with the following command:
+These instructions assume that no modifications were made to the files since cloning the Linesight repository, except for ``config_files/user_config.py``. If needed, the repository can be restored to its original unconfigured condition with the following command:
 
 .. code-block:: bash
 
     git reset HEAD --hard
 
 
-Launch the training
+Start training
 -------------------
 
 We are ready to start training.
@@ -27,7 +27,7 @@ We are ready to start training.
 
 Upon running this command, it is expected that a :doc:`wall of text appears in your terminal <wall_text>`. *Don't worry, this is normal.*
 
-A few seconds after running this command, four instances of the game will be launched in windowed mode. Be aware that if these windows are minimized, the game will pause and that game instance will no longer generate experiences. You may hide game instances by placing other windows on top.
+A few seconds after running this command, two instances of the game will be launched in windowed mode. Be aware that if these windows are minimized, the game will pause and that game instance will no longer generate experiences. You may hide game instances by placing other windows on top.
 
 A few seconds after launching the game, the script will load the map automatically. There is no need for the user to interact with the game menu when launching the training script.
 

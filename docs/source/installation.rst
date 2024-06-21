@@ -7,48 +7,49 @@ Prerequisites
 
 Linesight requires:
     - Python >=3.10
-    - PyTorch >=2.0 (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
+    - PyTorch >=2.1 (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
     - a Nvidia GPU with CUDA
     - 16 GB RAM
-    - `Trackmania Nations Forever <https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/>`_ patched with `TMInterface 2.1.4 <https://www.donadigo.com/tminterface/>`_.
+    - `Trackmania Nations Forever <https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/>`_ with `ModLoader <https://tomashu.dev/software/tmloader/>`_ and `TMInterface 2.1.0 <https://www.donadigo.com/tminterface/>`_.
 
 This project is compatible with Windows and Linux.
 
 Python project setup
 --------------------
 
-Clone the repository and install the project. We recommend using virtual environments (conda, mamba, pipenv, ...).
+Clone the repository and install the project.
 
-Conda / Mamba
+To avoid outdated package versions, we recommend setting the project up in a clean virtual environment (conda, mamba, pipenv, ...).
+
+conda / mamba
 ~~~~~~~~~~~~~
+
+If using `conda` or `mamba`, the following commands will set the project up.
 
 .. code-block:: bash
 
     git clone https://github.com/pb4git/linesight && cd linesight
+    conda create -n linesight python=3.11
+    conda activate linesight
+    conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia # from pytorch website
     conda install --file requirements_conda.txt
     pip install -e .
 
 pip
 ~~~
 
+In all other cases, use the following commands to set the project in your chosen environment.
+
 .. code-block:: bash
 
     git clone https://github.com/pb4git/linesight && cd linesight
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 # from pytorch website
     pip install -e .
 
 
-Platform-specific instructions
+Linux-specific instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It is required to provide a way for the project to launch multiple instances of the game. The instructions to do so depend on the operating system and are detailed below.
-
-Windows
-.......
-
-In the folder ``/scripts/``, create a shortcut called ``TMInterface.lnk`` pointing to the TMInterface executable. On a standard system with a default Steam TMNF installation, the shortcut points to ``C:\Program Files (x86)\Steam\steamapps\common\Trackmania Nations Forever\TMInterfaceTesting.exe``.
-
-Linux
-.....
 In the folder ``/scripts/``, create a bash script that takes an integer ``port`` as its single argument. The script should start the game configured to listen on port ``port`` for TMInterface communications. The scripts ``/scripts/launch_game_pb.sh`` and ``/scripts/launch_game_agade.sh`` are working examples on the authors' systems.
 
 .. note::
@@ -64,7 +65,7 @@ In the folder ``/scripts/``, create a bash script that takes an integer ``port``
 Game configuration
 ------------------
 
-The game must be configured (via ``TmForeverLauncher.exe`` in the game's installation directory) to run in windowed mode.
+The game must be configured (via ``TmForeverLauncher.exe`` in the game's installation directory) to run in **windowed mode**.
 We recommend adjusting game settings to run at the lowest resolution available with low graphics quality.
 
 .. note::
@@ -77,7 +78,7 @@ Open the file ``config_files/user_config.py`` and make modifications relevant to
 
 .. code-block:: python
 
-    username = "username"  # Username of the TMNF account
+    username = "tmnf_account_username"  # Username of the TMNF account
 
     # Path where Python_Link.as should be placed so that it can be loaded in TMInterface.
     # Usually Path(os.path.expanduser("~")) / "Documents" / "TMInterface" / "Plugins" / "Python_Link.as"
@@ -88,8 +89,14 @@ Open the file ``config_files/user_config.py`` and make modifications relevant to
 
     # Communication port for the first TMInterface instance that will be launched.
     # If using multiple instances, the ports used will be base_tmi_port + 1, +2, +3, etc...
-    # This can be left as-is by default
     base_tmi_port = 8478
 
     # If on Linux, path of a shell script that launches the game, with the TMInterface port as first argument
-    linux_launch_game_path = "/mnt/ext4_data/projects/trackmania_rl/scripts/launch_game_pb.sh"
+    linux_launch_game_path = "path_to_be_filled_only_if_on_linux"
+
+    # If on windows, path where TMLoader can be found.
+    # Usually Path(os.path.expanduser("~") / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
+    windows_TMLoader_path = Path(os.path.expanduser("~")) / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
+
+    # If on windows, name of the TMLoader profile that with launch TmForever + TMInterface
+    windows_TMLoader_profile_name = "default"
