@@ -4,7 +4,7 @@ tminterface
 torchrl
 pygbx
 art
-python-libxdo ; sys_platform = 'linux'
+python-libxdo ; sys_platform == 'linux'
 torch
 torchvision
 pywin32 ; sys_platform == 'win32'
