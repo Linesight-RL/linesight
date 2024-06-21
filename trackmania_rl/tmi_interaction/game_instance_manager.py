@@ -246,14 +246,13 @@ class GameInstanceManager:
             self.iface.set_input_state(**config_copy.inputs[action_idx])
 
     def request_map(self, map_path: str, zone_centers: npt.NDArray):
+        self.latest_map_path_requested = map_path
         if user_config.is_linux:
             map_path = map_path.replace("\\", "/")
         else:
             map_path = map_path.replace("/", "\\")
         map_loader.hide_PR_replay(map_path, True)
         self.iface.execute_command(f"map {map_path}")
-        # self.iface.execute_command("press delete")
-        self.latest_map_path_requested = map_path
         self.UI_disabled = False
         (
             self.next_real_checkpoint_positions,
