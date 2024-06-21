@@ -190,21 +190,21 @@ class GameInstanceManager:
             )
 
             tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
-
-            tm_processes = list(
-                filter(
-                    lambda s: s.startswith("TmForever"),
-                    subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+            while self.tm_process_id is None:
+                tm_processes = list(
+                    filter(
+                        lambda s: s.startswith("TmForever"),
+                        subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+                    )
                 )
-            )
-            for process in tm_processes:
-                name, parent_id, process_id = process.split()
-                parent_id = int(parent_id)
-                process_id = int(process_id)
-                if parent_id == tmi_process_id:
-                    self.tm_process_id = process_id
+                for process in tm_processes:
+                    name, parent_id, process_id = process.split()
+                    parent_id = int(parent_id)
+                    process_id = int(process_id)
+                    if parent_id == tmi_process_id:
+                        self.tm_process_id = process_id
+                        break
 
-        assert self.tm_process_id is not None
         print(f"Found Trackmania process id: {self.tm_process_id=}")
         self.last_game_reboot = time.perf_counter()
         self.latest_map_path_requested = -1
