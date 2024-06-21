@@ -185,7 +185,7 @@ class GameInstanceManager:
                 + '" /configstring=\\"set custom_port '
                 + str(self.tmi_port)
                 + '\\"\'; echo exit $process.id}" "'
-                + user_config.windows_TMLoader_path
+                + str(user_config.windows_TMLoader_path)
                 + '"'
             )
 
