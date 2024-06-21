@@ -26,8 +26,8 @@ base_tmi_port = 8478
 linux_launch_game_path = "path_to_be_filled_only_if_on_linux"
 
 # If on windows, path where TMLoader can be found.
-# Usually "Path(os.path.expanduser("~") / AppData / Local / TMLoader / TMLoader.exe
-windows_TMLoader_path = "path_to_be_filled_only_if_on_windows"
+# Usually Path(os.path.expanduser("~") / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
+windows_TMLoader_path = Path(os.path.expanduser("~")) / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
 
 # If on windows, name of the TMLoader profile that with launch TmForever + TMInterface
 windows_TMLoader_profile_name = "default"
