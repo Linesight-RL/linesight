@@ -169,17 +169,17 @@ class GameInstanceManager:
                 assert len(tmi_pid_candidates) == 1
                 self.tm_process_id = list(tmi_pid_candidates)[0]
         else:
-            tmi_process_id = int(
-                subprocess.check_output(
-                    'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'/configstring=\\"set custom_port '
-                    + str(self.tmi_port)
-                    + '\\"\'; echo exit $process.id}" TMInterface.lnk'
-                )
-                .decode()
-                .split("\r\n")[1]
+            launch_string = (
+                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
+                + user_config.windows_TMLoader_profile_name
+                + '" /configstring=\\"set custom_port '
+                + str(self.tmi_port)
+                + '\\"\'; echo exit $process.id}" "'
+                + user_config.windows_TMLoader_path
+                + '"'
             )
 
-            print(f"Found {tmi_process_id=}")
+            tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
 
             tm_processes = list(
                 filter(
@@ -217,20 +217,10 @@ class GameInstanceManager:
         while self.is_game_running():
             time.sleep(0)
 
-    def game_shortcut_exists(self):
-        return os.path.exists(config_copy.linux_launch_game_path) if config_copy.is_linux else os.path.exists(".\\TMInterface.lnk")
-
     def ensure_game_launched(self):
         if not self.is_game_running():
-            if self.game_shortcut_exists():
-                print("Game not found. Restarting TMInterface.")
-                self.launch_game()
-            else:
-                print(
-                    """Game needs to be restarted but cannot be.
-                    Add TMInterface shortcut inside /scripts directory (TMInterface.lnk for windows, launch_game.sh for linux).
-                    """
-                )
+            print("Game not found. Restarting TMInterface.")
+            self.launch_game()
 
     def grab_screen(self):
         return self.iface.get_frame(config_copy.W_downsized, config_copy.H_downsized)
