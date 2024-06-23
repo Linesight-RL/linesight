@@ -1,5 +1,5 @@
 # These packages are available on conda-forge servers
-numpy
+numpy==1.26.4
 matplotlib
 joblib
 psutil
