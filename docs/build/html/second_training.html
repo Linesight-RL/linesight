@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom training &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User FAQ" href="user_faq.html" />
+    <link rel="prev" title="Getting started" href="first_training.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_training.html">Getting started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Custom training</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#define-a-reference-line">Define a Reference Line</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#check-the-reference-line">Check the Reference Line</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edit-the-configuration-file">Edit the configuration file</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="project_structure.html">Project Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main_objects.html">Main Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Custom training</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/second_training.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="custom-training">
+<h1>Custom training<a class="headerlink" href="#custom-training" title="Link to this heading"></a></h1>
+<p>In this page, it is expected that the user has successfully run <a class="reference internal" href="first_training.html"><span class="doc">a first reference training on Hockolicious</span></a>.</p>
+<p>The objective is now to train the AI on another map, not preconfigured by the authors. As an exercise, we recommend setting up a simple map such as A02-Race.</p>
+<section id="define-a-reference-line">
+<h2>Define a Reference Line<a class="headerlink" href="#define-a-reference-line" title="Link to this heading"></a></h2>
+<p>We define a reference trajectory along which the agent’s progress is measured.</p>
+<a class="reference internal image-reference" href="_images/reference_line.png"><img alt="_images/reference_line.png" class="align-center" src="_images/reference_line.png" style="width: 600px;" /></a>
+<p>This reference trajectory <strong>does not need to be fast</strong>. The authors usually drive along the centerline of the map.</p>
+<p>Use the following command to create a file <code class="docutils literal notranslate"><span class="pre">maps/map.npy</span></code> for your map from a replay.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/tools/gbx_to_vcp.py<span class="w"> </span><span class="o">{</span>path_to_replay<span class="o">}</span>.Replay.Gbx
+</pre></div>
+</div>
+<p>Rename the file to your liking so that it is not overwritten in the future.</p>
+<p>The authors recommend the following nomenclature: <code class="docutils literal notranslate"><span class="pre">{map_name}_0.5m_{trajectory_description}.npy</span></code>. Trajectory description may be <code class="docutils literal notranslate"><span class="pre">cl</span></code> when the replay was driven on the centerline, or <code class="docutils literal notranslate"><span class="pre">{player_name}</span></code> if a known player’s trajectory was used as reference.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To define the reference line, points are sampled every 50cm along the replay’s trajectory. Over the course of the project, the terms “Virtual Checkpoints”, “VCP”, “zones” have been used to refer to these points.</p>
+</div>
+</section>
+<section id="check-the-reference-line">
+<h2>Check the Reference Line<a class="headerlink" href="#check-the-reference-line" title="Link to this heading"></a></h2>
+<p>This step is optional, but recommended. We want to visualize the reference line to check its position on the map.</p>
+<p>Launch a game instance with the argument <code class="docutils literal notranslate"><span class="pre">/configstring=set</span> <span class="pre">custom_port</span> <span class="pre">8477</span></code>.</p>
+<p>Load the map.</p>
+<p>Run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/tools/tmi2/add_vcp_as_triggers.py<span class="w"> </span>maps/A02-Race_0.5m_cl.npy<span class="w"> </span>-p<span class="w"> </span><span class="m">8477</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">-p</span></code> argument allows you to choose the port used to connect to the game instance. You can freely change <code class="docutils literal notranslate"><span class="pre">8477</span></code> to any other available port.</p>
+</div>
+</section>
+<section id="edit-the-configuration-file">
+<h2>Edit the configuration file<a class="headerlink" href="#edit-the-configuration-file" title="Link to this heading"></a></h2>
+<p>Open <code class="docutils literal notranslate"><span class="pre">config_files/config.py</span></code> in a text editor. This file contains the hyperparameters that define a training run.</p>
+<p>Find where the variable <code class="docutils literal notranslate"><span class="pre">map_cycle</span></code> is defined, near the bottom of the page. Read the comment that describes how a map_cycle is defined. Edit the map_cycle so that the AI only trains on A02-Race.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">In this section we define the map cycle.</span>
+
+<span class="sd">It is a list of iterators, each iterator must return tuples with the following information:</span>
+<span class="sd">    - short map name        (string):     for logging purposes</span>
+<span class="sd">    - map path              (string):     to automatically load the map in game.</span>
+<span class="sd">                                          This is the same map name as the &quot;map&quot; command in the TMInterface console.</span>
+<span class="sd">    - reference line path   (string):     where to find the reference line for this map</span>
+<span class="sd">    - is_explo              (boolean):    whether the policy when running on this map should be exploratory</span>
+<span class="sd">    - fill_buffer           (boolean):    whether the memories generated during this run should be placed in the buffer</span>
+
+<span class="sd">The map cycle may seem complex at first glance, but it provides a large amount of flexibility:</span>
+<span class="sd">    - can train on some maps, test blindly on others</span>
+<span class="sd">    - can train more on some maps, less on others</span>
+<span class="sd">    - can define multiple reference lines for a given map</span>
+<span class="sd">    - etc...</span>
+
+<span class="sd">The example below defines a simple cycle where the agent alternates between four exploratory runs on map5, and one</span>
+<span class="sd">evaluation run on the same map.</span>
+
+<span class="sd">map_cycle = [</span>
+<span class="sd">    repeat((&quot;map5&quot;, &#39;&quot;My Challenges/Map5.Challenge.Gbx&quot;&#39;, &quot;map5_0.5m_cl.npy&quot;, True, True), 4),</span>
+<span class="sd">    repeat((&quot;map5&quot;, &#39;&quot;My Challenges/Map5.Challenge.Gbx&quot;&#39;, &quot;map5_0.5m_cl.npy&quot;, False, True), 1),</span>
+<span class="sd">]</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For those who wish to dive deeper into the project, there are many similar comments spread within the codebase explaining how the AI is trained.</p>
+</div>
+<p>Locate the variable <code class="docutils literal notranslate"><span class="pre">global_schedule_speed</span></code>. We expect A02-Race to be slightly easier to train than ESL-Hockolicious: we can define a faster annealing for training hyperparameters.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">global_schedule_speed</span> <span class="o">=</span> <span class="mf">0.8</span>
+</pre></div>
+</div>
+<p>For maps like <a class="reference external" href="https://tmnf.exchange/trackshow/10460245">map5</a> or E03-Endurance we would typically use a global_schedule_speed close to 1.5.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="first_training.html" class="btn btn-neutral float-left" title="Getting started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="user_faq.html" class="btn btn-neutral float-right" title="User FAQ" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

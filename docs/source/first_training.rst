@@ -91,6 +91,8 @@ One may also monitor the ``explo_race_time_finished`` graph and notice the overa
   :width: 300
   :align: center
 
+You may compare the result of your training with the authors' included in the git repository under the name `default_hocko_training`.
+
 Replay an AI run
 ----------------
 

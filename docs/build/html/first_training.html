@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting started &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Custom training" href="second_training.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#start-training">Start training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tensorboard-monitoring">Tensorboard monitoring</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#early-training">Early training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#end-of-training">End of training</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#replay-an-ai-run">Replay an AI run</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="second_training.html">Custom training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="project_structure.html">Project Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main_objects.html">Main Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/first_training.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<h1>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<p>In this page, we run the code with default training hyperparameters. At the end of the page, users should know what a normal training looks like, how to access training logs and how to obtain replays for the AI runs.</p>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading"></a></h2>
+<p>The code is set up to train on <a class="reference external" href="https://tmnf.exchange/trackshow/414041">ESL-Hockolicious</a>. Download the map and place it at the location: <code class="docutils literal notranslate"><span class="pre">%%documents%%/TrackMania/Tracks/Challenges/ESL-Hockolicious.Challenge.Gbx</span></code></p>
+<p>These instructions assume that no modifications were made to the files since cloning the Linesight repository, except for <code class="docutils literal notranslate"><span class="pre">config_files/user_config.py</span></code>. If needed, the repository can be restored to its original unconfigured condition with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>reset<span class="w"> </span>HEAD<span class="w"> </span>--hard
+</pre></div>
+</div>
+</section>
+<section id="start-training">
+<h2>Start training<a class="headerlink" href="#start-training" title="Link to this heading"></a></h2>
+<p>We are ready to start training.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/train.py
+</pre></div>
+</div>
+<p>Upon running this command, it is expected that a <a class="reference internal" href="wall_text.html"><span class="doc">wall of text appears in your terminal</span></a>. <em>Don’t worry, this is normal.</em></p>
+<p>A few seconds after running this command, two instances of the game will be launched in windowed mode. Be aware that if these windows are minimized, the game will pause and that game instance will no longer generate experiences. You may hide game instances by placing other windows on top.</p>
+<p>A few seconds after launching the game, the script will load the map automatically. There is no need for the user to interact with the game menu when launching the training script.</p>
+<p>Reinforcement learning agents are trained by trial and error. It is expected that the agent tries random actions when it is untrained: these actions will improve gradually as the agent learns a better policy.</p>
+</section>
+<section id="tensorboard-monitoring">
+<h2>Tensorboard monitoring<a class="headerlink" href="#tensorboard-monitoring" title="Link to this heading"></a></h2>
+<p>Start the tensorboard local server to monitor training.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tensorboard<span class="w"> </span>--logdir<span class="o">=</span>tensorboard<span class="w"> </span>--bind_all<span class="w"> </span>--samples_per_plugin<span class="w"> </span><span class="s2">&quot;text=100000000, scalars=100000000&quot;</span>
+</pre></div>
+</div>
+<p>The tensorboard interface can be accessed with a web browser at <a class="reference external" href="http://localhost:6006/">http://localhost:6006/</a>.</p>
+<p>The tab “Custom Scalars” at the top is preconfigured with a default layout. Graphs are plotted with <em>number of interaction steps between the agent and the game</em> on the X axis. The explanations below are intended for a general audience and may omit nuances that would stand out to a RL researcher.</p>
+<section id="early-training">
+<h3>Early training<a class="headerlink" href="#early-training" title="Link to this heading"></a></h3>
+<p>This part focuses on the initial training phase, during the first 3 to 5 million steps.</p>
+<dl class="simple">
+<dt>We start by looking at the graph <code class="docutils literal notranslate"><span class="pre">avg_Q</span></code>, which represents the average reward the AI expects to receive.</dt><dd><ul class="simple">
+<li><p>An untrained AI expects no reward: the graph starts near zero.</p></li>
+<li><p>As training progresses, the AI correctly identifies that it doesn’t play properly: its prediction of future rewards is going down.</p></li>
+<li><p>With time, the AI learns that “press forward and avoid walls” is a good strategy. Its estimation of future rewards starts to increase.</p></li>
+</ul>
+</dd>
+</dl>
+<a class="reference internal image-reference" href="_images/start_avgq.png"><img alt="_images/start_avgq.png" class="align-center" src="_images/start_avgq.png" style="width: 300px;" /></a>
+<p>We also look at the <code class="docutils literal notranslate"><span class="pre">single_zones_reached</span></code> graph, which represents how far each run of the AI advances along the track.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>It takes 300k steps for the agent to learn to press forward at the start</p></li>
+<li><p>It takes 500k steps for the agent to finish the map for the first time</p></li>
+<li><p>It takes 1M steps for the agent to regularly finish the map</p></li>
+</ul>
+</div></blockquote>
+<a class="reference internal image-reference" href="_images/start_zonesreached.png"><img alt="_images/start_zonesreached.png" class="align-center" src="_images/start_zonesreached.png" style="width: 300px;" /></a>
+<p>Focusing on the <code class="docutils literal notranslate"><span class="pre">loss</span></code> graph, the loss increases during the first 500k steps. This is a sign that the agent correctly identifies inconsistencies between its understanding of the environment and the transitions observed. Contrary to usual expectations in supervised learning, it is not a worrying sign to see the loss increase in reinforcement learning.</p>
+<a class="reference internal image-reference" href="_images/start_loss.png"><img alt="_images/start_loss.png" class="align-center" src="_images/start_loss.png" style="width: 300px;" /></a>
+</section>
+<section id="end-of-training">
+<h3>End of training<a class="headerlink" href="#end-of-training" title="Link to this heading"></a></h3>
+<p>After relatively quick progress during the first 3-5M steps, the AI typically reaches a time in the low 54 seconds on ESL-Hockolicious. Progress now slows down, and can be monitored with the <code class="docutils literal notranslate"><span class="pre">eval_race_time_robust</span></code> graph.</p>
+<a class="reference internal image-reference" href="_images/end_eval.png"><img alt="_images/end_eval.png" class="align-center" src="_images/end_eval.png" style="width: 300px;" /></a>
+<p>One may also monitor the <code class="docutils literal notranslate"><span class="pre">explo_race_time_finished</span></code> graph and notice the overall worse times and larger spread. This illustrates the difference between <em>exploratory</em> runs and <em>evaluation</em> runs. In <em>exploration</em> mode, the AI plays random actions with 3% chance: this is the mechanism that allows the agent to find improvements to its current policy. In <em>evaluation</em> mode, random actions are disabled to evaluate the agent’s current performance.</p>
+<a class="reference internal image-reference" href="_images/end_explo.png"><img alt="_images/end_explo.png" class="align-center" src="_images/end_explo.png" style="width: 300px;" /></a>
+<p>You may compare the result of your training with the authors’ included in the git repository under the name <cite>default_hocko_training</cite>.</p>
+</section>
+</section>
+<section id="replay-an-ai-run">
+<h2>Replay an AI run<a class="headerlink" href="#replay-an-ai-run" title="Link to this heading"></a></h2>
+<p>During training, progress is regularly saved in files named <code class="docutils literal notranslate"><span class="pre">save/{run_name}/best_runs/{map_name}_{time}/{map_name}_{time}.inputs</span></code>.</p>
+<p>To replay an AI run:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>copy the file to <code class="docutils literal notranslate"><span class="pre">{mydocuments}/TMInterface/Scripts/</span></code></p></li>
+<li><p>open a game instance, load the map</p></li>
+<li><p>open the <a class="reference external" href="https://donadigo.com/tminterface/settings">in-game TMI console</a> and type <code class="docutils literal notranslate"><span class="pre">load</span> <span class="pre">{map_name}_{time}.inputs</span></code></p></li>
+<li><p>save the corresponding replay</p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="second_training.html" class="btn btn-neutral float-right" title="Custom training" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

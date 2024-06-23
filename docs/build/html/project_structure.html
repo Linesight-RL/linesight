@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Structure &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Main Objects" href="main_objects.html" />
+    <link rel="prev" title="User FAQ" href="user_faq.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_training.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="second_training.html">Custom training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Project Structure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#repository-overview">Repository Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#config-files">config_files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#maps">maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#save">save</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scripts">scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tensorboard">tensorboard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#trackmania-rl">trackmania_rl</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="main_objects.html">Main Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Project Structure</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/project_structure.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="project-structure">
+<h1>Project Structure<a class="headerlink" href="#project-structure" title="Link to this heading"></a></h1>
+<p>This page provides a high-level overview of the structure of the Linesight repository.</p>
+<section id="repository-overview">
+<h2>Repository Overview<a class="headerlink" href="#repository-overview" title="Link to this heading"></a></h2>
+<p>The repository is organized into the following directories:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">config_files/</span></code>: Contains configuration files for the project overall, and for AI runs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maps/</span></code>: Contains reference trajectories used to train on each map.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/</span></code>: Contains saved model checkpoints.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/</span></code>: Contains scripts for training, and general interaction with the game.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tensorboard/</span></code>: Contains tensorboard logs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">trackmania_rl/</span></code>: Contains the main project code.</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="config-files">
+<h2>config_files<a class="headerlink" href="#config-files" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">config_files/</span></code> folder contains four files that are used to configure the project:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">config.py</span></code>: This file contains the configuration for a training run. It includes parameters such as the size of the replay buffer, the learning rate, and the reward function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">config_copy.py</span></code>: This file is a copy of <code class="docutils literal notranslate"><span class="pre">config.py</span></code> created at the beginning of each training run. See the docstring at the top of the file for explanations on how/why this file exists.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inputs_list.py</span></code>: This file defines the set of valid inputs that the agent can take. Each input is a dictionary that specifies the state of the agent’s keys (left, right, accelerate, brake).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">state_normalization.py</span></code>: This file defines the normalization parameters for the agent’s state. The state is normalized by subtracting the mean and dividing by the standard deviation, using the values defined in this file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">user_config.py</span></code>: This file contains user-level configuration. It is expected that the user fills this file once when setting up the project, and does not need to modify it after. It includes parameters such as the username of the TMNF account and the path to the TMInterface plugin.</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="maps">
+<h2>maps<a class="headerlink" href="#maps" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">maps/</span></code> folder contains <code class="docutils literal notranslate"><span class="pre">{map}.npy</span></code> files which define a reference trajectory for a given map. These are binary dumps of numpy arrays of shape (N, 3) with N the number of virtual checkpoints along the reference line. Virtual checkpoints are spaced evenly every 50cm (<code class="docutils literal notranslate"><span class="pre">config.distance_between_checkpoints</span></code>).</p>
+</section>
+<section id="save">
+<h2>save<a class="headerlink" href="#save" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">save/</span></code> folder contains information collected during training.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/weights1.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">weights2.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">scaler.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">optimizer1.torch</span></code> are checkpoints containing the latest version of the neural network.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/accumulated_stats.joblib</span></code> a dictionary containing various stats for this run (number of frames, number of batches, training duration, best racing time, etc…)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/best_runs/{map_name}_{time}/config.bak.py</span></code> contains a backup copy of the training hyperparameters used for this run.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/best_runs/{map_name}_{time}/{map_name}_{time}.inputs</span></code> is a text file that contains the inputs to replay that run. It can be loaded in the TMInterface in-game console.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/best_runs/{map_name}_{time}/q_values.joblib</span></code> is a joblib dump of q_values expected by the agent during the run. They are typically used to produce the visual input widget in trackmania_rl.run_to_video.make_widget_video_from_q_values()</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save/{run_name}/best_runs/weights1.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">weights2.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">scaler.torch</span></code> and <code class="docutils literal notranslate"><span class="pre">optimizer1.torch</span></code> are checkpoints saved anytime the agent improves its personal best.</p></li>
+</ul>
+</div></blockquote>
+<p>When the script <code class="docutils literal notranslate"><span class="pre">scripts/train.py</span></code> is launched, it attempts to load the checkpoint saved in <code class="docutils literal notranslate"><span class="pre">save/{run_name}/</span></code>. To resume training from a given checkpoint, paste the <code class="docutils literal notranslate"><span class="pre">*.torch</span></code> files in <code class="docutils literal notranslate"><span class="pre">save/{run_name}</span></code>.</p>
+</section>
+<section id="scripts">
+<h2>scripts<a class="headerlink" href="#scripts" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">scripts/</span></code> folder contains the training script as well as various utility scripts to interact with the game. Each script is documented with a docstring explaining its purpose and usage in the first few lines.</p>
+</section>
+<section id="tensorboard">
+<h2>tensorboard<a class="headerlink" href="#tensorboard" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">tensorboard/</span></code> folder contains tensorboard logs for all runs.</p>
+</section>
+<section id="trackmania-rl">
+<h2>trackmania_rl<a class="headerlink" href="#trackmania-rl" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">trackmania_rl/</span></code> folder contains the core project code, which is intended to be imported and utilized within scripts rather than executed directly. We’ve documented the key modules, classes, and functions in the code, and we encourage developers who wish to get a comprehensive understanding of the project to read the docstrings directly in the codebase.</p>
+<p>The main modules are listed here:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">agents/</span></code>: Contains implementations of reinforcement learning agents. Currently contains only IQN.py, but has contained various agents such as DDQN or SAC-Discrete.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">buffer_management.py</span></code>: Implements <code class="docutils literal notranslate"><span class="pre">fill_buffer_from_rollout_with_n_steps_rule()</span></code>, the function that creates and stores transitions in a replay buffer given a <code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> object provided by the method <code class="docutils literal notranslate"><span class="pre">GameInstanceManager.rollout()</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">buffer_utilities.py</span></code>: Implements <code class="docutils literal notranslate"><span class="pre">buffer_collate_function()</span></code>, used to customize torchrl’s <code class="docutils literal notranslate"><span class="pre">ReplayBuffer.sample()</span></code> method. The most important customization is our implementation of <em>mini-races</em>, a trick to define Q values as the <em>expected sum of undiscounted rewards in the next 7 seconds</em>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">experience_replay/experience_replay_interface.py</span></code>: Defines the structure of transitions stored in a ReplayBuffer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">multiprocess/collector_process.py</span></code>: Implements the behavior of a single process that handles a game instance, and feeds <code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> objects to the learner process. Multiple collector processes may run in parallel.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">multiprocess/learner_process.py</span></code>: Implements the behavior of the (unique) learner process. It receives <code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> objects from collector_processes, via a <code class="docutils literal notranslate"><span class="pre">multiprocessing.Queue</span></code> object. It sends updated neural network weights to collector processes weights <code class="docutils literal notranslate"><span class="pre">torch.nn.Module.share_memory()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tmi_interaction/game_instance_manager.py</span></code>: This file implements the main logic to interact with the game, via the GameInstanceManager class. There is a lot of legacy code, implemented when only TMInterface 1.4.3 was available.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tmi_interaction/tminterface2.py</span></code>: Implements the TMInterface class. It is designed to (mostly) reproduce the original Python client provided by Donadigo to communicate with TMInterface 1.4.3 via memory-mapping.</p></li>
+</ul>
+</div></blockquote>
+<p>In addition to the modules described above, the project includes several other modules that provide supplementary functionality.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="user_faq.html" class="btn btn-neutral float-left" title="User FAQ" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="main_objects.html" class="btn btn-neutral float-right" title="Main Objects" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

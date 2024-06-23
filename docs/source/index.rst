@@ -28,6 +28,7 @@ We're excited to open-source our code. Whether you are a Trackmania enthusiast o
    project_structure
    main_objects
    contributions
+   documentation
    dev_faq
    reading_list
 

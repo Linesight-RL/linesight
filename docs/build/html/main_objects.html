@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Main Objects &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Contributions" href="contributions.html" />
+    <link rel="prev" title="Project Structure" href="project_structure.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_training.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="second_training.html">Custom training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="project_structure.html">Project Structure</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Main Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#rollout-results">rollout_results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#buffer-and-buffer-test">buffer and buffer_test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#experience">Experience</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#iqn-network">IQN_Network</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Main Objects</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/main_objects.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="main-objects">
+<h1>Main Objects<a class="headerlink" href="#main-objects" title="Link to this heading"></a></h1>
+<p>In this page, we list the main objects used throughout the code.</p>
+<section id="rollout-results">
+<h2>rollout_results<a class="headerlink" href="#rollout-results" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> is a dictionary designed to hold all information collected during a rollout (synonym for “a race”).</p>
+<p>This dictionary is created within the <code class="docutils literal notranslate"><span class="pre">GameInstanceManager.rollout()</span></code> function, then passed by <code class="docutils literal notranslate"><span class="pre">trackmania_rl.multiprocess.collector_process.collector_process_fn()</span></code> in a <code class="docutils literal notranslate"><span class="pre">multiprocessing.Queue</span></code> so that it can be read by <code class="docutils literal notranslate"><span class="pre">trackmania_rl.multiprocess.collector_process.learner_process_fn()</span></code>.</p>
+<p>Within the learner process, <code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> is passed to <code class="docutils literal notranslate"><span class="pre">buffer_management.fill_buffer_from_rollout_with_n_steps_rule()</span></code> to fill a <code class="docutils literal notranslate"><span class="pre">ReplayBuffer</span></code>. After this, <code class="docutils literal notranslate"><span class="pre">rollout_results</span></code> can be discarded.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rollout_results</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;current_zone_idx&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;frames&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;input_w&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;actions&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;action_was_greedy&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;car_gear_and_wheels&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;q_values&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;meters_advanced_along_centerline&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;state_float&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="s2">&quot;furthest_zone_idx&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="buffer-and-buffer-test">
+<h2>buffer and buffer_test<a class="headerlink" href="#buffer-and-buffer-test" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">buffer</span></code> and <code class="docutils literal notranslate"><span class="pre">buffer_test</span></code> are created in <code class="docutils literal notranslate"><span class="pre">trackmania_rl/buffer_utitilies/make_buffers()</span></code> and used exclusively within the learner process.</p>
+<p>They are basic <code class="docutils literal notranslate"><span class="pre">ReplayBuffer</span></code> objects from the torchrl library, designed to hold transitions used to train the agent. The buffer’s behavior is customized with <code class="docutils literal notranslate"><span class="pre">buffer_utilities.buffer_collate_function()</span></code> to implement “mini-races” during sampling: a way to re-interpret states as being part of a “mini-race” instead of the full trajectory along the racetrack. This trick masks consequences of actions further than a given horizon, allows us to optimise with <code class="docutils literal notranslate"><span class="pre">gamma</span> <span class="pre">=</span> <span class="pre">1</span></code> and generally simplifies the learning process for the agent.</p>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">buffer</span></code> contains 95% of transitions and is used to train the agent. <code class="docutils literal notranslate"><span class="pre">buffer_test</span></code> contains the remaining 5% of transitions and is used as a hidden test set to monitor the agent’s tendency to overfit its memory.</p>
+</section>
+<section id="experience">
+<h2>Experience<a class="headerlink" href="#experience" title="Link to this heading"></a></h2>
+<p>The class <code class="docutils literal notranslate"><span class="pre">Experience</span></code> defined in <code class="docutils literal notranslate"><span class="pre">trackmania_rl/experience_replay/</span></code> defines the way a transition is stored in memory.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">(state_img, state_float):                   represent &quot;state&quot;, ubiquitous in reinforcement learning</span>
+<span class="sd">                                            state_img is a np.array of shape (1, H, W) and dtype np.uint8</span>
+<span class="sd">                                            state_float is a np.array of shape (config.float_input_dim, ) and dtype np.float32</span>
+<span class="sd">(next_state_img, next_state_float):         represent &quot;next_state&quot;</span>
+<span class="sd">                                            next_state_img is a np.array of shape (1, H, W) and dtype np.uint8</span>
+<span class="sd">                                            next_state_float is a np.array of shape (config.float_input_dim, ) and dtype np.float32</span>
+<span class="sd">(state_potential and next_state_potential)  are floats, used for reward shaping as per Andrew Ng&#39;s paper: https://people.eecs.berkeley.edu/~russell/papers/icml99-shaping.pdf</span>
+<span class="sd">action                                      is an integer representing the action taken for this transition, mapped to config_files/inputs_list.py</span>
+<span class="sd">terminal_actions                            is an integer representing the number of steps between &quot;state&quot; and race finish in the rollout from which this transition was extracted. If the rollout did not finish (ie: early cutoff), then contains math.inf</span>
+<span class="sd">n_steps                                     How many steps were taken between &quot;state&quot; and &quot;next state&quot;. Not all transitions contain the same value, as this may depend on exploration policy. Note that in buffer_collate_function, a transition may be reinterpreted as terminal with a lower n_steps, depending on the random horizon that was sampled.</span>
+<span class="sd">gammas                                      a numpy array of shape (config.n_steps, ) containing the gamma value if steps = 0, 1, 2, etc...</span>
+<span class="sd">rewards                                     a numpy array of shape (config.n_steps, ) containing the reward value if steps = 0, 1, 2, etc...</span>
+
+<span class="sd">The structure of these transitions is unusual. It comes from our &quot;mini-race&quot; logic which will be explained somewhere else. I don&#39;t know where yet.</span>
+<span class="sd">This is how we are able to define Q-values as &quot;the sum of expected rewards obtained during the next 7 seconds&quot;, and how we can optimise with gamma = 1.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="iqn-network">
+<h2>IQN_Network<a class="headerlink" href="#iqn-network" title="Link to this heading"></a></h2>
+<p>Implemented in <code class="docutils literal notranslate"><span class="pre">trackmania_rl.agents.iqn</span></code> the IQN_Network class inherits from <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>. It holds the weights that parameterize the IQN agent’s policy, and defines the neural network’s structure.</p>
+<p>Multiple instances of the IQN_Network class coexist within the code:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Each collector process possesses an <code class="docutils literal notranslate"><span class="pre">inference_network</span></code>, with JIT compilation enabled by default.</p></li>
+<li><p>The learner process passes an <code class="docutils literal notranslate"><span class="pre">online_network</span></code> and a <code class="docutils literal notranslate"><span class="pre">target_network</span></code>, with JIT compilation enabled by default.</p></li>
+</ul>
+</div></blockquote>
+<p>These instances <strong>do not share weights</strong>, they are independent instances.</p>
+<p>The learner process and collector processes have access to a common uncompiled <code class="docutils literal notranslate"><span class="pre">uncompiled_shared_network</span></code> created in <code class="docutils literal notranslate"><span class="pre">scripts/train.py</span></code>. The learner will regularly copy weights from the <code class="docutils literal notranslate"><span class="pre">online_network</span></code> to the <code class="docutils literal notranslate"><span class="pre">uncompiled_shared_network</span></code>. Collector processes will regularly copy weights from the <code class="docutils literal notranslate"><span class="pre">uncompiled_shared_network</span></code> to their own <code class="docutils literal notranslate"><span class="pre">inference_network</span></code>. Locks are used to avoid simultaneous writing and reading from the <code class="docutils literal notranslate"><span class="pre">uncompiled_shared_network</span></code>.</p>
+<p>The network’s structure is further defined in the class’ <code class="docutils literal notranslate"><span class="pre">forward()</span></code> method.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="project_structure.html" class="btn btn-neutral float-left" title="Project Structure" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="contributions.html" class="btn btn-neutral float-right" title="Contributions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

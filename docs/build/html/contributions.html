@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contributions &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Documentation" href="documentation.html" />
+    <link rel="prev" title="Main Objects" href="main_objects.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_training.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="second_training.html">Custom training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="project_structure.html">Project Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main_objects.html">Main Objects</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Contributions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#contribution-opportunities">Contribution opportunities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#guidelines">Guidelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Contributions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/contributions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="contributions">
+<h1>Contributions<a class="headerlink" href="#contributions" title="Link to this heading"></a></h1>
+<p>We welcome contributions to the Linesight Trackmania AI project. If you’re interested in contributing, please follow the guidelines below to ensure that your contributions are clear, well-formatted, and thoroughly tested.</p>
+<section id="contribution-opportunities">
+<h2>Contribution opportunities<a class="headerlink" href="#contribution-opportunities" title="Link to this heading"></a></h2>
+<p>We list below improvements that can likely be made to the project.</p>
+<p><strong>Documentation</strong></p>
+<p>General documentation improvements for users or developers.</p>
+<p><strong>Respawns</strong></p>
+<p>All rollouts start from the beginning of a track. On challenging or high-risk tracks, the agent’s memory buffer may contain limited transitions for the end of the track, which makes it difficult for the agent to learn evenly across all sections of the track.</p>
+<p>This is likely a difficult contribution as it involves modifications in several parts of the repository at once (rollouts &amp; statistics tracking). It is yet unclear how to best resolve this issue.</p>
+<p>One step further in difficulty, one might refactor the agent-environment interactions to follow the Gymnasium API.</p>
+<p><strong>Linux performance</strong></p>
+<p>On Linux, the game runs much slower than windows. You can see this if you display FPS by pressing - then open the console with ` and type “set speed 50”. Your FPS should reduce by orders of magnitude. We suspect this is some kind of bottleneck in wineserver but we do not know.</p>
+<p><strong>Game reboot</strong></p>
+<p>We observe that game instances slow down over time. As a mitigation, we have implemented code to restart the game instances every config.game_reboot_interval.</p>
+<ul class="simple">
+<li><p>There is a rare issue where a worker will crash when restarting the game instance.</p></li>
+<li><p>config.game_camera_number allows training an agent in cam 1/2/3. There is an issue where the cam change may not happen after a worker restarts the game instance. Due to this bug it is advised to train with game_camera_number 2 (the default cam).</p></li>
+</ul>
+<p><strong>Neural network architecture</strong></p>
+<p>We have performed limited tests to improve neural network architecture. There are opportunities to improve the neural network’s vision head (currently DQN-style, could test IMPALA-style or other architectures). There are also opportunities to improve the virtual checkpoints inputs (currently a basic Dense architecture which does not benefit from the known sequential structure of virtual checkpoints).</p>
+<p>One may also try out largely different neural network architectures and/or input features.</p>
+<p><strong>Reinforcement learning algorithm</strong></p>
+<p>This project implements a modified version of the IQN algorithm. One may also try to implement any other compatible reinforcement learning algorithm.</p>
+<p><strong>“inputs_to_gbx” script</strong></p>
+<p>We use a script <code class="docutils literal notranslate"><span class="pre">scripts/tools/video_stuff/inputs_to_gbx.py</span></code> to convert a batch of <code class="docutils literal notranslate"><span class="pre">xxxx.inputs</span></code> files into corresponding <code class="docutils literal notranslate"><span class="pre">xxxx.Replay.Gbx</span></code> files.  It works on Agade’s computer but not on pb4’s computer. The script was put together hastily, we would welcome an improved version.</p>
+<p><strong>Methods to train on varied &amp; diverse tracks</strong></p>
+<ul class="simple">
+<li><p>Hide useless visual features (flags, track decor, …) with z-buffer masking <em>(done with ReShade with TMI1.4, but screenshots are now made BEFORE ReShade shaders are applied in TMI2)</em></p></li>
+<li><p>Replace game textures with normal maps or depth maps <em>(done with ReShade with TMI1.4, but screenshots are now made BEFORE ReShade shaders are applied in TMI2)</em></p></li>
+<li><p>Implement raycasting</p></li>
+<li><p>Implement an automatic track generator, such that the AI can train on an infinite number of maps. As a start, one may restrict this to flat “map5-style” tracks.</p></li>
+<li><p>anything else…</p></li>
+</ul>
+</section>
+<section id="guidelines">
+<h2>Guidelines<a class="headerlink" href="#guidelines" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Before you start working on a contribution, please open an issue to discuss your proposed changes with the project maintainers. This will help avoid duplicate work and ensure that your contribution aligns with the project’s goals.</p></li>
+<li><p>Please include a brief description of your changes in the pull request description. This will help us review your changes more quickly and efficiently.</p></li>
+<li><p>All code contributions must be formatted with <code class="docutils literal notranslate"><span class="pre">ruff</span> <span class="pre">check</span> <span class="pre">--select</span> <span class="pre">I</span> <span class="pre">--fix</span> <span class="pre">.</span> <span class="pre">;</span> <span class="pre">ruff</span> <span class="pre">format</span> <span class="pre">.</span></code>. This will ensure that your code is consistent with the project’s style guidelines and easy to read.</p></li>
+<li><p>Contributions should be broken down into meaningful, self-contained chunks. Please avoid combining unrelated changes, such as refactoring and algorithmic improvements, in the same pull request. This will make it easier to review and test your changes.</p></li>
+<li><p>For contributions that involve algorithmic changes, we expect contributors to provide multiple runs that demonstrate both the absence of performance regressions and the presence of the expected improvements.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="main_objects.html" class="btn btn-neutral float-left" title="Main Objects" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="documentation.html" class="btn btn-neutral float-right" title="Documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

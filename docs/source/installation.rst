@@ -9,7 +9,7 @@ Linesight requires:
     - Python >=3.10
     - PyTorch >=2.1 (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
     - a Nvidia GPU with CUDA
-    - 16 GB RAM
+    - 20 GB RAM
     - `Trackmania Nations Forever <https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/>`_ with `ModLoader <https://tomashu.dev/software/tmloader/>`_ and `TMInterface 2.1.0 <https://www.donadigo.com/tminterface/>`_.
 
 This project is compatible with Windows and Linux.
@@ -69,7 +69,7 @@ The game must be configured (via ``TmForeverLauncher.exe`` in the game's install
 We recommend adjusting game settings to run at the lowest resolution available with low graphics quality.
 
 .. note::
-   There is a compromise to be made between *training speed* which increases with FPS and *trained performance* which increases with image quality. Users can experiment with their setup, or use the authors' configuration file `available here <https://link_to_file.com>`_.
+   There is a compromise to be made between *training speed* which increases with FPS and *trained performance* which increases with image quality. Users can experiment with their setup, or use the authors' configuration `available here <_static/authors_settings.png>`_.
 
 User config
 -----------

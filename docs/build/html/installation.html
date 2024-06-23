@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; Linesight 3.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=08bfcbec"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="first_training.html" />
+    <link rel="prev" title="Linesight Trackmania AI Documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Linesight
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python-project-setup">Python project setup</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#conda-mamba">conda / mamba</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pip">pip</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#linux-specific-instructions">Linux-specific instructions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#game-configuration">Game configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#user-config">User config</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="first_training.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="second_training.html">Custom training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_faq.html">User FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Dev Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="project_structure.html">Project Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main_objects.html">Main Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_faq.html">Dev FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reading_list.html">Learning Resources</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Community tips &amp; tricks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="empty_page.html">Empty page</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Linesight</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>Linesight requires:</dt><dd><ul class="simple">
+<li><p>Python &gt;=3.10</p></li>
+<li><p>PyTorch &gt;=2.1 (check the <a class="reference external" href="https://pytorch.org/get-started/locally/">official website</a> for specific instructions)</p></li>
+<li><p>a Nvidia GPU with CUDA</p></li>
+<li><p>20 GB RAM</p></li>
+<li><p><a class="reference external" href="https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/">Trackmania Nations Forever</a> with <a class="reference external" href="https://tomashu.dev/software/tmloader/">ModLoader</a> and <a class="reference external" href="https://www.donadigo.com/tminterface/">TMInterface 2.1.0</a>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>This project is compatible with Windows and Linux.</p>
+</section>
+<section id="python-project-setup">
+<h2>Python project setup<a class="headerlink" href="#python-project-setup" title="Link to this heading"></a></h2>
+<p>Clone the repository and install the project.</p>
+<p>To avoid outdated package versions, we recommend setting the project up in a clean virtual environment (conda, mamba, pipenv, …).</p>
+<section id="conda-mamba">
+<h3>conda / mamba<a class="headerlink" href="#conda-mamba" title="Link to this heading"></a></h3>
+<p>If using <cite>conda</cite> or <cite>mamba</cite>, the following commands will set the project up.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/pb4git/linesight<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>linesight
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>linesight<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.11
+conda<span class="w"> </span>activate<span class="w"> </span>linesight
+conda<span class="w"> </span>install<span class="w"> </span>pytorch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>pytorch-cuda<span class="o">=</span><span class="m">12</span>.1<span class="w"> </span>-c<span class="w"> </span>pytorch<span class="w"> </span>-c<span class="w"> </span>nvidia<span class="w"> </span><span class="c1"># from pytorch website</span>
+conda<span class="w"> </span>install<span class="w"> </span>--file<span class="w"> </span>requirements_conda.txt
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="pip">
+<h3>pip<a class="headerlink" href="#pip" title="Link to this heading"></a></h3>
+<p>In all other cases, use the following commands to set the project in your chosen environment.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/pb4git/linesight<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>linesight
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu121<span class="w"> </span><span class="c1"># from pytorch website</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="linux-specific-instructions">
+<h3>Linux-specific instructions<a class="headerlink" href="#linux-specific-instructions" title="Link to this heading"></a></h3>
+<p>In the folder <code class="docutils literal notranslate"><span class="pre">/scripts/</span></code>, create a bash script that takes an integer <code class="docutils literal notranslate"><span class="pre">port</span></code> as its single argument. The script should start the game configured to listen on port <code class="docutils literal notranslate"><span class="pre">port</span></code> for TMInterface communications. The scripts <code class="docutils literal notranslate"><span class="pre">/scripts/launch_game_pb.sh</span></code> and <code class="docutils literal notranslate"><span class="pre">/scripts/launch_game_agade.sh</span></code> are working examples on the authors’ systems.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The authors have experienced improved FPS when executing TMNF within wine with the following setup:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>winetricks
+winetricks<span class="w"> </span>dxvk
+</pre></div>
+</div>
+<p>and launching the game with <code class="docutils literal notranslate"><span class="pre">exec</span> <span class="pre">gamemoderun</span> <span class="pre">wine</span> <span class="pre">(...)</span></code> (see <code class="docutils literal notranslate"><span class="pre">/scripts/launch_game_pb.sh</span></code> for example).</p>
+</div>
+</section>
+</section>
+<section id="game-configuration">
+<h2>Game configuration<a class="headerlink" href="#game-configuration" title="Link to this heading"></a></h2>
+<p>The game must be configured (via <code class="docutils literal notranslate"><span class="pre">TmForeverLauncher.exe</span></code> in the game’s installation directory) to run in <strong>windowed mode</strong>.
+We recommend adjusting game settings to run at the lowest resolution available with low graphics quality.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is a compromise to be made between <em>training speed</em> which increases with FPS and <em>trained performance</em> which increases with image quality. Users can experiment with their setup, or use the authors’ configuration <a class="reference external" href="_static/authors_settings.png">available here</a>.</p>
+</div>
+</section>
+<section id="user-config">
+<h2>User config<a class="headerlink" href="#user-config" title="Link to this heading"></a></h2>
+<p>Open the file <code class="docutils literal notranslate"><span class="pre">config_files/user_config.py</span></code> and make modifications relevant to your system:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">username</span> <span class="o">=</span> <span class="s2">&quot;tmnf_account_username&quot;</span>  <span class="c1"># Username of the TMNF account</span>
+
+<span class="c1"># Path where Python_Link.as should be placed so that it can be loaded in TMInterface.</span>
+<span class="c1"># Usually Path(os.path.expanduser(&quot;~&quot;)) / &quot;Documents&quot; / &quot;TMInterface&quot; / &quot;Plugins&quot; / &quot;Python_Link.as&quot;</span>
+<span class="n">target_python_link_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">))</span> <span class="o">/</span> <span class="s2">&quot;Documents&quot;</span> <span class="o">/</span> <span class="s2">&quot;TMInterface&quot;</span> <span class="o">/</span> <span class="s2">&quot;Plugins&quot;</span> <span class="o">/</span> <span class="s2">&quot;Python_Link.as&quot;</span>
+
+<span class="c1"># Typically path(os.path.expanduser(&quot;~&quot;)) / &quot;Documents&quot; / &quot;TrackMania&quot;</span>
+<span class="n">trackmania_base_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">))</span> <span class="o">/</span> <span class="s2">&quot;Documents&quot;</span> <span class="o">/</span> <span class="s2">&quot;TrackMania&quot;</span>
+
+<span class="c1"># Communication port for the first TMInterface instance that will be launched.</span>
+<span class="c1"># If using multiple instances, the ports used will be base_tmi_port + 1, +2, +3, etc...</span>
+<span class="n">base_tmi_port</span> <span class="o">=</span> <span class="mi">8478</span>
+
+<span class="c1"># If on Linux, path of a shell script that launches the game, with the TMInterface port as first argument</span>
+<span class="n">linux_launch_game_path</span> <span class="o">=</span> <span class="s2">&quot;path_to_be_filled_only_if_on_linux&quot;</span>
+
+<span class="c1"># If on windows, path where TMLoader can be found.</span>
+<span class="c1"># Usually Path(os.path.expanduser(&quot;~&quot;) / &quot;AppData&quot; / &quot;Local&quot; / &quot;TMLoader&quot; / &quot;TMLoader.exe&quot;</span>
+<span class="n">windows_TMLoader_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">))</span> <span class="o">/</span> <span class="s2">&quot;AppData&quot;</span> <span class="o">/</span> <span class="s2">&quot;Local&quot;</span> <span class="o">/</span> <span class="s2">&quot;TMLoader&quot;</span> <span class="o">/</span> <span class="s2">&quot;TMLoader.exe&quot;</span>
+
+<span class="c1"># If on windows, name of the TMLoader profile that with launch TmForever + TMInterface</span>
+<span class="n">windows_TMLoader_profile_name</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Linesight Trackmania AI Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="first_training.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, pb4 and Agade.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

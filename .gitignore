@@ -32,4 +32,3 @@ Nadeo.ini
 *.lnk
 .stignore*
 config_files/config_copy.py
-/docs/build/
