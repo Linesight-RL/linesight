@@ -6,7 +6,7 @@ Prerequisites
 -------------
 
 Linesight requires:
-    - Python >=3.10
+    - Python >=3.10 and <3.12
     - PyTorch >=2.1 (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
     - a Nvidia GPU with CUDA
     - 20 GB RAM

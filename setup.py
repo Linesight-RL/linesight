@@ -13,7 +13,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
     ],
-    python_requires='>=3.10.1',
+    python_requires='>=3.10.0,<3.12.0',
     install_requires=read_requirements('requirements_pip.txt') + read_requirements('requirements_conda.txt'),
     packages=find_packages(include=["trackmania_rl", "config_files"]),
     extras_require={
