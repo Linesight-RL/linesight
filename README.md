@@ -7,7 +7,7 @@
   <strong>[Linesight documentation][doc-link]</strong>
   <br>
   <br>
-  [Discord][discord-link]
+  ![Discord](https://img.shields.io/discord/847108820479770686?style=for-the-badge&logo=discord&logoSize=auto&label=Discord)
 
 </div>
 
