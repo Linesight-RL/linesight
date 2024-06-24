@@ -7,6 +7,7 @@
   <strong>[Linesight documentation][doc-link]</strong>
   <br>
   <br>
+  [![Discord][doc-badge]][doc-link]
   [![Discord][discord-badge]][discord-link]
 
 </div>
@@ -32,4 +33,5 @@ Now that the project is open-source, can you help make it even stronger?
 [doc-link]: https://linesight-rl.github.io/linesight/build/html/
 [discord-link]:       https://discord.gg/PvWYGkGKqd
 
+[doc-badge]: https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logoSize=small&logo=readthedocs
 [discord-badge]: https://img.shields.io/discord/847108820479770686?style=for-the-badge&logo=discord&logoSize=auto&label=Discord
