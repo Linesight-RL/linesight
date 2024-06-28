@@ -20,6 +20,7 @@ We're excited to open-source our code. Whether you are a Trackmania enthusiast o
    first_training
    second_training
    user_faq
+   troubleshooting
 
 .. toctree::
    :maxdepth: 2

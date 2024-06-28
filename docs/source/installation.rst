@@ -7,8 +7,8 @@ Prerequisites
 
 Linesight requires:
     - Python >=3.10 and <3.12
-    - PyTorch >=2.1 (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
-    - a Nvidia GPU with CUDA
+    - PyTorch >=2.1 with CUDA (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
+    - a Nvidia GPU
     - 20 GB RAM
     - `Trackmania Nations Forever <https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/>`_ with `ModLoader <https://tomashu.dev/software/tmloader/>`_ and `TMInterface 2.1.0 <https://www.donadigo.com/tminterface/>`_.
 
@@ -98,5 +98,5 @@ Open the file ``config_files/user_config.py`` and make modifications relevant to
     # Usually Path(os.path.expanduser("~") / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
     windows_TMLoader_path = Path(os.path.expanduser("~")) / "AppData" / "Local" / "TMLoader" / "TMLoader.exe"
 
-    # If on windows, name of the TMLoader profile that with launch TmForever + TMInterface
+    # If on windows, name of the TMLoader profile that will launch TmForever + TMInterface
     windows_TMLoader_profile_name = "default"
