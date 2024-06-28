@@ -170,7 +170,7 @@ class GameInstanceManager:
         if config_copy.is_linux:
             self.game_spawning_lock.acquire()
             pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
-            os.system(str(config_copy.linux_launch_game_path) + " " + str(self.tmi_port))
+            os.system(str(user_config.linux_launch_game_path) + " " + str(self.tmi_port))
             while True:
                 pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
                 tmi_pid_candidates = set(pid_after) - set(pid_before)
