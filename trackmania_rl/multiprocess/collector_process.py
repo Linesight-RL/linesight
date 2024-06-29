@@ -38,7 +38,7 @@ def collector_process_fn(
         tmi_port=tmi_port,
     )
 
-    inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(config_copy.use_jit)
+    inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(config_copy.use_jit, is_inference=True)
     try:
         inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
     except Exception as e:

@@ -432,7 +432,7 @@ class Inferer:
         )
 
 
-def make_untrained_iqn_network(jit: bool) -> Tuple[torch.nn.Module, torch.nn.Module]:
+def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[torch.nn.Module, torch.nn.Module]:
     """
     Constructs two identical copies of the IQN network.
 
@@ -455,7 +455,7 @@ def make_untrained_iqn_network(jit: bool) -> Tuple[torch.nn.Module, torch.nn.Mod
     )
     if jit:
         if config_copy.is_linux:
-            model = torch.compile(uncompiled_model, dynamic=False)
+            model = torch.compile(uncompiled_model, dynamic=False, mode='max-autotune' if is_inference else 'max-autotune-no-cudagraphs')
         else:
             model = torch.jit.script(uncompiled_model)
     else:

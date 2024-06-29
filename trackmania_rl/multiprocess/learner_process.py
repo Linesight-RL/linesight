@@ -109,8 +109,8 @@ def learner_process_fn(
     # Create new stuff
     # ========================================================
 
-    online_network, uncompiled_online_network = make_untrained_iqn_network(config_copy.use_jit)
-    target_network, _ = make_untrained_iqn_network(config_copy.use_jit)
+    online_network, uncompiled_online_network = make_untrained_iqn_network(config_copy.use_jit, is_inference=False)
+    target_network, _ = make_untrained_iqn_network(config_copy.use_jit, is_inference=False)
 
     print(online_network)
     utilities.count_parameters(online_network)
