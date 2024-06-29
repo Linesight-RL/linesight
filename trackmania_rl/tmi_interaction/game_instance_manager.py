@@ -135,13 +135,13 @@ class GameInstanceManager:
 
         if config_copy.is_linux:
             self.tm_window_id = None
-            for window_id in set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=2)).difference(
-                set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=1))
-            ):
-                if Xdo().get_pid_window(window_id) == self.tm_process_id:
-                    self.tm_window_id = window_id
-                    break
-            assert self.tm_window_id is not None
+            while self.tm_window_id is None:
+                for window_id in set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=2)).difference(
+                    set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=1))
+                ):
+                    if Xdo().get_pid_window(window_id) == self.tm_process_id:
+                        self.tm_window_id = window_id
+                        break
         else:
 
             def get_hwnds_for_pid(pid):
