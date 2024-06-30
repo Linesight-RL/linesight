@@ -37,7 +37,7 @@ Check the Reference Line
 
 This step is optional, but recommended. We want to visualize the reference line to check its position on the map.
 
-Launch a game instance with the argument ``/configstring=set custom_port 8477``.
+Launch a game instance with the argument ``/configstring="set custom_port 8477"``.
 
 Load the map.
 
