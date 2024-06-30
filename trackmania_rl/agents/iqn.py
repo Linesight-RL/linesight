@@ -455,7 +455,8 @@ def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[torch.nn.
     )
     if jit:
         if config_copy.is_linux:
-            model = torch.compile(uncompiled_model, dynamic=False, mode="max-autotune" if is_inference else "max-autotune-no-cudagraphs")
+            compile_mode = None if "rocm" in torch.__version__ else ("max-autotune" if is_inference else "max-autotune-no-cudagraphs")
+            model = torch.compile(uncompiled_model, dynamic=False, mode=compile_mode)
         else:
             model = torch.jit.script(uncompiled_model)
     else:
