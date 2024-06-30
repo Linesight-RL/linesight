@@ -8,11 +8,10 @@ Prerequisites
 Linesight requires:
     - Python >=3.10 and <3.12
     - PyTorch >=2.1 with CUDA (check the `official website <https://pytorch.org/get-started/locally/>`_ for specific instructions)
-    - a Nvidia GPU
     - 20 GB RAM
     - `Trackmania Nations Forever <https://store.steampowered.com/app/11020/TrackMania_Nations_Forever/>`_ with `ModLoader <https://tomashu.dev/software/tmloader/>`_ and `TMInterface 2.1.0 <https://www.donadigo.com/tminterface/>`_.
 
-This project is compatible with Windows and Linux.
+This project is compatible with Windows and Linux. The authors use Nvidia GPUs, but user reports indicate that the project is also compatible with AMD GPUs.
 
 Python project setup
 --------------------
