@@ -129,8 +129,10 @@ def get_checkpoint_positions_from_gbx(map_path: str):
     for block in challenge.blocks:
         if "Checkpoint" in block.name or "Line" in block.name:
             checkpoint_positions.append(np.array(block.position.as_array(), dtype="float"))
-            if "High" in block.name:
+            if "High" in block.name:  # Added for E03
                 checkpoint_positions[-1] += np.array([0, 7 / 8, 0])
+            elif block.name in ["StadiumRoadMainCheckpointRight", "StadiumRoadMainCheckpointLeft"]:  # Added for "exceed my tech"
+                checkpoint_positions[-1] += np.array([0, 5 / 8, 0])
     checkpoint_positions = np.array(checkpoint_positions) * np.array([32, 8, 32]) + np.array((16, 0, 16))
     return checkpoint_positions
 
