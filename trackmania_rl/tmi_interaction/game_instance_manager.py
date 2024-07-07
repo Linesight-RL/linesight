@@ -726,7 +726,6 @@ class GameInstanceManager:
                     self.iface.execute_command(f"set skip_map_load_screens true")
                     self.iface.execute_command(f"set autorewind false")
                     self.iface.execute_command(f"set auto_reload_plugins false")
-                    self.iface.execute_command(f"set skip_map_load_screens true")
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
                         self.request_map(map_path, zone_centers)
