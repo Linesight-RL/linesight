@@ -487,7 +487,6 @@ class GameInstanceManager:
                     if not self.timeout_has_been_set:
                         self.iface.set_timeout(config_copy.timeout_during_run_ms)
                         self.iface.execute_command(f"cam {config_copy.game_camera_number}")
-                        self.iface.execute_command(f"set disable_forced_camera true")
                         self.timeout_has_been_set = True
 
                     if not self.UI_disabled and _time < map_change_requested_time:
@@ -724,6 +723,7 @@ class GameInstanceManager:
                     self.iface.execute_command(f"set autologin {config_copy.username}")
                     self.iface.execute_command(f"set unfocused_fps_limit false")
                     self.iface.execute_command(f"set skip_map_load_screens true")
+                    self.iface.execute_command(f"set disable_forced_camera true")
                     self.iface.execute_command(f"set autorewind false")
                     self.iface.execute_command(f"set auto_reload_plugins false")
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
