@@ -135,13 +135,21 @@ class GameInstanceManager:
 
         if config_copy.is_linux:
             self.tm_window_id = None
-            while self.tm_window_id is None:
-                for window_id in set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=2)).difference(
-                    set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=1))
-                ):
-                    if Xdo().get_pid_window(window_id) == self.tm_process_id:
-                        self.tm_window_id = window_id
+            window_search_depth=1
+            while self.tm_window_id is None: #This outer while is for the edge case where the window may not have had time to be launched
+                while True:#This inner while is to try and find the right depth of the window in Xdo().search_windows()
+                    c1 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth+1))
+                    c2 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth))
+                    c1 = {w_id for w_id in c1 if Xdo().get_pid_window(w_id) == self.tm_process_id}
+                    c2 = {w_id for w_id in c2 if Xdo().get_pid_window(w_id) == self.tm_process_id}
+                    c1_diff_c2 = c1.difference(c2)
+                    if(len(c1_diff_c2)==1):
+                        self.tm_window_id = c1_diff_c2.pop()
                         break
+                    elif (len(c1_diff_c2)==0 and len(c1)>0) or window_search_depth>=10: #10 is an arbitrary cutoff in this search we do not fully understand
+                        print("Warning: Worker could not find the window of the game it just launched, stopped at window_search_depth",window_search_depth)
+                        break
+                    window_search_depth += 1
         else:
 
             def get_hwnds_for_pid(pid):
