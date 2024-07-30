@@ -107,10 +107,10 @@ def hide_PR_replay(map_path, is_hide):
     PR_replay_filename, PR_replay_path = PR_replay_from_map_path(map_path)
     if is_hide:
         if os.path.isfile(PR_replay_path / PR_replay_filename):
-            os.rename(PR_replay_path / PR_replay_filename, PR_replay_path / (PR_replay_filename + ".bak"))
+            os.replace(PR_replay_path / PR_replay_filename, PR_replay_path / (PR_replay_filename + ".bak"))
     else:
         if os.path.isfile(PR_replay_path / PR_replay_filename + ".bak"):
-            os.rename(PR_replay_path / (PR_replay_filename + ".bak"), PR_replay_path / PR_replay_filename)
+            os.replace(PR_replay_path / (PR_replay_filename + ".bak"), PR_replay_path / PR_replay_filename)
 
 
 def get_checkpoint_positions_from_gbx(map_path: str):
