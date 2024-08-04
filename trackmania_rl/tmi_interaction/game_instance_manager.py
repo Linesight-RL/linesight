@@ -135,8 +135,8 @@ class GameInstanceManager:
 
         if config_copy.is_linux:
             self.tm_window_id = None
-            window_search_depth=1
             while self.tm_window_id is None: #This outer while is for the edge case where the window may not have had time to be launched
+                window_search_depth=1
                 while True:#This inner while is to try and find the right depth of the window in Xdo().search_windows()
                     c1 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth+1))
                     c2 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth))
