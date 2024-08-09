@@ -188,7 +188,7 @@ shaped_reward_point_to_vcp_ahead = 0
 threshold_to_save_all_runs_ms = 53700
 
 deck_height = -np.inf
-game_camera_number = 1
+game_camera_number = 2
 
 sync_virtual_and_real_checkpoints = True
 
