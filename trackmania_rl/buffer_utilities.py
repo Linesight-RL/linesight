@@ -220,7 +220,13 @@ class CustomPrioritizedSampler(PrioritizedSampler):
             weight = np.power((len(storage) * self._sum_tree[index] / p_sum), -self._beta)
             return index, {"_weight": weight}
 
-    def update_priority(self, index: Union[int, torch.Tensor], priority: Union[float, torch.Tensor]) -> None:
+    def update_priority(
+            self,
+            index: Union[int, torch.Tensor],
+            priority: Union[float, torch.Tensor],
+            *,
+            storage: None = None,
+    ) -> None:
         """Updates the priority of the data pointed by the index.
 
         Args:
@@ -228,6 +234,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
                 updated.
             priority (Number or torch.Tensor): new priorities of the
                 indexed elements.
+            storage (None): None
 
         """
         if isinstance(index, INT_CLASSES):
