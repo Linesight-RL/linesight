@@ -116,7 +116,7 @@ def hide_PR_replay(map_path, is_hide):
 def get_checkpoint_positions_from_gbx(map_path: str):
     """
     Given a challenge.gbx file, return an unordered list of the checkpoint positions on that track.
-    /!\ Warning: this function assumes that the block size for that map is 32x8x32. This is true for campaign maps, but not for all custom maps.
+    <!> Warning: this function assumes that the block size for that map is 32x8x32. This is true for campaign maps, but not for all custom maps.
     """
     g = Gbx(str(config_copy.trackmania_base_path / "Tracks" / "Challenges" / map_path.strip("'\"").replace("\\", "/")))
 
