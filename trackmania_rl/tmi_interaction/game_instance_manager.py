@@ -345,6 +345,11 @@ class GameInstanceManager:
         map_change_requested_time = math.inf
 
         last_known_simulation_state = None
+        pc = 0
+        pc5 = 0
+        floats = None
+        distance_since_track_begin = 0
+        sim_state_car_gear_and_wheels = None
 
         try:
             while not this_rollout_is_finished:
