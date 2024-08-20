@@ -102,7 +102,6 @@ def update_current_zone_idx(
 class GameInstanceManager:
     def __init__(
         self,
-        base_dir,
         game_spawning_lock,
         running_speed=1,
         run_steps_per_action=10,
