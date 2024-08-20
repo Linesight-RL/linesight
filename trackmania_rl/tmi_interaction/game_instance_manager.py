@@ -143,7 +143,7 @@ class GameInstanceManager:
                     c1 = {w_id for w_id in c1 if Xdo().get_pid_window(w_id) == self.tm_process_id}
                     c2 = {w_id for w_id in c2 if Xdo().get_pid_window(w_id) == self.tm_process_id}
                     c1_diff_c2 = c1.difference(c2)
-                    if(len(c1_diff_c2)==1):
+                    if len(c1_diff_c2)==1:
                         self.tm_window_id = c1_diff_c2.pop()
                         break
                     elif (len(c1_diff_c2)==0 and len(c1)>0) or window_search_depth>=10: #10 is an arbitrary cutoff in this search we do not fully understand
