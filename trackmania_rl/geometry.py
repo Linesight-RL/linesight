@@ -28,9 +28,7 @@ def fraction_time_spent_in_current_zone(
     # Output : the intersection point between the line and the plane
     planeNormal = next_zone_center - current_zone_center
     si = -planeNormal.dot(current_pos - (next_zone_center + current_zone_center) / 2) / planeNormal.dot(next_pos - current_pos)
-    return 0 if si < 0 else (1 if si > 1 else si)
-    # assert 0 <= si <= 1, si
-    # return si
+    return max(0, min(1, si))
 
 
 def extract_cp_distance_interval(raw_position_list: List, target_distance_between_cp_m: float, base_dir: Path):
