@@ -5,7 +5,6 @@ The class is designed to (mostly) reproduce the original Python client provided 
 (https://github.com/donadigo/TMInterfaceClientPython/blob/ce73dd80c33a9e7b48e9601256e94d8a6bf15a92/tminterface/interface.py)
 """
 
-
 import signal
 import socket
 import struct
@@ -50,7 +49,6 @@ class TMInterface:
 
     def __init__(self, port: int):
         self.port = port
-        pass
 
     def close(self):
         self.sock.sendall(struct.pack("i", MessageType.C_SHUTDOWN))
