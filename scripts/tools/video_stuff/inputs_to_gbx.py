@@ -120,7 +120,7 @@ def close_game(tm_process_id):
 
 
 def request_map(iface, map_path):
-    map_loader.hide_PR_replay(map_path, True)
+    map_loader.hide_personal_record_replay(map_path, True)
     iface.execute_command(f'map "{map_path}"')
 
 
@@ -147,7 +147,7 @@ def main():
         os.mkdir(outputs_folder)
     input_files = [f for f in os.listdir(args.inputs_dir) if os.path.isfile(os.path.join(args.inputs_dir, f))]
     input_files = [f for f in input_files if not os.path.isfile(os.path.join(outputs_folder, f[: f.rfind(".")] + ".Replay.Gbx"))]
-    pr_replay_filename, pr_replay_path = map_loader.PR_replay_from_map_path(args.map_path)
+    pr_replay_filename, pr_replay_path = map_loader.replay_personal_record(args.map_path)
 
     tm_process_id, tm_window_id = launch_game(args.tmi_port)
     signal.signal(signal.SIGINT, lambda: signal_handler(tm_process_id))
@@ -256,7 +256,7 @@ def main():
                 iface.execute_command(f"set countdown_speed " + str(run_speed))
                 iface.execute_command(f"set temp_save_states_collect false")
                 iface.execute_command(f"set skip_map_load_screens true")
-                map_loader.hide_PR_replay(args.map_path, True)
+                map_loader.hide_personal_record_replay(args.map_path, True)
                 if not map_loaded:
                     request_map(iface, args.map_path)
                     map_loaded = True

@@ -260,7 +260,7 @@ class GameInstanceManager:
             map_path = map_path.replace("\\", "/")
         else:
             map_path = map_path.replace("/", "\\")
-        map_loader.hide_PR_replay(map_path, True)
+        map_loader.hide_personal_record_replay(map_path, True)
         self.iface.execute_command(f"map {map_path}")
         self.UI_disabled = False
         (
