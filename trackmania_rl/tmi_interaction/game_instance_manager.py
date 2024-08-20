@@ -331,7 +331,7 @@ class GameInstanceManager:
 
             self.request_speed(self.running_speed)
             if self.msgtype_response_to_wakeup_TMI is not None:
-                self.iface._respond_to_call(self.msgtype_response_to_wakeup_TMI)
+                self.iface.respond_to_call(self.msgtype_response_to_wakeup_TMI)
                 self.msgtype_response_to_wakeup_TMI = None
 
         self.last_rollout_crashed = False
@@ -579,7 +579,7 @@ class GameInstanceManager:
                     # END ON RUN STEP
                     # ============================
                     if self.msgtype_response_to_wakeup_TMI is None:
-                        self.iface._respond_to_call(msgtype)
+                        self.iface.respond_to_call(msgtype)
 
                     if _time > 0 and this_rollout_has_seen_t_negative:
                         if _time % 40 == 0:
@@ -667,11 +667,11 @@ class GameInstanceManager:
                     # END ON CP COUNT
                     # ============================
                     if self.msgtype_response_to_wakeup_TMI is None:
-                        self.iface._respond_to_call(msgtype)
+                        self.iface.respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_LAP_COUNT_CHANGED_SYNC):
                     self.iface._read_int32()
                     self.iface._read_int32()
-                    self.iface._respond_to_call(msgtype)
+                    self.iface.respond_to_call(msgtype)
                 elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
                     frame = self.grab_screen()
                     frame_expected = False
@@ -728,7 +728,7 @@ class GameInstanceManager:
                                 self.game_spawning_lock.release()
 
                         instrumentation__request_inputs_and_speed += time.perf_counter_ns() - pc8
-                    self.iface._respond_to_call(msgtype)
+                    self.iface.respond_to_call(msgtype)
                 elif msgtype == int(MessageType.C_SHUTDOWN):
                     self.iface.close()
                 elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
@@ -746,7 +746,7 @@ class GameInstanceManager:
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
                         self.request_map(map_path, zone_centers)
-                    self.iface._respond_to_call(msgtype)
+                    self.iface.respond_to_call(msgtype)
                 else:
                     pass
         except socket.timeout as err:
