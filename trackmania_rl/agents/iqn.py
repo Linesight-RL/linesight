@@ -192,7 +192,7 @@ class Trainer:
         online_network: IQN_Network,
         target_network: IQN_Network,
         optimizer: torch.optim.Optimizer,
-        scaler: torch.cuda.amp.grad_scaler.GradScaler,
+        scaler: torch.amp.GradScaler,
         batch_size: int,
         iqn_n: int,
     ):

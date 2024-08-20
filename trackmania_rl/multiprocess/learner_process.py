@@ -159,7 +159,7 @@ def learner_process_fn(
     )
     # optimizer1 = torch_optimizer.Lookahead(optimizer1, k=5, alpha=0.5)
 
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler("cuda")
     memory_size, memory_size_start_learn = utilities.from_staircase_schedule(
         config_copy.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]
     )
