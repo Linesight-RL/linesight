@@ -4,6 +4,7 @@ In this file, we define:
     - The Trainer class, which implements the IQN training logic in method train_on_batch.
     - The Inferer class, which implements utilities for forward propagation with and without exploration.
 """
+
 import copy
 import math
 import random
@@ -145,6 +146,10 @@ class IQN_Network(torch.nn.Module):
         Q = V + A - A.mean(dim=-1).unsqueeze(-1)
 
         return Q, tau
+
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        return self
 
 
 @torch.compile(disable=not config_copy.is_linux, dynamic=False)
@@ -432,7 +437,7 @@ class Inferer:
         )
 
 
-def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[torch.nn.Module, torch.nn.Module]:
+def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[IQN_Network, IQN_Network]:
     """
     Constructs two identical copies of the IQN network.
 
@@ -462,6 +467,6 @@ def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[torch.nn.
     else:
         model = copy.deepcopy(uncompiled_model)
     return (
-        model.to("cuda", memory_format=torch.channels_last).train(),
-        uncompiled_model.to("cuda", memory_format=torch.channels_last).train(),
+        model.to(device="cuda", memory_format=torch.channels_last).train(),
+        uncompiled_model.to(device="cuda", memory_format=torch.channels_last).train(),
     )
