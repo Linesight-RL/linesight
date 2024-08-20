@@ -115,7 +115,7 @@ def learner_process_fn(
     print(online_network)
     utilities.count_parameters(online_network)
 
-    accumulated_stats: defaultdict[str | typing.Any] = defaultdict(int)
+    accumulated_stats: defaultdict[str, typing.Any] = defaultdict(int)
     accumulated_stats["alltime_min_ms"] = {}
     accumulated_stats["rolling_mean_ms"] = {}
     previous_alltime_min = None
