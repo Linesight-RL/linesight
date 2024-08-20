@@ -448,7 +448,7 @@ def learner_process_fn(
                 single_reset_flag = config_copy.single_reset_flag
                 accumulated_stats["cumul_number_single_memories_should_have_been_used"] += config_copy.additional_transition_after_reset
 
-                untrained_iqn_network = make_untrained_iqn_network(config_copy.use_jit)
+                _, untrained_iqn_network = make_untrained_iqn_network(config_copy.use_jit)
                 utilities.soft_copy_param(online_network, untrained_iqn_network, config_copy.overall_reset_mul_factor)
 
                 with torch.no_grad():
