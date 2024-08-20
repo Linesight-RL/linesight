@@ -54,7 +54,7 @@ def soft_copy_param(target_link, source_link, tau):
     for k, target_value in target_dict.items():
         source_value = source_dict[k]
         if source_value.dtype in [torch.float32, torch.float64, torch.float16]:
-            target_value = linear_combination(target_value, source_value, tau)
+            linear_combination(target_value, source_value, tau)
         else:
             # Scalar type
             # Some modules such as BN has scalar value `num_batches_tracked`
@@ -156,7 +156,7 @@ def save_run(
     run_to_video.write_actions_in_tmi_format(rollout_results["actions"], run_dir / inputs_filename)
     if not inputs_only:
         shutil.copy(base_dir / "config_files" / "config_copy.py", run_dir / "config.bak.py")
-        joblib.dump(rollout_results["q_values"], run_dir / f"q_values.joblib")
+        joblib.dump(rollout_results["q_values"], run_dir / "q_values.joblib")
 
 
 def save_checkpoint(
