@@ -126,8 +126,8 @@ def learner_process_fn(
     # ========================================================
     # noinspection PyBroadException
     try:
-        online_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
-        target_network.load_state_dict(torch.load(save_dir / "weights2.torch"))
+        online_network.load_state_dict(torch.load(f=save_dir / "weights1.torch", weights_only=False))
+        target_network.load_state_dict(torch.load(f=save_dir / "weights2.torch", weights_only=False))
         print(" =====================     Learner weights loaded !     ============================")
     except:
         print(" Learner could not load weights")
@@ -168,8 +168,8 @@ def learner_process_fn(
 
     # noinspection PyBroadException
     try:
-        optimizer1.load_state_dict(torch.load(save_dir / "optimizer1.torch"))
-        scaler.load_state_dict(torch.load(save_dir / "scaler.torch"))
+        optimizer1.load_state_dict(torch.load(f=save_dir / "optimizer1.torch", weights_only=False))
+        scaler.load_state_dict(torch.load(f=save_dir / "scaler.torch", weights_only=False))
         print(" =========================     Optimizer loaded !     ================================")
     except:
         print(" Could not load optimizer")
