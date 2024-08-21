@@ -1,6 +1,7 @@
 """
 This file implements the main training loop, tensorboard statistics tracking, etc...
 """
+
 import copy
 import importlib
 import math
@@ -524,9 +525,9 @@ def learner_process_fn(
                         >= accumulated_stats["cumul_number_single_memories_used_next_target_network_update"]
                     ):
                         accumulated_stats["cumul_number_target_network_updates"] += 1
-                        accumulated_stats[
-                            "cumul_number_single_memories_used_next_target_network_update"
-                        ] += config_copy.number_memories_trained_on_between_target_network_updates
+                        accumulated_stats["cumul_number_single_memories_used_next_target_network_update"] += (
+                            config_copy.number_memories_trained_on_between_target_network_updates
+                        )
                         # print("UPDATE")
                         utilities.soft_copy_param(target_network, online_network, config_copy.soft_update_tau)
             print("", flush=True)

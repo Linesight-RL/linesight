@@ -1,6 +1,7 @@
 """
 This file implements a single multithreaded worker that handles a Trackmania game instance and provides rollout results to the learner process.
 """
+
 import importlib
 import time
 from itertools import chain, count, cycle
