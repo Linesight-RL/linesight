@@ -24,6 +24,7 @@ def collector_process_fn(
     base_dir: Path,
     save_dir: Path,
     tmi_port: int,
+    rng: np.random.Generator,
 ):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
     from trackmania_rl.tmi_interaction import game_instance_manager
@@ -44,7 +45,7 @@ def collector_process_fn(
     except Exception as e:
         print("Worker could not load weights, exception:", e)
 
-    inferer = iqn.Inferer(inference_network, config_copy.iqn_k, config_copy.tau_epsilon_boltzmann)
+    inferer = iqn.Inferer(inference_network, config_copy.iqn_k, config_copy.tau_epsilon_boltzmann, rng)
 
     def update_network():
         # Update weights of the inference network
@@ -67,8 +68,8 @@ def collector_process_fn(
     # ========================================================
     for _ in range(5):
         inferer.infer_network(
-            np.random.randint(low=0, high=255, size=(1, config_copy.H_downsized, config_copy.W_downsized), dtype=np.uint8),
-            np.random.rand(config_copy.float_input_dim).astype(np.float32),
+            rng.integers(low=0, high=255, size=(1, config_copy.H_downsized, config_copy.W_downsized), dtype=np.uint8),
+            rng.random(config_copy.float_input_dim).astype(np.float32),
         )
     # game_instance_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 

@@ -118,6 +118,11 @@ if __name__ == "__main__":
     _, uncompiled_shared_network = make_untrained_iqn_network(jit=config_copy.use_jit, is_inference=False)
     uncompiled_shared_network.share_memory()
 
+    # init random number generator
+    seed = 275328254363729247691611008422666101254
+    # creating the RNG that is passed around. spawn() will create new independent child generators from it
+    rng = np.random.default_rng(seed)
+
     # Start learner process
     learner_process = mp.Process(
         target=learner_process_fn,
@@ -129,6 +134,7 @@ if __name__ == "__main__":
             base_dir,
             save_dir,
             tensorboard_base_dir,
+            rng.spawn(1)[0],
         ),
     )
     learner_process.start()
@@ -148,6 +154,7 @@ if __name__ == "__main__":
                 base_dir,
                 save_dir,
                 config_copy.base_tmi_port + process_number,
+                rng.spawn(1)[0],
             ),
         )
         for rollout_queue, process_number in zip(rollout_queues, range(config_copy.gpu_collectors_count))

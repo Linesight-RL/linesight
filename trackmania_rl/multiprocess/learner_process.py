@@ -29,7 +29,7 @@ from trackmania_rl.analysis_metrics import (
     race_time_left_curves,
     tau_curves,
 )
-from trackmania_rl.buffer_utilities import make_buffers, resize_buffers
+from trackmania_rl.buffer_utilities import BufferUtil
 from trackmania_rl.map_reference_times import reference_times
 
 
@@ -41,6 +41,7 @@ def learner_process_fn(
     base_dir: Path,
     save_dir: Path,
     tensorboard_base_dir: Path,
+    rng: np.random.Generator,
 ):
     layout_version = "lay_mono"
     SummaryWriter(log_dir=str(tensorboard_base_dir / layout_version)).add_custom_scalars(
@@ -163,7 +164,8 @@ def learner_process_fn(
     memory_size, memory_size_start_learn = utilities.from_staircase_schedule(
         config_copy.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]
     )
-    buffer, buffer_test = make_buffers(memory_size)
+    buffer_util = BufferUtil(rng)
+    buffer, buffer_test = buffer_util.make_buffers(memory_size)
     offset_cumul_number_single_memories_used = memory_size_start_learn * config_copy.number_times_single_memory_is_used_before_discard
 
     # noinspection PyBroadException
@@ -202,6 +204,7 @@ def learner_process_fn(
         inference_network=online_network,
         iqn_k=config_copy.iqn_k,
         tau_epsilon_boltzmann=config_copy.tau_epsilon_boltzmann,
+        rng=rng,
     )
 
     while True:  # Trainer loop
@@ -242,7 +245,7 @@ def learner_process_fn(
             accumulated_stats["cumul_number_memories_generated"],
         )
         if new_memory_size != memory_size:
-            buffer, buffer_test = resize_buffers(buffer, buffer_test, new_memory_size)
+            buffer, buffer_test = buffer_util.resize_buffers(buffer, buffer_test, new_memory_size)
             offset_cumul_number_single_memories_used += (
                 new_memory_size_start_learn - memory_size_start_learn
             ) * config_copy.number_times_single_memory_is_used_before_discard

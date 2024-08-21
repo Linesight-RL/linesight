@@ -350,15 +350,17 @@ class Inferer:
         "epsilon_boltzmann",
         "tau_epsilon_boltzmann",
         "is_explo",
+        "_rng",
     )
 
-    def __init__(self, inference_network, iqn_k, tau_epsilon_boltzmann):
+    def __init__(self, inference_network, iqn_k, tau_epsilon_boltzmann, rng: np.random.Generator):
         self.inference_network = inference_network
         self.iqn_k = iqn_k
         self.epsilon = None
         self.epsilon_boltzmann = None
         self.tau_epsilon_boltzmann = tau_epsilon_boltzmann
         self.is_explo = None
+        self._rng = rng
 
     def infer_network(self, img_inputs_uint8: npt.NDArray, float_inputs: npt.NDArray, tau=None) -> npt.NDArray:
         """
@@ -415,9 +417,9 @@ class Inferer:
 
         if self.is_explo and r < self.epsilon:
             # Choose a random action
-            get_argmax_on = np.random.randn(*q_values.shape)
+            get_argmax_on = self._rng.standard_normal(*q_values.shape)
         elif self.is_explo and r < self.epsilon + self.epsilon_boltzmann:
-            get_argmax_on = q_values + self.tau_epsilon_boltzmann * np.random.randn(*q_values.shape)
+            get_argmax_on = q_values + self.tau_epsilon_boltzmann * self._rng.standard_normal(*q_values.shape)
         else:
             get_argmax_on = q_values
 
