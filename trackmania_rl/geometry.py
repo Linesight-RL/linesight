@@ -6,18 +6,18 @@ import numpy.typing as npt
 from scipy.interpolate import make_interp_spline
 
 
-def line_plane_collision_point(planeNormal, planePoint, rayDirection, rayPoint, epsilon=1e-6):
+def line_plane_collision_point(plane_normal, plane_point, ray_direction, ray_point, epsilon=1e-6):
     # https://gist.github.com/TimSC/8c25ca941d614bf48ebba6b473747d72
     # All inputs: 3D numpy arrays. No need for them to be normalized.
     # Output : the intersection point between the line and the plane
-    ndotu = planeNormal.dot(rayDirection)
+    ndotu = plane_normal.dot(ray_direction)
 
     if abs(ndotu) < epsilon:
         raise RuntimeError("no intersection or line is within plane")
 
-    w = rayPoint - planePoint
-    si = -planeNormal.dot(w) / ndotu
-    intersection_point = rayPoint + si * rayDirection
+    w = ray_point - plane_point
+    si = -plane_normal.dot(w) / ndotu
+    intersection_point = ray_point + si * ray_direction
     return intersection_point
 
 
@@ -26,8 +26,8 @@ def fraction_time_spent_in_current_zone(
 ) -> float:
     # All inputs: 3D numpy arrays. No need for them to be normalized.
     # Output : the intersection point between the line and the plane
-    planeNormal = next_zone_center - current_zone_center
-    si = -planeNormal.dot(current_pos - (next_zone_center + current_zone_center) / 2) / planeNormal.dot(next_pos - current_pos)
+    plane_normal = next_zone_center - current_zone_center
+    si = -plane_normal.dot(current_pos - (next_zone_center + current_zone_center) / 2) / plane_normal.dot(next_pos - current_pos)
     return max(0, min(1, si))
 
 
