@@ -30,7 +30,6 @@ def collector_process_fn(
     from trackmania_rl.tmi_interaction import game_instance_manager
 
     tmi = game_instance_manager.GameInstanceManager(
-        base_dir=base_dir,
         game_spawning_lock=game_spawning_lock,
         running_speed=config_copy.running_speed,
         run_steps_per_action=config_copy.tm_engine_step_per_action,
