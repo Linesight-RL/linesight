@@ -135,19 +135,24 @@ class GameInstanceManager:
 
         if config_copy.is_linux:
             self.tm_window_id = None
-            while self.tm_window_id is None: #This outer while is for the edge case where the window may not have had time to be launched
-                window_search_depth=1
-                while True:#This inner while is to try and find the right depth of the window in Xdo().search_windows()
-                    c1 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth+1))
+            while self.tm_window_id is None:  # This outer while is for the edge case where the window may not have had time to be launched
+                window_search_depth = 1
+                while True:  # This inner while is to try and find the right depth of the window in Xdo().search_windows()
+                    c1 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth + 1))
                     c2 = set(Xdo().search_windows(winname=b"TrackMania Modded", max_depth=window_search_depth))
                     c1 = {w_id for w_id in c1 if Xdo().get_pid_window(w_id) == self.tm_process_id}
                     c2 = {w_id for w_id in c2 if Xdo().get_pid_window(w_id) == self.tm_process_id}
                     c1_diff_c2 = c1.difference(c2)
-                    if(len(c1_diff_c2)==1):
+                    if len(c1_diff_c2) == 1:
                         self.tm_window_id = c1_diff_c2.pop()
                         break
-                    elif (len(c1_diff_c2)==0 and len(c1)>0) or window_search_depth>=10: #10 is an arbitrary cutoff in this search we do not fully understand
-                        print("Warning: Worker could not find the window of the game it just launched, stopped at window_search_depth",window_search_depth)
+                    elif (
+                        len(c1_diff_c2) == 0 and len(c1) > 0
+                    ) or window_search_depth >= 10:  # 10 is an arbitrary cutoff in this search we do not fully understand
+                        print(
+                            "Warning: Worker could not find the window of the game it just launched, stopped at window_search_depth",
+                            window_search_depth,
+                        )
                         break
                     window_search_depth += 1
         else:
@@ -729,11 +734,11 @@ class GameInstanceManager:
                     self.iface.set_on_step_period(self.run_steps_per_action * 10)
                     self.iface.execute_command(f"set countdown_speed {self.running_speed}")
                     self.iface.execute_command(f"set autologin {config_copy.username}")
-                    self.iface.execute_command(f"set unfocused_fps_limit false")
-                    self.iface.execute_command(f"set skip_map_load_screens true")
-                    self.iface.execute_command(f"set disable_forced_camera true")
-                    self.iface.execute_command(f"set autorewind false")
-                    self.iface.execute_command(f"set auto_reload_plugins false")
+                    self.iface.execute_command("set unfocused_fps_limit false")
+                    self.iface.execute_command("set skip_map_load_screens true")
+                    self.iface.execute_command("set disable_forced_camera true")
+                    self.iface.execute_command("set autorewind false")
+                    self.iface.execute_command("set auto_reload_plugins false")
                     if self.iface.is_in_menus() and map_path != self.latest_map_path_requested:
                         print("Requested map load")
                         self.request_map(map_path, zone_centers)

@@ -246,7 +246,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
                 self._uninitialized_memories -= 0.5
         else:
             if not (isinstance(priority, float) or len(priority) == 1 or len(index) == len(priority)):
-                raise RuntimeError("priority should be a number or an iterable of the same " "length as index")
+                raise RuntimeError("priority should be a number or an iterable of the same length as index")
             index = _to_numpy(index)
             priority = _to_numpy(priority)
             # We track the _approximate_ number of memories in the buffer that have default priority :
