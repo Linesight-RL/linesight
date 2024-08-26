@@ -3,6 +3,7 @@ This file's main entry point is the function fill_buffer_from_rollout_with_n_ste
 Its main inputs are a rollout_results object (obtained from a GameInstanceManager object), and a buffer to be filled.
 It reassembles the rollout_results object into transitions, as defined in /trackmania_rl/experience_replay/experience_replay_interface.py
 """
+
 import math
 import random
 
@@ -70,7 +71,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             if np.all(rollout_results["state_float"][i][25:29]):
                 # all wheels touch the ground
                 reward_into[i] += engineered_speedslide_reward * max(
-                    0, 1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1)
+                    0.0,
+                    1 - abs(speedslide_quality_tarmac(rollout_results["state_float"][i][56], rollout_results["state_float"][i][58]) - 1),
                 )  # TODO : indices 25:29, 56 and 58 are hardcoded, this is bad....
 
             # lateral speed is higher than 2 meters per second
