@@ -95,22 +95,20 @@ def map_name_from_map_path(map_path):
     return gbx_challenge.map_name
 
 
-def PR_replay_from_map_path(map_path):
-    # PR : Personal Record
-    PR_replay_filename = config_copy.username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx"
-    PR_replay_path = config_copy.trackmania_base_path / "Tracks" / "Replays" / "Autosaves"
-    return PR_replay_filename, PR_replay_path
+def replay_personal_record(map_path):
+    filename = config_copy.username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx"
+    filepath = config_copy.trackmania_base_path / "Tracks" / "Replays" / "Autosaves"
+    return filename, filepath
 
 
-def hide_PR_replay(map_path, is_hide):
-    # PR : Personal Record
-    PR_replay_filename, PR_replay_path = PR_replay_from_map_path(map_path)
+def hide_personal_record_replay(map_path, is_hide):
+    filename, filepath = replay_personal_record(map_path)
     if is_hide:
-        if os.path.isfile(PR_replay_path / PR_replay_filename):
-            os.replace(PR_replay_path / PR_replay_filename, PR_replay_path / (PR_replay_filename + ".bak"))
+        if os.path.isfile(filepath / filename):
+            os.replace(filepath / filename, filepath / (filename + ".bak"))
     else:
-        if os.path.isfile(PR_replay_path / PR_replay_filename + ".bak"):
-            os.replace(PR_replay_path / (PR_replay_filename + ".bak"), PR_replay_path / PR_replay_filename)
+        if os.path.isfile(filepath / filename + ".bak"):
+            os.replace(filepath / (filename + ".bak"), filepath / filename)
 
 
 def get_checkpoint_positions_from_gbx(map_path: str):
