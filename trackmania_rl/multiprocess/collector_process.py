@@ -1,6 +1,7 @@
 """
 This file implements a single multithreaded worker that handles a Trackmania game instance and provides rollout results to the learner process.
 """
+
 import importlib
 import time
 from itertools import chain, count, cycle
@@ -40,7 +41,7 @@ def collector_process_fn(
 
     inference_network, uncompiled_inference_network = iqn.make_untrained_iqn_network(config_copy.use_jit, is_inference=True)
     try:
-        inference_network.load_state_dict(torch.load(save_dir / "weights1.torch"))
+        inference_network.load_state_dict(torch.load(f=save_dir / "weights1.torch", weights_only=False))
     except Exception as e:
         print("Worker could not load weights, exception:", e)
 
