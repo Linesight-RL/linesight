@@ -4,6 +4,7 @@ In this file, we define:
     - The Trainer class, which implements the IQN training logic in method train_on_batch.
     - The Inferer class, which implements utilities for forward propagation with and without exploration.
 """
+
 import copy
 import math
 import random
@@ -192,7 +193,7 @@ class Trainer:
         online_network: IQN_Network,
         target_network: IQN_Network,
         optimizer: torch.optim.Optimizer,
-        scaler: torch.cuda.amp.grad_scaler.GradScaler,
+        scaler: torch.amp.GradScaler,
         batch_size: int,
         iqn_n: int,
     ):
