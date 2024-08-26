@@ -2,6 +2,7 @@
 From a list of replays, create a list of "medal_type": "time" pairs.
 Used to fill in trackmania_rl/map_reference_times.py
 """
+
 from pathlib import Path
 
 from pygbx import Gbx, GbxType

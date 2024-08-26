@@ -7,6 +7,7 @@ The VCP file is saved in base_dir/maps/map.npy. It should typically be renamed m
 
 The distance between virtual checkpoints is currently 50cm (hardcoded).
 """
+
 import argparse
 from pathlib import Path
 

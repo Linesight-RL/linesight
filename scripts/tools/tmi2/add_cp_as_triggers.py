@@ -3,6 +3,7 @@ This script reads a .challenge.gbx file, extracts the checkpoints, and connects 
 
 This script would typically be used to check that the checkpoints are properly read from the .challenge.gbx file.
 """
+
 import argparse
 from pathlib import Path
 

@@ -3,6 +3,7 @@ This script reads a .npy file containing a list of VCP, and connects to a TMInte
 
 This script would typically be used to check that the .npy file contains Virtual CheckPoints (VCP) that are properly placed.
 """
+
 import argparse
 from pathlib import Path
 

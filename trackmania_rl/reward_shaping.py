@@ -1,6 +1,7 @@
 """
 Utility functions for reward shaping.
 """
+
 import numpy as np
 
 

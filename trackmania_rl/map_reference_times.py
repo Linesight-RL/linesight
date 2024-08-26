@@ -1,6 +1,7 @@
 """
 Reference times used to compare the AI's time when logging to tensorboard.
 """
+
 reference_times = {
     "A01": {
         "author": 24.54,

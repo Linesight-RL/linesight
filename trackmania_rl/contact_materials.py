@@ -1,6 +1,7 @@
 """
 List of contact materials defined in the Trackmania game engine.
 """
+
 from enum import Enum
 
 # from Donadigo on TMInterface Discord

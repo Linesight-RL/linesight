@@ -1,6 +1,7 @@
 """
 This is an empty template showing basic interactions with a TMI2 interface with Python.
 """
+
 import argparse
 
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface

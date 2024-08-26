@@ -1,6 +1,7 @@
 """
 Make the input widget overlaid on the map5 and Hockolicious videos.
 """
+
 import subprocess
 import time
 from pathlib import Path

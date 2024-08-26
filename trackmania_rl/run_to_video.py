@@ -3,6 +3,7 @@ This file contains various utilities to:
     - make .inputs file that can be loaded in TMInterface to replay a set of inputs
     - make a video-widget showing the agent's inputs and beliefs (ie: state value and action advantage)
 """
+
 import subprocess
 import tempfile
 from pathlib import Path

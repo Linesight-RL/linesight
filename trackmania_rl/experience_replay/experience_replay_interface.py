@@ -2,6 +2,7 @@
 In this file, we define the Experience type.
 This is used to represent a transition sampled from a ReplayBuffer.
 """
+
 import numpy.typing as npt
 
 
