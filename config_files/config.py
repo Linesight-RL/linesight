@@ -185,7 +185,7 @@ engineered_reward_min_dist_to_cur_vcp = 5
 engineered_reward_max_dist_to_cur_vcp = 25
 shaped_reward_point_to_vcp_ahead = 0
 
-threshold_to_save_all_runs_ms = 53700
+threshold_to_save_all_runs_ms = -1
 
 deck_height = -np.inf
 game_camera_number = 2
