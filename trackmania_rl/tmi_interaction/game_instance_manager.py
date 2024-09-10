@@ -26,7 +26,7 @@ import os
 import socket
 import subprocess
 import time
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import cv2
 import numba
@@ -175,16 +175,25 @@ class GameInstanceManager:
                         return
                 # else:
                 #     raise Exception("Could not find TmForever window id.")
+    
+    def is_tm_process(self, process: psutil.Process) -> bool:
+        try:
+            return process.name().startswith("TmForever")
+        except psutil.NoSuchProcess:
+            return False
+
+    def get_tm_pids(self) -> List[int]:
+        return [process.pid for process in psutil.process_iter() if self.is_tm_process(process)]
 
     def launch_game(self):
         self.tm_process_id = None
 
         if config_copy.is_linux:
             self.game_spawning_lock.acquire()
-            pid_before = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+            pid_before = self.get_tm_pids()
             os.system(str(user_config.linux_launch_game_path) + " " + str(self.tmi_port))
             while True:
-                pid_after = [proc.pid for proc in psutil.process_iter() if proc.name().startswith("TmForever")]
+                pid_after = self.get_tm_pids()
                 tmi_pid_candidates = set(pid_after) - set(pid_before)
                 if len(tmi_pid_candidates) > 0:
                     assert len(tmi_pid_candidates) == 1
