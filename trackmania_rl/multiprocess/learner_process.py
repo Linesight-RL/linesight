@@ -281,10 +281,10 @@ def learner_process_fn(
             param_group["epsilon"] = config_copy.adam_epsilon
             param_group["betas"] = (config_copy.adam_beta1, config_copy.adam_beta2)
 
-        if isinstance(buffer._sampler, PrioritizedSampler):
-            buffer._sampler._alpha = config_copy.prio_alpha
-            buffer._sampler._beta = config_copy.prio_beta
-            buffer._sampler._eps = config_copy.prio_epsilon
+        if isinstance(buffer.sampler, PrioritizedSampler):
+            buffer.sampler._alpha = config_copy.prio_alpha
+            buffer.sampler._beta = config_copy.prio_beta
+            buffer.sampler._eps = config_copy.prio_epsilon
 
         if config_copy.plot_race_time_left_curves and not is_explo and (loop_number // 5) % 17 == 0:
             race_time_left_curves(rollout_results, inferer, save_dir, map_name)
@@ -495,7 +495,7 @@ def learner_process_fn(
                     loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
                     accumulated_stats["cumul_number_single_memories_used"] += (
                         10 * config_copy.batch_size
-                        if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size > 200_000)
+                        if (len(buffer) < buffer.storage.max_size and buffer.storage.max_size > 200_000)
                         else config_copy.batch_size
                     )  # do fewer batches while memory is not full
                     train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
@@ -575,8 +575,8 @@ def learner_process_fn(
                             f"{key}_max": np.max(val),
                         }
                     )
-            if isinstance(buffer._sampler, PrioritizedSampler):
-                all_priorities = np.array([buffer._sampler._sum_tree.at(i) for i in range(len(buffer))])
+            if isinstance(buffer.sampler, PrioritizedSampler):
+                all_priorities = np.array([buffer.sampler.sum_tree.at(i) for i in range(len(buffer))])
                 step_stats.update(
                     {
                         "priorities_min": np.min(all_priorities),
@@ -683,8 +683,8 @@ def learner_process_fn(
             #   BUFFER STATS
             # ===============================================
 
-            mean_in_buffer = np.array([experience.state_float for experience in buffer._storage]).mean(axis=0)
-            std_in_buffer = np.array([experience.state_float for experience in buffer._storage]).std(axis=0)
+            mean_in_buffer = np.array([experience.state_float for experience in buffer.storage]).mean(axis=0)
+            std_in_buffer = np.array([experience.state_float for experience in buffer.storage]).std(axis=0)
 
             print("Raw mean in buffer  :", mean_in_buffer.round(1))
             print("Raw std in buffer   :", std_in_buffer.round(1))
@@ -702,7 +702,7 @@ def learner_process_fn(
             # ===============================================
             #   HIGH PRIORITY TRANSITIONS
             # ===============================================
-            if config_copy.make_highest_prio_figures and isinstance(buffer._sampler, PrioritizedSampler):
+            if config_copy.make_highest_prio_figures and isinstance(buffer.sampler, PrioritizedSampler):
                 highest_prio_transitions(buffer, save_dir)
 
             # ===============================================

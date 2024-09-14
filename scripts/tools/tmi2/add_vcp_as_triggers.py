@@ -42,7 +42,7 @@ def main():
             # ============================
             # END ON RUN STEP
             # ============================
-            iface._respond_to_call(msgtype)
+            iface.respond_to_call(msgtype)
         elif msgtype == int(MessageType.SC_CHECKPOINT_COUNT_CHANGED_SYNC):
             current = iface._read_int32()
             target = iface._read_int32()
@@ -52,12 +52,12 @@ def main():
             # ============================
             # END ON CP COUNT
             # ============================
-            iface._respond_to_call(msgtype)
+            iface.respond_to_call(msgtype)
         elif msgtype == int(MessageType.SC_LAP_COUNT_CHANGED_SYNC):
             iface._read_int32()
-            iface._respond_to_call(msgtype)
+            iface.respond_to_call(msgtype)
         elif msgtype == int(MessageType.SC_REQUESTED_FRAME_SYNC):
-            iface._respond_to_call(msgtype)
+            iface.respond_to_call(msgtype)
         elif msgtype == int(MessageType.C_SHUTDOWN):
             iface.close()
         elif msgtype == int(MessageType.SC_ON_CONNECT_SYNC):
@@ -68,7 +68,7 @@ def main():
                 # print(
                 #     f"add_trigger {vcp[i][0] - 0.4:.2f} {vcp[i][1] - 0.4:.2f} {vcp[i][2] - 0.4:.2f} {vcp[i][0] + 0.4:.2f} {vcp[i][1] + 0.4:.2f} {vcp[i][2] + 0.4:.2f}"
                 # )
-            iface._respond_to_call(msgtype)
+            iface.respond_to_call(msgtype)
         else:
             pass
 

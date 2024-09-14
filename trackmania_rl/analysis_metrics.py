@@ -190,15 +190,15 @@ def highest_prio_transitions(buffer, save_dir):
     shutil.rmtree(save_dir / "high_prio_figures", ignore_errors=True)
     (save_dir / "high_prio_figures").mkdir(parents=True, exist_ok=True)
 
-    prios = [buffer._sampler._sum_tree.at(i) for i in range(len(buffer))]
+    prios = [buffer.sampler.sum_tree.at(i) for i in range(len(buffer))]
 
     for high_error_idx in np.argsort(prios)[-20:]:
         for idx in range(max(0, high_error_idx - 4), min(len(buffer) - 1, high_error_idx + 5)):
             Image.fromarray(
-                np.hstack((buffer._storage[idx].state_img.squeeze(), buffer._storage[idx].next_state_img.squeeze()))
+                np.hstack((buffer.storage[idx].state_img.squeeze(), buffer.storage[idx].next_state_img.squeeze()))
                 .repeat(4, 0)
                 .repeat(4, 1)
-            ).save(save_dir / "high_prio_figures" / f"{high_error_idx}_{idx}_{buffer._storage[idx].n_steps}_{prios[idx]:.2f}.png")
+            ).save(save_dir / "high_prio_figures" / f"{high_error_idx}_{idx}_{buffer.storage[idx].n_steps}_{prios[idx]:.2f}.png")
 
 
 def get_output_and_target_for_batch(batch, online_network, target_network, num_quantiles):
@@ -383,7 +383,7 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
                 np.hstack(
                     (
                         np.expand_dims(
-                            np.hstack((buffer._storage[i].state_img.squeeze(), buffer._storage[i].next_state_img.squeeze()))
+                            np.hstack((buffer.storage[i].state_img.squeeze(), buffer.storage[i].next_state_img.squeeze()))
                             .repeat(4, 0)
                             .repeat(4, 1),
                             axis=-1,
@@ -392,5 +392,5 @@ def distribution_curves(buffer, save_dir, online_network, target_network):
                     )
                 )
             )
-        ).save(save_dir / "distribution_curves" / f"{i}_{buffer._storage[i].n_steps}.png")
+        ).save(save_dir / "distribution_curves" / f"{i}_{buffer.storage[i].n_steps}.png")
         plt.close()
