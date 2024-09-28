@@ -328,13 +328,19 @@ class GameInstanceManager:
             print("Initialize connection to TMInterface ")
             self.iface = TMInterface(self.tmi_port)
 
-            if not self.iface.registered:
-                while True:
-                    try:
-                        self.iface.register(config_copy.tmi_protection_timeout_s)
-                        break
-                    except ConnectionRefusedError as e:
-                        print(e)
+            connection_attempts_start_time = time.perf_counter()
+            last_connection_error_message_time = time.perf_counter()
+            while True:
+                try:
+                    self.iface.register(config_copy.tmi_protection_timeout_s)
+                    break
+                except ConnectionRefusedError as e:
+                    current_time = time.perf_counter()
+                    if current_time - last_connection_error_message_time > 1:
+                        print(
+                            f"Connection to TMInterface unsuccessful for {current_time - connection_attempts_start_time:.1f}s"
+                        )
+                        last_connection_error_message_time = current_time
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed
 
