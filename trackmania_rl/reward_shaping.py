@@ -3,9 +3,11 @@ Utility functions for reward shaping.
 """
 
 import numpy as np
+from numba import jit
 
 
 # largely inspired from https://github.com/TomashuTTTT7/TM-AlgoCrack/blob/main/cracks/speedslide_quality.py, yet also largely simplified
+@jit(nopython=True)
 def speedslide_quality_tarmac(speed_x: float, speed_z: float) -> float:
     """
     Extract from Tomashu's documentation:

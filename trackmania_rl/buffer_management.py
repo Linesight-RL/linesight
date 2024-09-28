@@ -6,6 +6,7 @@ It reassembles the rollout_results object into transitions, as defined in /track
 
 import math
 import random
+from numba import jit
 
 import numpy as np
 from torchrl.data import ReplayBuffer
@@ -14,7 +15,7 @@ from config_files import config_copy
 from trackmania_rl.experience_replay.experience_replay_interface import Experience
 from trackmania_rl.reward_shaping import speedslide_quality_tarmac
 
-
+@jit(nopython=True)
 def get_potential(state_float):
     # https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf
     vector_vcp_to_vcp_further_ahead = state_float[65:68] - state_float[62:65]
@@ -46,7 +47,9 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
     number_memories_added_train = 0
     number_memories_added_test = 0
-    buffer_to_fill = buffer_test if random.random() < config_copy.buffer_test_ratio else buffer
+    Experiences_For_Buffer=[]
+    Experiences_For_Buffer_Test=[]
+    list_to_fill = Experiences_For_Buffer_Test if random.random() < config_copy.buffer_test_ratio else Experiences_For_Buffer
 
     gammas = (gamma ** np.linspace(1, n_steps_max, n_steps_max)).astype(
         np.float32
@@ -90,7 +93,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
         if random.random() < 0.1:
-            buffer_to_fill = buffer_test if random.random() < config_copy.buffer_test_ratio else buffer
+            list_to_fill = Experiences_For_Buffer_Test if random.random() < config_copy.buffer_test_ratio else Experiences_For_Buffer
 
         n_steps = min(n_steps_max, n_frames - 1 - i)
         if discard_non_greedy_actions_in_nsteps:
@@ -123,7 +126,7 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             next_state_float = state_float
             next_state_potential = 0
 
-        buffer_to_fill.add(
+        list_to_fill.append(
             Experience(
                 state_img,
                 state_float,
@@ -136,11 +139,17 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 next_state_potential,
                 gammas,
                 terminal_actions,
-            ),
+            )
         )
-        if buffer_to_fill is buffer:
-            number_memories_added_train += 1
-        else:
-            number_memories_added_test += 1
+    number_memories_added_train += len(Experiences_For_Buffer)
+    if len(Experiences_For_Buffer)>1:
+        buffer.extend(Experiences_For_Buffer)
+    elif len(Experiences_For_Buffer)==1:
+        buffer.add(Experiences_For_Buffer[0])
+    number_memories_added_test += len(Experiences_For_Buffer_Test)
+    if len(Experiences_For_Buffer_Test)>1:
+        buffer_test.extend(Experiences_For_Buffer_Test)
+    elif len(Experiences_For_Buffer_Test)==1:
+        buffer_test.add(Experiences_For_Buffer_Test[0])
 
     return buffer, buffer_test, number_memories_added_train, number_memories_added_test
