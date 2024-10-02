@@ -704,8 +704,9 @@ def learner_process_fn(
             #   BUFFER STATS
             # ===============================================
 
-            mean_in_buffer = np.array([experience.state_float for experience in buffer._storage]).mean(axis=0)
-            std_in_buffer = np.array([experience.state_float for experience in buffer._storage]).std(axis=0)
+            state_floats = np.array([experience.state_float for experience in buffer._storage])
+            mean_in_buffer = state_floats.mean(axis=0)
+            std_in_buffer = state_floats.std(axis=0)
 
             print("Raw mean in buffer  :", mean_in_buffer.round(1))
             print("Raw std in buffer   :", std_in_buffer.round(1))
