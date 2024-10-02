@@ -16,6 +16,7 @@ import joblib
 import numpy as np
 import torch
 from torch import multiprocessing as mp
+from multiprocessing.connection import wait
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data.replay_buffers import PrioritizedSampler
 
@@ -120,7 +121,12 @@ def learner_process_fn(
     accumulated_stats["alltime_min_ms"] = {}
     accumulated_stats["rolling_mean_ms"] = {}
     previous_alltime_min = None
-    time_last_save = time.time()
+    time_last_save = time.perf_counter()
+    queue_check_order = list(range(len(rollout_queues)))
+    rollout_queue_readers = [q._reader for q in rollout_queues]
+    time_waited_for_workers_since_last_tensorboard_write = 0
+    time_training_since_last_tensorboard_write = 0
+    time_testing_since_last_tensorboard_write = 0
 
     # ========================================================
     # Load existing stuff
@@ -206,9 +212,14 @@ def learner_process_fn(
     )
 
     while True:  # Trainer loop
-        i_start = random.randrange(len(rollout_queues))
-        for i in range(i_start, i_start + len(rollout_queues)):
-            if not rollout_queues[i % len(rollout_queues)].empty():
+        before_wait_time = time.perf_counter()
+        wait(rollout_queue_readers)
+        time_waited = time.perf_counter() - before_wait_time
+        if time_waited > 1:
+            print(f"Warning: learner waited {time_waited:.2f} seconds for workers to provide memories")
+        time_waited_for_workers_since_last_tensorboard_write += time_waited
+        for idx in queue_check_order:
+            if not rollout_queues[idx].empty():
                 (
                     rollout_results,
                     end_race_stats,
@@ -218,12 +229,9 @@ def learner_process_fn(
                     map_status,
                     rollout_duration,
                     loop_number,
-                ) = rollout_queues[i % len(rollout_queues)].get()
+                ) = rollout_queues[idx].get()
+                queue_check_order.append(queue_check_order.pop(queue_check_order.index(idx)))
                 break
-        else:
-            print("All rollout queues were empty. Learner sleeps 1 second.")
-            time.sleep(1)
-            continue
 
         importlib.reload(config_copy)
 
@@ -487,18 +495,21 @@ def learner_process_fn(
                 <= accumulated_stats["cumul_number_single_memories_should_have_been_used"]
             ):
                 if (random.random() < config_copy.buffer_test_ratio and len(buffer_test) > 0) or len(buffer) == 0:
+                    test_start_time = time.perf_counter()
                     loss, _ = trainer.train_on_batch(buffer_test, do_learn=False)
+                    time_testing_since_last_tensorboard_write += time.perf_counter() - test_start_time
                     loss_test_history.append(loss)
                     print(f"BT   {loss=:<8.2e}")
                 else:
                     train_start_time = time.perf_counter()
                     loss, grad_norm = trainer.train_on_batch(buffer, do_learn=True)
+                    train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
+                    time_training_since_last_tensorboard_write += train_on_batch_duration_history[-1]
                     accumulated_stats["cumul_number_single_memories_used"] += (
                         10 * config_copy.batch_size
                         if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size > 200_000)
                         else config_copy.batch_size
                     )  # do fewer batches while memory is not full
-                    train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
                     loss_history.append(loss)
                     if not math.isinf(grad_norm):
                         grad_norm_history.append(grad_norm)
@@ -532,9 +543,16 @@ def learner_process_fn(
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY 5 MINUTES
         # ===============================================
-        if time.time() - time_last_save > 5 * 60:
-            accumulated_stats["cumul_training_hours"] += (time.time() - time_last_save) / 3600
-            time_last_save = time.time()
+        if time.perf_counter() - time_last_save > 5 * 60:
+            accumulated_stats["cumul_training_hours"] += (time.perf_counter() - time_last_save) / 3600
+            time_since_last_save = time.perf_counter() - time_last_save
+            waited_percentage = time_waited_for_workers_since_last_tensorboard_write / time_since_last_save
+            trained_percentage = time_training_since_last_tensorboard_write / time_since_last_save
+            tested_percentage = time_testing_since_last_tensorboard_write / time_since_last_save
+            time_waited_for_workers_since_last_tensorboard_write = 0
+            time_training_since_last_tensorboard_write = 0
+            time_testing_since_last_tensorboard_write = 0
+            time_last_save = time.perf_counter()
 
             # ===============================================
             #   COLLECT VARIOUS STATISTICS
@@ -550,6 +568,9 @@ def learner_process_fn(
                 "discard_non_greedy_actions_in_nsteps": config_copy.discard_non_greedy_actions_in_nsteps,
                 "memory_size": len(buffer),
                 "number_times_single_memory_is_used_before_discard": config_copy.number_times_single_memory_is_used_before_discard,
+                "learner_percentage_waiting_for_workers": waited_percentage,
+                "learner_percentage_training": trained_percentage,
+                "learner_percentage_testing": tested_percentage,
             }
             if len(loss_history) > 0 and len(loss_test_history) > 0:
                 step_stats.update(
