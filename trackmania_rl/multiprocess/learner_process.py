@@ -514,7 +514,7 @@ def learner_process_fn(
                     loss_history.append(loss)
                     if not math.isinf(grad_norm):
                         grad_norm_history.append(grad_norm)
-                        utilities.log_gradient_norms(online_network, layer_grad_norm_history) #~1ms overhead per batch
+                        #utilities.log_gradient_norms(online_network, layer_grad_norm_history) #~1ms overhead per batch
 
                     accumulated_stats["cumul_number_batches_done"] += 1
                     print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e} {train_on_batch_duration_history[-1]*1000:<8.1f}")
