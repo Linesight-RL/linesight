@@ -8,6 +8,7 @@ import math
 import random
 import time
 import typing
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -538,7 +539,7 @@ def learner_process_fn(
                         )
                         # print("UPDATE")
                         utilities.soft_copy_param(target_network, online_network, config_copy.soft_update_tau)
-            print("", flush=True)
+            sys.stdout.flush()
 
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY 5 MINUTES
