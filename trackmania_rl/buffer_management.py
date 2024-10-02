@@ -66,12 +66,12 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             rollout_results["meters_advanced_along_centerline"][i] - rollout_results["meters_advanced_along_centerline"][i - 1]
         ) * config_copy.reward_per_m_advanced_along_centerline
         if i < n_frames - 1:
-            if rollout_results["state_float"][i][58] > 0:
+            if config_copy.final_speed_reward_per_m_per_s != 0 and rollout_results["state_float"][i][58] > 0:
                 # car has velocity *forward*
                 reward_into[i] += config_copy.final_speed_reward_per_m_per_s * (
                     np.linalg.norm(rollout_results["state_float"][i][56:59]) - np.linalg.norm(rollout_results["state_float"][i - 1][56:59])
                 )
-            if np.all(rollout_results["state_float"][i][25:29]):
+            if engineered_speedslide_reward != 0 and np.all(rollout_results["state_float"][i][25:29]):
                 # all wheels touch the ground
                 reward_into[i] += engineered_speedslide_reward * max(
                     0.0,
@@ -83,13 +83,13 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 engineered_neoslide_reward if abs(rollout_results["state_float"][i][56]) >= 2.0 else 0
             )  # TODO : 56 is hardcoded, this is bad....
             # kamikaze reward
-            if rollout_results["actions"][i] <= 2 or np.sum(rollout_results["state_float"][i][25:29]) <= 1:
+            if engineered_kamikaze_reward!=0 and rollout_results["actions"][i] <= 2 or np.sum(rollout_results["state_float"][i][25:29]) <= 1:
                 reward_into[i] += engineered_kamikaze_reward
-
-            reward_into[i] += engineered_close_to_vcp_reward * max(
-                config_copy.engineered_reward_min_dist_to_cur_vcp,
-                min(config_copy.engineered_reward_max_dist_to_cur_vcp, np.linalg.norm(rollout_results["state_float"][i][62:65])),
-            )
+            if engineered_close_to_vcp_reward != 0:
+                reward_into[i] += engineered_close_to_vcp_reward * max(
+                    config_copy.engineered_reward_min_dist_to_cur_vcp,
+                    min(config_copy.engineered_reward_max_dist_to_cur_vcp, np.linalg.norm(rollout_results["state_float"][i][62:65])),
+                )
     for i in range(n_frames - 1):  # Loop over all frames that were generated
         # Switch memory buffer sometimes
         if random.random() < 0.1:
