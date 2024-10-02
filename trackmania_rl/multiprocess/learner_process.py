@@ -329,6 +329,7 @@ def learner_process_fn(
             "instrumentation__exploration_policy": end_race_stats["instrumentation__exploration_policy"],
             "instrumentation__request_inputs_and_speed": end_race_stats["instrumentation__request_inputs_and_speed"],
             "tmi_protection_cutoff": end_race_stats["tmi_protection_cutoff"],
+            "worker_time_in_rollout_percentage": rollout_results["worker_time_in_rollout_percentage"],
         }
         print("Race time ratio  ", race_stats_to_write[f"race_time_ratio_{map_name}"])
 

@@ -72,6 +72,7 @@ def collector_process_fn(
         )
     # game_instance_manager.update_current_zone_idx(0, zone_centers, np.zeros(3))
 
+    time_since_last_queue_push = time.perf_counter()
     for loop_number in count(1):
         importlib.reload(config_copy)
 
@@ -112,13 +113,17 @@ def collector_process_fn(
 
         update_network()
 
+        rollout_start_time = time.perf_counter()
         rollout_results, end_race_stats = tmi.rollout(
             exploration_policy=inferer.get_exploration_action,
             map_path=map_path,
             zone_centers=zone_centers,
             update_network=update_network,
         )
-        rollout_duration = time.perf_counter() - rollout_start_time
+        rollout_end_time = time.perf_counter()
+        rollout_duration = rollout_end_time - rollout_start_time
+        rollout_results["worker_time_in_rollout_percentage"]=rollout_duration/(time.perf_counter()-time_since_last_queue_push)
+        time_since_last_queue_push = time.perf_counter()
         print("", flush=True)
 
         if not tmi.last_rollout_crashed:
