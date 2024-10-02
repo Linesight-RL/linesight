@@ -303,6 +303,7 @@ def make_buffers(buffer_size: int) -> tuple[ReplayBuffer, ReplayBuffer]:
         storage=ListStorage(int(buffer_size * config_copy.buffer_test_ratio)),
         batch_size=config_copy.batch_size,
         collate_fn=buffer_collate_function,
+        prefetch=1,
         sampler=CustomPrioritizedSampler(
             buffer_size, config_copy.prio_alpha, config_copy.prio_beta, config_copy.prio_epsilon, torch.float64
         )
