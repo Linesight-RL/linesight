@@ -156,6 +156,7 @@ def learner_process_fn(
         accumulated_stats["rolling_mean_ms"] = {}
 
     accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
+    batches_last_save = accumulated_stats["cumul_number_batches_done"]
     neural_net_reset_counter = 0
     single_reset_flag = config_copy.single_reset_flag
 
@@ -543,7 +544,8 @@ def learner_process_fn(
         # ===============================================
         #   WRITE AGGREGATED STATISTICS TO TENSORBOARD EVERY 5 MINUTES
         # ===============================================
-        if time.perf_counter() - time_last_save > 5 * 60:
+        save_frequency_s = 5 * 60
+        if time.perf_counter() - time_last_save >= save_frequency_s:
             accumulated_stats["cumul_training_hours"] += (time.perf_counter() - time_last_save) / 3600
             time_since_last_save = time.perf_counter() - time_last_save
             waited_percentage = time_waited_for_workers_since_last_tensorboard_write / time_since_last_save
@@ -552,7 +554,9 @@ def learner_process_fn(
             time_waited_for_workers_since_last_tensorboard_write = 0
             time_training_since_last_tensorboard_write = 0
             time_testing_since_last_tensorboard_write = 0
+            batches_per_minute = 60 * (accumulated_stats["cumul_number_batches_done"] - batches_last_save) / time_since_last_save
             time_last_save = time.perf_counter()
+            batches_last_save = accumulated_stats["cumul_number_batches_done"]
 
             # ===============================================
             #   COLLECT VARIOUS STATISTICS
@@ -571,6 +575,7 @@ def learner_process_fn(
                 "learner_percentage_waiting_for_workers": waited_percentage,
                 "learner_percentage_training": trained_percentage,
                 "learner_percentage_testing": tested_percentage,
+                "batches_per_minute": batches_per_minute,
             }
             if len(loss_history) > 0 and len(loss_test_history) > 0:
                 step_stats.update(
