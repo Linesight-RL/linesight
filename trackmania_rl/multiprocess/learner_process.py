@@ -156,7 +156,7 @@ def learner_process_fn(
         accumulated_stats["rolling_mean_ms"] = {}
 
     accumulated_stats["cumul_number_single_memories_should_have_been_used"] = accumulated_stats["cumul_number_single_memories_used"]
-    batches_last_save = accumulated_stats["cumul_number_batches_done"]
+    transitions_learned_last_save = accumulated_stats["cumul_number_single_memories_used"]
     neural_net_reset_counter = 0
     single_reset_flag = config_copy.single_reset_flag
 
@@ -509,7 +509,7 @@ def learner_process_fn(
                     train_on_batch_duration_history.append(time.perf_counter() - train_start_time)
                     time_training_since_last_tensorboard_write += train_on_batch_duration_history[-1]
                     accumulated_stats["cumul_number_single_memories_used"] += (
-                        10 * config_copy.batch_size
+                        4 * config_copy.batch_size
                         if (len(buffer) < buffer._storage.max_size and buffer._storage.max_size > 200_000)
                         else config_copy.batch_size
                     )  # do fewer batches while memory is not full
@@ -554,9 +554,11 @@ def learner_process_fn(
             time_waited_for_workers_since_last_tensorboard_write = 0
             time_training_since_last_tensorboard_write = 0
             time_testing_since_last_tensorboard_write = 0
-            batches_per_minute = 60 * (accumulated_stats["cumul_number_batches_done"] - batches_last_save) / time_since_last_save
+            transitions_learned_per_second = (
+                accumulated_stats["cumul_number_single_memories_used"] - transitions_learned_last_save
+            ) / time_since_last_save
             time_last_save = time.perf_counter()
-            batches_last_save = accumulated_stats["cumul_number_batches_done"]
+            transitions_learned_last_save = accumulated_stats["cumul_number_single_memories_used"]
 
             # ===============================================
             #   COLLECT VARIOUS STATISTICS
@@ -575,7 +577,7 @@ def learner_process_fn(
                 "learner_percentage_waiting_for_workers": waited_percentage,
                 "learner_percentage_training": trained_percentage,
                 "learner_percentage_testing": tested_percentage,
-                "batches_per_minute": batches_per_minute,
+                "transitions_learned_per_second": transitions_learned_per_second,
             }
             if len(loss_history) > 0 and len(loss_test_history) > 0:
                 step_stats.update(
