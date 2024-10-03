@@ -6,18 +6,18 @@ import copy
 import importlib
 import math
 import random
+import sys
 import time
 import typing
-import sys
 from collections import defaultdict
 from datetime import datetime
+from multiprocessing.connection import wait
 from pathlib import Path
 
 import joblib
 import numpy as np
 import torch
 from torch import multiprocessing as mp
-from multiprocessing.connection import wait
 from torch.utils.tensorboard import SummaryWriter
 from torchrl.data.replay_buffers import PrioritizedSampler
 
@@ -516,7 +516,7 @@ def learner_process_fn(
                     loss_history.append(loss)
                     if not math.isinf(grad_norm):
                         grad_norm_history.append(grad_norm)
-                        #utilities.log_gradient_norms(online_network, layer_grad_norm_history) #~1ms overhead per batch
+                        # utilities.log_gradient_norms(online_network, layer_grad_norm_history) #~1ms overhead per batch
 
                     accumulated_stats["cumul_number_batches_done"] += 1
                     print(f"B    {loss=:<8.2e} {grad_norm=:<8.2e} {train_on_batch_duration_history[-1]*1000:<8.1f}")

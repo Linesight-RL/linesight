@@ -5,8 +5,8 @@ This is where the magic of "mini-races" or "clipped horizon average reward" is h
 
 import random
 from copy import deepcopy
-from typing import Any, Dict, Union
 from operator import attrgetter
+from typing import Any, Dict, Union
 
 import numpy as np
 import torch
@@ -28,6 +28,7 @@ to_torch_dtype = {
     np.float64: torch.float32,
 }
 
+
 def fast_collate_cpu(batch, attr_name):
     elem = getattr(batch[0], attr_name)
     elem_array = hasattr(elem, "__len__")
@@ -45,6 +46,7 @@ def send_to_gpu(batch, attr_name):
     return torch.as_tensor(batch).to(
         non_blocking=True, device="cuda", memory_format=torch.channels_last if "img" in attr_name else torch.preserve_format
     )
+
 
 def buffer_collate_function(batch):
     (

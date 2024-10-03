@@ -122,7 +122,7 @@ def collector_process_fn(
         )
         rollout_end_time = time.perf_counter()
         rollout_duration = rollout_end_time - rollout_start_time
-        rollout_results["worker_time_in_rollout_percentage"]=rollout_duration/(time.perf_counter()-time_since_last_queue_push)
+        rollout_results["worker_time_in_rollout_percentage"] = rollout_duration / (time.perf_counter() - time_since_last_queue_push)
         time_since_last_queue_push = time.perf_counter()
         print("", flush=True)
 

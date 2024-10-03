@@ -39,7 +39,8 @@ def init_normal(layer, mean, std):
     torch.nn.init.normal_(layer.weight, mean=mean, std=std)
     torch.nn.init.zeros_(layer.bias)
 
-def log_gradient_norms(model,layer_grad_norm_history):
+
+def log_gradient_norms(model, layer_grad_norm_history):
     l2_norms = []
     linf_norms = []
     param_names = []
@@ -53,7 +54,7 @@ def log_gradient_norms(model,layer_grad_norm_history):
     l2_norms_cpu = torch.stack(l2_norms).cpu().numpy()
     linf_norms_cpu = torch.stack(linf_norms).cpu().numpy()
 
-    for name, l2_norm, linf_norm in zip(param_names,l2_norms_cpu,linf_norms_cpu):
+    for name, l2_norm, linf_norm in zip(param_names, l2_norms_cpu, linf_norms_cpu):
         layer_grad_norm_history[f"L2_grad_norm_{name}"].append(l2_norm)
         layer_grad_norm_history[f"Linf_grad_norm_{name}"].append(linf_norm)
 

@@ -175,7 +175,7 @@ class GameInstanceManager:
                         return
                 # else:
                 #     raise Exception("Could not find TmForever window id.")
-    
+
     def is_tm_process(self, process: psutil.Process) -> bool:
         try:
             return process.name().startswith("TmForever")
@@ -337,9 +337,7 @@ class GameInstanceManager:
                 except ConnectionRefusedError as e:
                     current_time = time.perf_counter()
                     if current_time - last_connection_error_message_time > 1:
-                        print(
-                            f"Connection to TMInterface unsuccessful for {current_time - connection_attempts_start_time:.1f}s"
-                        )
+                        print(f"Connection to TMInterface unsuccessful for {current_time - connection_attempts_start_time:.1f}s")
                         last_connection_error_message_time = current_time
         else:
             assert self.msgtype_response_to_wakeup_TMI is not None or self.last_rollout_crashed

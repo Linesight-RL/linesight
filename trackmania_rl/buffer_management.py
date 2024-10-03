@@ -6,14 +6,15 @@ It reassembles the rollout_results object into transitions, as defined in /track
 
 import math
 import random
-from numba import jit
 
 import numpy as np
+from numba import jit
 from torchrl.data import ReplayBuffer
 
 from config_files import config_copy
 from trackmania_rl.experience_replay.experience_replay_interface import Experience
 from trackmania_rl.reward_shaping import speedslide_quality_tarmac
+
 
 @jit(nopython=True)
 def get_potential(state_float):
@@ -47,8 +48,8 @@ def fill_buffer_from_rollout_with_n_steps_rule(
 
     number_memories_added_train = 0
     number_memories_added_test = 0
-    Experiences_For_Buffer=[]
-    Experiences_For_Buffer_Test=[]
+    Experiences_For_Buffer = []
+    Experiences_For_Buffer_Test = []
     list_to_fill = Experiences_For_Buffer_Test if random.random() < config_copy.buffer_test_ratio else Experiences_For_Buffer
 
     gammas = (gamma ** np.linspace(1, n_steps_max, n_steps_max)).astype(
@@ -83,7 +84,11 @@ def fill_buffer_from_rollout_with_n_steps_rule(
                 engineered_neoslide_reward if abs(rollout_results["state_float"][i][56]) >= 2.0 else 0
             )  # TODO : 56 is hardcoded, this is bad....
             # kamikaze reward
-            if engineered_kamikaze_reward!=0 and rollout_results["actions"][i] <= 2 or np.sum(rollout_results["state_float"][i][25:29]) <= 1:
+            if (
+                engineered_kamikaze_reward != 0
+                and rollout_results["actions"][i] <= 2
+                or np.sum(rollout_results["state_float"][i][25:29]) <= 1
+            ):
                 reward_into[i] += engineered_kamikaze_reward
             if engineered_close_to_vcp_reward != 0:
                 reward_into[i] += engineered_close_to_vcp_reward * max(
@@ -142,14 +147,14 @@ def fill_buffer_from_rollout_with_n_steps_rule(
             )
         )
     number_memories_added_train += len(Experiences_For_Buffer)
-    if len(Experiences_For_Buffer)>1:
+    if len(Experiences_For_Buffer) > 1:
         buffer.extend(Experiences_For_Buffer)
-    elif len(Experiences_For_Buffer)==1:
+    elif len(Experiences_For_Buffer) == 1:
         buffer.add(Experiences_For_Buffer[0])
     number_memories_added_test += len(Experiences_For_Buffer_Test)
-    if len(Experiences_For_Buffer_Test)>1:
+    if len(Experiences_For_Buffer_Test) > 1:
         buffer_test.extend(Experiences_For_Buffer_Test)
-    elif len(Experiences_For_Buffer_Test)==1:
+    elif len(Experiences_For_Buffer_Test) == 1:
         buffer_test.add(Experiences_For_Buffer_Test[0])
 
     return buffer, buffer_test, number_memories_added_train, number_memories_added_test
