@@ -690,7 +690,7 @@ def learner_process_fn(
                 f"{datetime.now().strftime('%Y/%m/%d, %H:%M:%S')} "
                 + " ".join(
                     [
-                        f"{'**' if v < previous_alltime_min[k] else ''}{k}: {v / 1000:.2f}{'**' if v < previous_alltime_min[k] else ''}"
+                        f"{'**' if v < previous_alltime_min.get(k, 99999999) else ''}{k}: {v / 1000:.2f}{'**' if v < previous_alltime_min.get(k, 99999999) else ''}"
                         for k, v in accumulated_stats["alltime_min_ms"].items()
                     ]
                 ),
