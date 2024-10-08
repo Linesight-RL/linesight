@@ -128,6 +128,8 @@ class GameInstanceManager:
         self.start_states = {}
         self.game_spawning_lock = game_spawning_lock
         self.game_activated = False
+        self.next_real_checkpoint_positions = None
+        self.max_allowable_distance_to_real_checkpoint = None
 
     def get_tm_window_id(self):
         assert self.tm_process_id is not None
