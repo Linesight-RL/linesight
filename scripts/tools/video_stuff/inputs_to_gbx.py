@@ -142,8 +142,9 @@ def main():
     args = parser.parse_args()
     iface = TMInterface(args.tmi_port)
     inputs_folder = args.inputs_dir if args.inputs_dir[0] in ["/", "\\"] else os.path.join(os.getcwd(), args.inputs_dir)
-    inputs_foldername = inputs_folder[inputs_folder.rfind("/" if config.is_linux else "\\") + 1 :]
-    outputs_folder = os.path.join(inputs_folder[: inputs_folder.rfind("/" if config.is_linux else "\\")], inputs_foldername + "_out")
+    inputs_folder = os.path.normpath(inputs_folder)
+    inputs_foldername = os.path.basename(inputs_folder)
+    outputs_folder = os.path.join(os.path.dirname(inputs_folder), inputs_foldername + "_out")
     print("Inputs folder", inputs_folder)
     print("Outputs folder", outputs_folder)
     if not os.path.isdir(outputs_folder):
