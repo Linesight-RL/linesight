@@ -96,7 +96,8 @@ def map_name_from_map_path(map_path):
 
 
 def replay_personal_record(map_path):
-    filename = config_copy.username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx"
+    trackmania_replay_username = config_copy.username if config_copy.is_linux else os.getlogin()
+    filename = trackmania_replay_username + "_" + map_name_from_map_path(map_path) + ".Replay.gbx"
     filepath = config_copy.trackmania_base_path / "Tracks" / "Replays" / "Autosaves"
     return filename, filepath
 

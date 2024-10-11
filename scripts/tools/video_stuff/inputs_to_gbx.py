@@ -12,18 +12,20 @@ import time
 
 import numpy as np
 import psutil
-import pyautogui
 
 from config_files import config
 from trackmania_rl import map_loader
 from trackmania_rl.tmi_interaction.tminterface2 import MessageType, TMInterface
 
 if config.is_linux:
+    import pyautogui as input_lib
     from xdo import Xdo
 else:
+    import pydirectinput as input_lib
     import win32.lib.win32con as win32con
     import win32com.client
     import win32gui
+    import win32process
 
 run_speed = 20
 timeout = 10
@@ -40,7 +42,7 @@ def _set_window_focus(tm_window_id):
 
 def get_tm_window_id(tm_process_id):
     if config.is_linux:
-        tm_window_id = Xdo().search_windows(winname=b"Track", pid=tm_process_id)
+        return Xdo().search_windows(winname=b"Track", pid=tm_process_id)
     else:
 
         def get_hwnds_for_pid(pid):
@@ -58,8 +60,7 @@ def get_tm_window_id(tm_process_id):
         while True:
             for hwnd in get_hwnds_for_pid(tm_process_id):
                 if win32gui.GetWindowText(hwnd).startswith("Track"):
-                    tm_window_id = hwnd
-    return tm_window_id
+                    return hwnd
 
 
 def is_game_running(tm_process_id):
@@ -78,30 +79,31 @@ def launch_game(tmi_port):
         assert len(tmi_pid_candidates) == 1
         tm_process_id = list(tmi_pid_candidates)[0]
     else:
-        tmi_process_id = int(
-            subprocess.check_output(
-                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'/configstring=\\"set custom_port '
+        launch_string = (
+                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
+                + config.windows_TMLoader_profile_name
+                + '" /configstring=\\"set custom_port '
                 + str(tmi_port)
-                + '\\"\'; echo exit $process.id}" TMInterface.lnk'
+                + '\\"\'; echo exit $process.id}" "'
+                + str(config.windows_TMLoader_path)
+                + '"'
             )
-            .decode()
-            .split("\r\n")[1]
-        )
 
-        print(f"Found {tmi_process_id=}")
-
-        tm_processes = list(
-            filter(
-                lambda s: s.startswith("TmForever"),
-                subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+        tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
+        while tm_process_id is None:
+            tm_processes = list(
+                filter(
+                    lambda s: s.startswith("TmForever"),
+                    subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
+                )
             )
-        )
-        for process in tm_processes:
-            name, parent_id, process_id = process.split()
-            parent_id = int(parent_id)
-            process_id = int(process_id)
-            if parent_id == tmi_process_id:
-                tm_process_id = process_id
+            for process in tm_processes:
+                name, parent_id, process_id = process.split()
+                parent_id = int(parent_id)
+                process_id = int(process_id)
+                if parent_id == tmi_process_id:
+                    tm_process_id = process_id
+                    break
 
     assert tm_process_id is not None
     print(f"Found Trackmania process id: {tm_process_id=}")
@@ -161,9 +163,7 @@ def main():
                     break
                 except ConnectionRefusedError as e:
                     print(e)
-
     reconnect()
-
     def replay_file_ready():
         return os.path.isfile(pr_replay_path / pr_replay_filename)
 
@@ -173,12 +173,12 @@ def main():
     console_open = True
     map_loaded = False
     current_input_idx = 0
-    pyautogui.PAUSE = 0  # 0.0001
+    input_lib.PAUSE = 0  # 0.0001
     last_enter_press = time.perf_counter()
 
     def press_enter(N_presses=1):
         # print("enter")
-        pyautogui.press("enter", presses=N_presses)
+        input_lib.press("enter", presses=N_presses)
         Last_Enter_Press = time.perf_counter()
 
     start_time = time.perf_counter()
