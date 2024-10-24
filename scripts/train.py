@@ -118,23 +118,6 @@ if __name__ == "__main__":
     _, uncompiled_shared_network = make_untrained_iqn_network(jit=config_copy.use_jit, is_inference=False)
     uncompiled_shared_network.share_memory()
 
-    # Start learner process
-    learner_process = mp.Process(
-        target=learner_process_fn,
-        args=(
-            rollout_queues,
-            uncompiled_shared_network,
-            shared_network_lock,
-            shared_steps,
-            base_dir,
-            save_dir,
-            tensorboard_base_dir,
-        ),
-    )
-    learner_process.start()
-
-    time.sleep(1)
-
     # Start worker process
     collector_processes = [
         mp.Process(
@@ -155,6 +138,8 @@ if __name__ == "__main__":
     for collector_process in collector_processes:
         collector_process.start()
 
+    # Start learner process
+    learner_process_fn(rollout_queues,uncompiled_shared_network,shared_network_lock,shared_steps,base_dir,save_dir,tensorboard_base_dir) #Turn main process into learner process instead of starting a new one, this saves 1 CUDA context
+
     for collector_process in collector_processes:
         collector_process.join()
-    learner_process.join()
