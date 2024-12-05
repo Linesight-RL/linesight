@@ -146,7 +146,7 @@ def learner_process_fn(
     # noinspection PyBroadException
     try:
         accumulated_stats = joblib.load(save_dir / "accumulated_stats.joblib")
-        shared_steps.value = accumulated_stats["cumul_number_memories_generated"]
+        shared_steps.value = accumulated_stats["cumul_number_frames_played"]
         print(" =====================      Learner stats loaded !      ============================")
     except:
         print(" Learner could not load stats")
@@ -162,7 +162,7 @@ def learner_process_fn(
 
     optimizer1 = torch.optim.RAdam(
         online_network.parameters(),
-        lr=utilities.from_exponential_schedule(config_copy.lr_schedule, accumulated_stats["cumul_number_memories_generated"]),
+        lr=utilities.from_exponential_schedule(config_copy.lr_schedule, accumulated_stats["cumul_number_frames_played"]),
         eps=config_copy.adam_epsilon,
         betas=(config_copy.adam_beta1, config_copy.adam_beta2),
     )
@@ -170,7 +170,7 @@ def learner_process_fn(
 
     scaler = torch.amp.GradScaler("cuda")
     memory_size, memory_size_start_learn = utilities.from_staircase_schedule(
-        config_copy.memory_size_schedule, accumulated_stats["cumul_number_memories_generated"]
+        config_copy.memory_size_schedule, accumulated_stats["cumul_number_frames_played"]
     )
     buffer, buffer_test = make_buffers(memory_size)
     offset_cumul_number_single_memories_used = memory_size_start_learn * config_copy.number_times_single_memory_is_used_before_discard
@@ -185,7 +185,7 @@ def learner_process_fn(
 
     tensorboard_suffix = utilities.from_staircase_schedule(
         config_copy.tensorboard_suffix_schedule,
-        accumulated_stats["cumul_number_memories_generated"],
+        accumulated_stats["cumul_number_frames_played"],
     )
     tensorboard_writer = SummaryWriter(log_dir=str(tensorboard_base_dir / (config_copy.run_name + tensorboard_suffix)))
 
@@ -239,7 +239,7 @@ def learner_process_fn(
 
         new_tensorboard_suffix = utilities.from_staircase_schedule(
             config_copy.tensorboard_suffix_schedule,
-            accumulated_stats["cumul_number_memories_generated"],
+            accumulated_stats["cumul_number_frames_played"],
         )
         if new_tensorboard_suffix != tensorboard_suffix:
             tensorboard_suffix = new_tensorboard_suffix
@@ -250,7 +250,7 @@ def learner_process_fn(
             new_memory_size_start_learn,
         ) = utilities.from_staircase_schedule(
             config_copy.memory_size_schedule,
-            accumulated_stats["cumul_number_memories_generated"],
+            accumulated_stats["cumul_number_frames_played"],
         )
         if new_memory_size != memory_size:
             buffer, buffer_test = resize_buffers(buffer, buffer_test, new_memory_size)
@@ -264,23 +264,23 @@ def learner_process_fn(
         # ===============================================
 
         # LR and weight_decay calculation
-        learning_rate = utilities.from_exponential_schedule(config_copy.lr_schedule, accumulated_stats["cumul_number_memories_generated"])
+        learning_rate = utilities.from_exponential_schedule(config_copy.lr_schedule, accumulated_stats["cumul_number_frames_played"])
         weight_decay = config_copy.weight_decay_lr_ratio * learning_rate
         engineered_speedslide_reward = utilities.from_linear_schedule(
             config_copy.engineered_speedslide_reward_schedule,
-            accumulated_stats["cumul_number_memories_generated"],
+            accumulated_stats["cumul_number_frames_played"],
         )
         engineered_neoslide_reward = utilities.from_linear_schedule(
             config_copy.engineered_neoslide_reward_schedule,
-            accumulated_stats["cumul_number_memories_generated"],
+            accumulated_stats["cumul_number_frames_played"],
         )
         engineered_kamikaze_reward = utilities.from_linear_schedule(
-            config_copy.engineered_kamikaze_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+            config_copy.engineered_kamikaze_reward_schedule, accumulated_stats["cumul_number_frames_played"]
         )
         engineered_close_to_vcp_reward = utilities.from_linear_schedule(
-            config_copy.engineered_close_to_vcp_reward_schedule, accumulated_stats["cumul_number_memories_generated"]
+            config_copy.engineered_close_to_vcp_reward_schedule, accumulated_stats["cumul_number_frames_played"]
         )
-        gamma = utilities.from_linear_schedule(config_copy.gamma_schedule, accumulated_stats["cumul_number_memories_generated"])
+        gamma = utilities.from_linear_schedule(config_copy.gamma_schedule, accumulated_stats["cumul_number_frames_played"])
 
         # ===============================================
         #   RELOAD
@@ -444,7 +444,7 @@ def learner_process_fn(
             )
 
             accumulated_stats["cumul_number_memories_generated"] += number_memories_added_train + number_memories_added_test
-            shared_steps.value = accumulated_stats["cumul_number_memories_generated"]
+            shared_steps.value = accumulated_stats["cumul_number_frames_played"]
             neural_net_reset_counter += number_memories_added_train
             accumulated_stats["cumul_number_single_memories_should_have_been_used"] += (
                 config_copy.number_times_single_memory_is_used_before_discard * number_memories_added_train
