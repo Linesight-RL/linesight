@@ -260,10 +260,7 @@ class GameInstanceManager:
         self.latest_tm_engine_speed_requested = requested_speed
 
     def request_inputs(self, action_idx: int, rollout_results: Dict):
-        if (
-            len(rollout_results["actions"]) == 0 or rollout_results["actions"][-1] != action_idx
-        ):  # Small performance trick, don't update input_state if it doesn't need to be updated
-            self.iface.set_input_state(**config_copy.inputs[action_idx])
+        self.iface.set_input_state(**config_copy.inputs[action_idx])
 
     def request_map(self, map_path: str, zone_centers: npt.NDArray):
         self.latest_map_path_requested = map_path
