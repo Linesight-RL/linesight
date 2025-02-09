@@ -201,13 +201,11 @@ class GameInstanceManager:
             self.tm_process_id = list(tmi_pid_candidates)[0]
         else:
             launch_string = (
-                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
-                + user_config.windows_TMLoader_profile_name
-                + '" /configstring=\\"set custom_port '
-                + str(self.tmi_port)
-                + '\\"\'; echo exit $process.id}" "'
-                + str(user_config.windows_TMLoader_path)
-                + '"'
+                'powershell -executionPolicy bypass -command "& {'
+                f" $process = start-process -FilePath '{user_config.windows_TMLoader_path}'"
+                ' -PassThru -ArgumentList '
+                f"'run TmForever \"{user_config.windows_TMLoader_profile_name}\" /configstring=\\\"set custom_port {self.tmi_port}\\\"';"
+                ' echo exit $process.id}"'
             )
 
             tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
