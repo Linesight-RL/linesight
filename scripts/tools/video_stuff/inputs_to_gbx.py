@@ -80,14 +80,14 @@ def launch_game(tmi_port):
         tm_process_id = list(tmi_pid_candidates)[0]
     else:
         launch_string = (
-                'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
-                + config.windows_TMLoader_profile_name
-                + '" /configstring=\\"set custom_port '
-                + str(tmi_port)
-                + '\\"\'; echo exit $process.id}" "'
-                + str(config.windows_TMLoader_path)
-                + '"'
-            )
+            'powershell -executionPolicy bypass -command "& {$process = start-process $args[0] -passthru -argumentList \'run TmForever "'
+            + config.windows_TMLoader_profile_name
+            + '" /configstring=\\"set custom_port '
+            + str(tmi_port)
+            + '\\"\'; echo exit $process.id}" "'
+            + str(config.windows_TMLoader_path)
+            + '"'
+        )
 
         tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
         while tm_process_id is None:
@@ -164,7 +164,9 @@ def main():
                     break
                 except ConnectionRefusedError as e:
                     print(e)
+
     reconnect()
+
     def replay_file_ready():
         return os.path.isfile(pr_replay_path / pr_replay_filename)
 

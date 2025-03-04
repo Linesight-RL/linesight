@@ -203,8 +203,8 @@ class GameInstanceManager:
             launch_string = (
                 'powershell -executionPolicy bypass -command "& {'
                 f" $process = start-process -FilePath '{user_config.windows_TMLoader_path}'"
-                ' -PassThru -ArgumentList '
-                f"'run TmForever \"{user_config.windows_TMLoader_profile_name}\" /configstring=\\\"set custom_port {self.tmi_port}\\\"';"
+                " -PassThru -ArgumentList "
+                f'\'run TmForever "{user_config.windows_TMLoader_profile_name}" /configstring=\\"set custom_port {self.tmi_port}\\"\';'
                 ' echo exit $process.id}"'
             )
 
