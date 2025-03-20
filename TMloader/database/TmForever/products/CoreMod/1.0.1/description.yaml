@@ -1,0 +1,5 @@
+executable: CoreMod.dll
+priority: 2000000000
+dependencies:
+  - id: TmForever
+changelog: '- Fix mediatracker track settings looping infinitely'

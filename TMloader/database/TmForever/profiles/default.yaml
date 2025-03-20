@@ -1,0 +1,5 @@
+program:
+  id: TmForever
+mods:
+  - id: TMInterface
+    version: 2.1.0

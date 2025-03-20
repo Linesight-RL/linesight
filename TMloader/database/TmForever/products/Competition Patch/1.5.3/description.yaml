@@ -1,0 +1,6 @@
+executable: TMCompPatch.dll
+priority: -2147483648
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: '- Fixed issues with uploading replays to TMX'

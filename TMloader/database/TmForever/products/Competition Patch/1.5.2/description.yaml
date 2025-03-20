@@ -1,0 +1,8 @@
+executable: TMCompPatch.dll
+priority: -2147483648
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: |-
+  - ModLoader integration
+  - Fixed validating other player's replays on a server would show wrong results

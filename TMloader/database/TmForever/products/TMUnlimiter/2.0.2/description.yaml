@@ -1,0 +1,24 @@
+executable: TMUnlimiter.dll
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: |-
+  - Fixed enums not working correctly with arrays in AngelScript.
+  - Fixed game crash when reading trigger group condition pointing to the AngelScript module.
+  - Fixed game crash when loading a track created in an older version of TMUnlimiter into the track editor with backward compatible custom blocks installed.
+  - Fixed incorrect archivization of embedded blocks that were internally modified by shadow calculation.
+  - Fixed bug in the track editor where older landscape blocks were not updated correctly after deleting a landscape block within the same column.
+  - Fixed game crash when placing a new block on a map with custom blocks after shadow recalculation.
+  - Fixed game crash when using opAssign on arrays with class subtypes in AngelScript.
+  - Fixed game crash in edge case situations when fiddling with block variations or fill mode.
+  - Hide the ``IslandHills`` block from the block hierarchy in the vanilla track version.
+  - Fixed radio status of ``Convert Media Clips`` button in situations where radio was previously active and should not be later.
+  - Fixed loading challenges with old landscape blocks.
+  - Fixed incorrect change of gravity coef and linear fluid friction when respawning from CP or doing a reset via parameter set or AngelScript.
+  - Fixed not working ``onTriggerGroupLeave`` callback.
+  - Fixed not working ``onTriggerGroupCondition`` callback always returning false as function result.
+  - Fixed functions not being bound between modules after script load.
+  - Fixed detection of files with ``.txt`` extension as AngelScript files.
+  - Fixed display of message box when challenge loading fails in multiplayer.
+  - Fixed compatibility issue with tracks created in 2.0.0 using old VehicleCar configuration.
+  - Loaded challenges created with older versions of TMUnlimiter (not those loaded and saved again in TMUnlimiter 2.0) are now scanned for TMUnlimiter modifications and if nothing is found, they are automatically converted to the vanilla track version.

@@ -1,0 +1,8 @@
+executable: TMInterface.dll
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: |-
+  This release brings back Discord support and provides various bug fixes and QoL improvements.
+  
+  Full changelog on the homepage.

@@ -1,0 +1,5 @@
+executable: TMUnlimiter.dll
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: '- Fixed game crash related to AngelScript compatibility mode.'

@@ -1,0 +1,12 @@
+executable: TMInterface.dll
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: |-
+  - ModLoader integration
+  - New Input Editor
+  - New relative timestamp format
+  - New Angelscript APIs
+  - Many bugfixes
+  
+  Full changelog on the homepage.

@@ -1,0 +1,8 @@
+executable: TmForever.exe
+dependencies:
+  - id: CoreMod
+changelog: |-
+  - Added modding support
+  - Increased RAM limit to 4GB
+  - Changed icon
+  - Improve security by enabling ASLR (but breaks old modifications)

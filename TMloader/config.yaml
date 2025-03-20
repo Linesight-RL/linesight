@@ -1,0 +1,17 @@
+version: 1.0.1
+portable: false
+database: ./database
+auto_update: after
+auto_upgrade: after
+ui:
+  layout: default
+  style: dark
+default_game: TmForever
+default_profiles:
+  TmForever: default
+masterserver: 'https://modloader.tomashu.dev/modloader/v1/'
+servers:
+  - 'https://modloader.tomashu.dev/modloader/TmForever/v1/'
+  - 'https://tomashu.pages.dev/modloader/TmForever/v1/'
+  - 'https://unlimiter.net/modloader/'
+  - 'https://donadigo.com/modloader/'

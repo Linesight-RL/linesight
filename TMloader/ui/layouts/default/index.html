@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" window-icon="icon.png" window-resizable="true" window-frame="extended">
+
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style src="index.css"></style>
+  <title>TrackMania ModLoader</title>
+  <script type="module" src="index.jsx"/>
+</head>
+
+<body>
+  <div class="window-header">
+    <picture src="icon.png" role="window-icon"/>
+    <div class="window-caption" role="window-caption">TrackMania ModLoader</div>
+    <div class="window-buttons">
+      <button class="window-button"           role="window-refresh"  title="Home / Refresh" href="index.html"/>
+      <button class="window-button navbutton" role="window-settings" title="Settings"       id="settings"/>
+      <button class="window-button"           role="window-donate"   title="Donate"         href="https://tomashu.dev/donate/" target="@system"/>
+      <button class="window-button"           role="window-minimize" title="Minimize"/>
+      <button class="window-button"           role="window-maximize" title="Maximize"/>
+      <button class="window-button"           role="window-close"    title="Close"/>
+    </div>
+  </div>
+  <div class="page active" id="_home">
+    <frameset cols="2*,3*,3*,3*">
+      <div class="bar hidden-games">
+        <div class="bar-header">
+          <div class="bar-caption"><b>Games:</b></div>
+        </div>
+        <games id="_games"/>
+      </div>
+      <splitter class="hidden-games"/>
+      <div class="bar">
+        <div class="bar-header">
+          <div class="bar-caption"><b>Profiles:</b></div>
+          <div class="bar-buttons">
+            <button class="bar-button" role="bar-add" title="New profile"/>
+          </div>
+        </div>
+        <profiles id="_profiles"/>
+      </div>
+      <splitter/>
+      <div class="bar">
+        <div class="bar-header">
+          <div class="bar-caption"><b>Products:</b></div>
+        </div>
+        <products id="_products"/>
+      </div>
+      <splitter/>
+      <div class="bar">
+        <div class="bar-header">
+          <div class="bar-caption"><b>Description:</b></div>
+        </div>
+        <description id="_description"/>
+      </div>
+    </frameset>
+    <div class="footer">
+      <log id="_log"/>
+    </div>
+  </div>
+  <div class="page" id="_settings">
+    <frameset cols="*,*">
+      <div class="bar">
+        <div class="bar-header">
+          <div class="bar-caption"><b>Settings:</b></div>
+        </div>
+        <config id="_config"/>
+      </div>
+      <splitter/>
+      <div class="bar">
+        <div class="bar-header">
+          <div class="bar-caption"><b>About:</b></div>
+        </div>
+        <div class="about">
+          <h1 class="text-center">TrackMania ModLoader<br/>v<version/> by Tomashu</h1>
+          <h3>Contact:</h3>
+          <ul>
+            <li>Discord server: </b><a href="https://discord.gg/5mwVZTPN4j" target="@system">https://discord.gg/5mwVZTPN4j</a></li>
+            <li>Mail: </b><a href="mailto:contact+modloader@tomashu.dev" target="@system">contact+modloader@tomashu.dev</a></li>
+          </ul>
+          <h3>Third party licenses:</h3>
+          <ul>
+            <li>This Application uses Sciter Engine <a href="https://sciter.com/" target="@system">https://sciter.com/</a>, copyright Terra Informatica Software, Inc.</li>
+            <li>This Application uses <a href="https://github.com/ntoskrnl7/ext" target="@system">ext</a> under the terms of the <a href="https://github.com/ntoskrnl7/ext?tab=BSD-3-Clause-1-ov-file" target="@system">BSD-3-Clause license</a></li>
+            <li>This Application uses <a href="https://gitlab.com/mariokonrad/semver" target="@system">semver</a> under the terms of the <a href="https://gitlab.com/mariokonrad/semver/-/blob/master/LICENSE.md" target="@system">BSD-3-Clause license</a></li>
+          </ul>
+        </div>
+      </div>
+    </frameset>
+  </div>
+</body>
+
+</html>

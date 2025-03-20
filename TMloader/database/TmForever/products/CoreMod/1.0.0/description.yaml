@@ -1,0 +1,13 @@
+executable: CoreMod.dll
+priority: 2000000000
+dependencies:
+  - id: TmForever
+changelog: |-
+  - Show mods and profile in the title
+  - Fix game freeze with some gamepads (e.g. dualshock 4)
+  - Fix FxColors mediatracker effect not resetting
+  - Fix low quality textures
+  - Fix opening https links in the browser
+  - Fix window resetting size and position when opening file or protocol (only if TmForever is integrated)
+  - Improve security by enabling DEP
+  - Fix security exploit

@@ -1,0 +1,15 @@
+executable: TMUnlimiter.dll
+dependencies:
+  - id: CoreMod
+    version: ^1.0.1
+changelog: |-
+  - Removed 30 second timeout waiting for challenge download.
+  - Added challenge download progress bar with option to disconnect.
+  - Added back option to run custom campaign tracks in official mode.
+  - Fixed broken mediatracker text update in AngelScript.
+  - Fixed AngelScript module update not working, saying that the module is still in use.
+  - Fixed crash when unloading embedded blocks with reused custom textures.
+  - Fixed crash when game tries to render an object without a custom texture assigned to it.
+  - Fixed game crash when attempting to validate replay using action keys.
+  - Fixed incorrect configuration of the ``VehicleCar`` class properties in AngelScript.
+  - Fixed game crash when adding hidden game blocks to the hierarchy while *addon blocks* is installed.
