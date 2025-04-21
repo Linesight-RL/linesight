@@ -72,7 +72,7 @@ def gbx_to_raw_pos_list(gbx_path: Path):
         print("")
         print("------------    Warning: The ghost contains respawns  ---------------")
         print("")
-    records_to_keep = round(ghost.race_time / 100)
+    records_to_keep = round(ghost.race_time / ghost.sample_period)
 
     print(ghost.race_time, f"ghost has {len(ghost.records)} records and {len(ghost.control_entries)} control entries")
     print("Keeping", records_to_keep, "out of", len(ghost.records), "records for a race time of", ghost.race_time / 1000)
