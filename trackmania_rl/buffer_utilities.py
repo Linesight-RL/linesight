@@ -193,6 +193,7 @@ class CustomPrioritizedSampler(PrioritizedSampler):
         self._average_priority = None
         self._default_priority_ratio = default_priority_ratio
         self._uninitialized_memories = 0.0
+        self._sum_tree = None
 
     @property
     def default_priority(self) -> float:

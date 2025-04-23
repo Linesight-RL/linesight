@@ -49,6 +49,7 @@ class TMInterface:
 
     def __init__(self, port: int):
         self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def close(self):
         self.sock.sendall(struct.pack("i", MessageType.C_SHUTDOWN))
@@ -60,7 +61,6 @@ class TMInterface:
         self.close()
 
     def register(self, timeout=None):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         signal.signal(signal.SIGINT, self.signal_handler)
         # https://stackoverflow.com/questions/45864828/msg-waitall-combined-with-so-rcvtimeo
         # https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
