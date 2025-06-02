@@ -92,10 +92,10 @@ def buffer_collate_function(batch):
         - config_copy.oversample_maximum_term_steps
     ).clip(min=0)
 
-    temporal_mini_race_next_time_actions = temporal_mini_race_current_time_actions + n_steps
+    temporal_mini_race_next_time_actions = np.full_like(temporal_mini_race_current_time_actions, config_copy.temporal_mini_race_duration_actions / 2)
 
     state_float[:, 0] = temporal_mini_race_current_time_actions
-    next_state_float[:, 0] = temporal_mini_race_next_time_actions
+    next_state_float[:, 0] = temporal_mini_race_current_time_actions
 
     possibly_reduced_n_steps = n_steps - (temporal_mini_race_next_time_actions - config_copy.temporal_mini_race_duration_actions).clip(
         min=0

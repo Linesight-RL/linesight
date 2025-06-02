@@ -463,7 +463,7 @@ class GameInstanceManager:
 
                     floats = np.hstack(
                         (
-                            0,
+                            config_copy.temporal_mini_race_duration_actions / 2,
                             np.array(
                                 [
                                     previous_action[input_str]

@@ -121,9 +121,7 @@ tensorboard_suffix_schedule = [
     (150_000_000 * global_schedule_speed, "_7"),
 ]
 gamma_schedule = [
-    (0, 0.999),
-    (1_500_000, 0.999),
-    (2_500_000, 1),
+    (0, 0.993),
 ]
 
 batch_size = 512
