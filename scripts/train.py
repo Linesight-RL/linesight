@@ -53,17 +53,14 @@ from config_files import config_copy
 from trackmania_rl.agents.iqn import make_untrained_iqn_network
 from trackmania_rl.multiprocess.collector_process import collector_process_fn
 from trackmania_rl.multiprocess.learner_process import learner_process_fn
+from trackmania_rl.utilities import set_random_seed
 
 # noinspection PyUnresolvedReferences
 torch.backends.cudnn.benchmark = True
 torch.set_num_threads(1)
 torch.set_float32_matmul_precision("high")
 random_seed = 444
-torch.cuda.manual_seed_all(random_seed)
-torch.manual_seed(random_seed)
-random.seed(random_seed)
-np.random.seed(random_seed)
-
+set_random_seed(random_seed)
 
 def signal_handler(sig, frame):
     print("Received SIGINT signal. Killing all open Trackmania instances.")

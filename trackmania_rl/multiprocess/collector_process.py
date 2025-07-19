@@ -14,6 +14,7 @@ from torch import multiprocessing as mp
 from config_files import config_copy
 from trackmania_rl import utilities
 from trackmania_rl.agents import iqn as iqn
+from trackmania_rl.utilities import set_random_seed
 
 
 def collector_process_fn(
@@ -28,6 +29,8 @@ def collector_process_fn(
 ):
     from trackmania_rl.map_loader import analyze_map_cycle, load_next_map_zone_centers
     from trackmania_rl.tmi_interaction import game_instance_manager
+
+    set_random_seed(process_number)
 
     tmi = game_instance_manager.GameInstanceManager(
         game_spawning_lock=game_spawning_lock,

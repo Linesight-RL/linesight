@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from typing import List, Tuple
 
+import random
 import joblib
 import numpy as np
 import torch
@@ -191,3 +192,9 @@ def save_checkpoint(
     torch.save(target_network.state_dict(), checkpoint_dir / "weights2.torch")
     torch.save(optimizer.state_dict(), checkpoint_dir / "optimizer1.torch")
     torch.save(scaler.state_dict(), checkpoint_dir / "scaler.torch")
+
+def set_random_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
