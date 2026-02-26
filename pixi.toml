@@ -1,0 +1,50 @@
+[workspace]
+name = "linesight"
+version = "0.1.0" # You can specify your project version
+description = "Trackmania AI with reinforcement learning."
+license = "MIT"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "win-64"]
+
+[environments]
+default = { features = ["doc"], solve-group = "default" }
+
+[dependencies]
+# Conda dependencies from requirements_conda.txt
+numpy = "==1.26.4"
+matplotlib = "*"
+joblib = "*"
+psutil = "*"
+setuptools = "*"
+typing = "*"
+numba = "*"
+tensorboard = "*"
+scipy = "*"
+prettytable = "*"
+ruff = "*"
+python = ">=3.10.0,<3.12.0"
+
+[pypi-dependencies]
+# Pip dependencies from requirements_pip.txt
+opencv-python = "*"
+readwritememory = "*"
+tminterface = "*"
+torchrl = { git = "https://github.com/pytorch/rl", tag = "v0.2.1" }
+tensordict = {git = "https://github.com/pytorch/tensordict", tag = "v0.2.1"}
+pygbx = "*"
+art = "*"
+torch = "*"
+torchvision = "*"
+python-libxdo = "*"
+python-lzo = "*"
+linesight = { path = ".", editable = true }
+
+# --- Platform Specific Dependencies ---
+[target.win-64.pypi-dependencies]
+pywin32 = "*"
+
+# --- Optional Dependencies / Features ---
+[feature.doc.pypi-dependencies]
+sphinx = "*"
+sphinx_rtd_theme = "*"
+sphinxcontrib-youtube = "*"
