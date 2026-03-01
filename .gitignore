@@ -33,3 +33,7 @@ Nadeo.ini
 .stignore*
 config_files/config_copy.py
 !pixi.toml
+/scripts/nogit/
+/config_files/user_config_pb_linux.py
+pixi.lock
+
