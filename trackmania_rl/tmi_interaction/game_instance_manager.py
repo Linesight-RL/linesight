@@ -210,12 +210,18 @@ class GameInstanceManager:
 
             tmi_process_id = int(subprocess.check_output(launch_string).decode().split("\r\n")[1])
             while self.tm_process_id is None:
-                tm_processes = list(
-                    filter(
-                        lambda s: s.startswith("TmForever"),
-                        subprocess.check_output("wmic process get Caption,ParentProcessId,ProcessId").decode().split("\r\n"),
-                    )
+                output = subprocess.check_output(
+                    [
+                        "powershell",
+                        "-Command",
+                        "Get-CimInstance Win32_Process | "
+                        "Where-Object {$_.Name -eq 'TmForever.exe'} | "
+                        "ForEach-Object { \"$($_.Name) $($_.ParentProcessId) $($_.ProcessId)\" }"
+                    ],
+                    text=True,
                 )
+
+                tm_processes = output.strip().splitlines()
                 for process in tm_processes:
                     name, parent_id, process_id = process.split()
                     parent_id = int(parent_id)
