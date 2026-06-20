@@ -395,7 +395,7 @@ def learner_process_fn(
             # This is a new alltime_minimum
             accumulated_stats["alltime_min_ms"][map_name] = end_race_stats["race_time"]
             if accumulated_stats["cumul_number_frames_played"] > config_copy.frames_before_save_best_runs:
-                name = f"{map_name}_{end_race_stats['race_time']}"
+                name = f"{map_name}_{end_race_stats['race_time'] // 1000}_{end_race_stats['race_time'] % 1000:03d}"
                 utilities.save_run(
                     base_dir,
                     save_dir / "best_runs" / name,
@@ -412,7 +412,8 @@ def learner_process_fn(
                 )
 
         if end_race_stats["race_time"] < config_copy.threshold_to_save_all_runs_ms:
-            name = f"{map_name}_{end_race_stats['race_time']}_{datetime.now().strftime('%m%d_%H%M%S')}_{accumulated_stats['cumul_number_frames_played']}_{'explo' if is_explo else 'eval'}"
+            race_time_ms = end_race_stats["race_time"]
+            name = f"{map_name}_{race_time_ms // 1000}_{race_time_ms % 1000:03d}_{datetime.now().strftime('%m%d_%H%M%S')}_{accumulated_stats['cumul_number_frames_played']}_{'explo' if is_explo else 'eval'}"
             utilities.save_run(
                 base_dir,
                 save_dir / "good_runs",
