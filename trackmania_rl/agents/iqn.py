@@ -465,7 +465,7 @@ def make_untrained_iqn_network(jit: bool, is_inference: bool) -> Tuple[IQN_Netwo
         else:
             model = torch.jit.script(uncompiled_model)
     else:
-        model = copy.deepcopy(uncompiled_model)
+        model = uncompiled_model  # share parameters with the returned uncompiled model (a deepcopy would decouple trained and shared weights)
     return (
         model.to(device="cuda", memory_format=torch.channels_last).train(),
         uncompiled_model.to(device="cuda", memory_format=torch.channels_last).train(),
